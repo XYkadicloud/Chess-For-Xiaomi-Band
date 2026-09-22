@@ -1,0 +1,40 @@
+<template>
+  <div class="settingsPage">
+    <div class="header"><text class="back" @click="back">‹</text><text class="headerTitle">下棋设置</text></div>
+    <div class="setting" @click="toggleHints"><text class="settingName">走法提示</text><text class="settingValue">{{showHints?'开启':'关闭'}}</text></div>
+    <div class="setting" @click="toggleAuto"><text class="settingName">选中后自动居中</text><text class="settingValue">{{autoCenter?'开启':'关闭'}}</text></div>
+    <div class="setting" @click="toggleConfirm"><text class="settingName">认输前确认</text><text class="settingValue">{{confirmBeforeResign?'开启':'关闭'}}</text></div>
+    <div class="setting" @click="toggleAnimation"><text class="settingName">棋盘动画</text><text class="settingValue">{{animation?'开启':'关闭'}}</text></div>
+    <div class="setting" @click="cycleBoard"><text class="settingName">棋盘大小</text><text class="settingValue">{{boardSize}}</text></div>
+    <text class="footer" @click="back">完成</text>
+  </div>
+</template>
+<style>
+.settingsPage { width:192dp; height:490dp; background-color:#000000; padding:18dp 12dp; flex-direction:column; }
+.header { width:168dp; height:48dp; flex-direction:row; align-items:center; margin-bottom:12dp; }
+.back { color:#FFFFFF; font-size:30dp; width:32dp; text-align:center; }
+.headerTitle { color:#FFFFFF; font-size:22dp; font-weight:bold; }
+.setting { width:168dp; min-height:54dp; border-radius:18dp; background-color:#252828; margin-bottom:8dp; padding:0 14dp; flex-direction:row; align-items:center; justify-content:space-between; }
+.settingName { color:#FFFFFF; font-size:17dp; lines:1; }
+.settingValue { color:#4EA1FF; font-size:15dp; }
+.footer { width:168dp; height:44dp; border-radius:22dp; background-color:#0D6EFF; color:#FFFFFF; text-align:center; line-height:44dp; font-size:18dp; margin-top:12dp; }
+</style>
+<script>
+import router from '@system.router';
+import storage from '@system.storage';
+export default {
+  data:{showHints:true,autoCenter:true,confirmBeforeResign:true,animation:false,boardSize:'标准',loading:false},
+  onInit(){this.load();},
+  onShow(){this.load();},
+  load(){
+    if (this.loading) return;
+    this.loading = true;
+    const done = () => { this.loading = false; };
+    try { storage.get({key:'CHESS_SETTINGS',success:(data)=>{try{const raw=data&&data.data!==undefined?data.data:data;if(raw!==undefined&&raw!==null&&raw!==''){const v=typeof raw==='string'?JSON.parse(raw):raw;this.showHints=v.showHints!==false;this.autoCenter=v.autoCenter!==false;this.confirmBeforeResign=v.confirmBeforeResign!==false && v.confirmResign!==false;this.animation=v.animation===true;this.boardSize=v.boardSize||'标准';}}catch(e){} done();},fail:done}); } catch (e) { done(); }
+  },
+  save(){try{storage.set({key:'CHESS_SETTINGS',value:JSON.stringify({showHints:this.showHints,autoCenter:this.autoCenter,confirmBeforeResign:this.confirmBeforeResign,animation:this.animation,boardSize:this.boardSize}),fail:()=>{}});}catch(e){}},
+  back(){this.save();router.back();},
+  toggleHints(){this.showHints=!this.showHints;this.save();}, toggleAuto(){this.autoCenter=!this.autoCenter;this.save();}, toggleConfirm(){this.confirmBeforeResign=!this.confirmBeforeResign;this.save();}, toggleAnimation(){this.animation=!this.animation;this.save();},
+  cycleBoard(){this.boardSize=this.boardSize==='标准'?'放大':(this.boardSize==='放大'?'紧凑':'标准');this.save();}
+}
+</script>

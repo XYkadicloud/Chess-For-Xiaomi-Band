@@ -1,0 +1,41 @@
+<template>
+  <div class="home">
+    <div class="homeMark"><image class="homeIcon" src="/common/icon.png"></image></div>
+    <text class="title">Chess</text>
+    <text class="subtitle">单机双人 · Xiaomi Band 9</text>
+    <text class="primary" @touchend="startGame">开始游戏</text>
+    <text class="secondary" @touchend="openHistory">历史棋局</text>
+    <text class="secondary" @touchend="openSettings">下棋设置</text>
+    <text class="secondary exit" @touchend="exitApp">退出应用</text>
+  </div>
+</template>
+<style>
+.home { width:192dp; height:490dp; background-color:#000000; flex-direction:column; align-items:center; padding-top:44dp; }
+.homeMark { width:72dp; height:72dp; border-radius:36dp; background-color:#2D3030; justify-content:center; align-items:center; margin-bottom:12dp; }
+.homeIcon { width:56dp; height:56dp; object-fit:contain; }
+.title { color:#FFFFFF; font-size:24dp; font-weight:bold; line-height:34dp; }
+.subtitle { color:rgba(255,255,255,0.55); font-size:13dp; line-height:22dp; margin-bottom:18dp; }
+.primary,.secondary { width:154dp; height:40dp; border-radius:20dp; text-align:center; line-height:40dp; font-size:16dp; font-weight:bold; margin-bottom:7dp; }
+.primary { background-color:#0D6EFF; color:#FFFFFF; }
+.secondary { background-color:#252828; color:#FFFFFF; }
+.exit { background-color:#2A1B1B; color:#FF8A80; }
+</style>
+<script>
+import router from '@system.router';
+import app from '@system.app';
+export default {
+  data: { navigating: false },
+  onShow() { this.navigating = false; },
+  startGame() {
+    if (this.navigating) return;
+    this.navigating = true;
+    try { router.push({ uri: '/pages/setup' }); }
+    catch (e) { this.navigating = false; try { router.replace({ uri: '/pages/setup' }); } catch (ee) {} }
+  },
+  openHistory() { router.push({ uri: '/pages/history' }); },
+  openSettings() { router.push({ uri: '/pages/settings' }); },
+  exitApp() {
+    try { app.terminate({}); } catch (e) { try { router.clearTask({}); } catch (ee) {} }
+  }
+}
+</script>

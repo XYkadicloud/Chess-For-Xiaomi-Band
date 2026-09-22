@@ -1,0 +1,8 @@
+<template><div class="app"><slot /></div></template>
+<style>.app { width: 192dp; height: 490dp; background-color: #000000; }</style>
+<script>
+export default {
+  onCreate() {},
+  onShow() {}
+}
+</script>

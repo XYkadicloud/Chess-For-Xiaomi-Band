@@ -1,0 +1,23 @@
+<template>
+  <div class="smoke">
+    <text class="title">Chess 启动测试</text>
+    <text class="ok">棋局页面已打开</text>
+    <text class="info">若能看到本页，说明路由和页面 VM 正常。</text>
+    <text class="info">若此页也重启，优先检查真机运行环境。</text>
+    <text class="back" @touchend="back">返回</text>
+  </div>
+</template>
+<style>
+.smoke { width:192dp; height:490dp; background-color:#000; flex-direction:column; align-items:center; justify-content:center; padding:18dp; }
+.title { color:#fff; font-size:20dp; font-weight:bold; margin-bottom:18dp; }
+.ok { color:#4EA1FF; font-size:18dp; margin-bottom:14dp; }
+.info { color:rgba(255,255,255,.7); font-size:13dp; text-align:center; line-height:22dp; width:170dp; }
+.back { width:150dp; height:42dp; margin-top:24dp; border-radius:21dp; background-color:#252828; color:#fff; font-size:16dp; text-align:center; line-height:42dp; }
+</style>
+<script>
+import router from '@system.router';
+export default {
+  private: {},
+  back() { router.back(); }
+}
+</script>

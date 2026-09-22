@@ -1,0 +1,51 @@
+<template>
+  <div class="setup">
+    <div class="head"><text class="back" @touchend="back">‹</text><text class="title">开始对局</text></div>
+    <text class="label">选择每方用时</text>
+    <text class="{{timeControl === '3+0' ? 'time selected' : 'time'}}" @touchend="choose('3+0')">3 分钟 · 快棋</text>
+    <text class="{{timeControl === '5+0' ? 'time selected' : 'time'}}" @touchend="choose('5+0')">5 分钟 · 标准</text>
+    <text class="{{timeControl === '10+0' ? 'time selected' : 'time'}}" @touchend="choose('10+0')">10 分钟 · 休闲</text>
+    <text class="{{timeControl === '15+0' ? 'time selected' : 'time'}}" @touchend="choose('15+0')">15 分钟 · 长局</text>
+    <text class="{{timeControl === '20+0' ? 'time selected' : 'time'}}" @touchend="choose('20+0')">20 分钟 · 耐心</text>
+    <text class="{{timeControl === 'unlimited' ? 'time selected' : 'time'}}" @touchend="choose('unlimited')">无限制时间</text>
+    <text class="selectedText">当前：{{timeControlLabel}}</text>
+    <text class="selectedText">棋盘：{{boardSize}}</text>
+    <text class="start" @touchend="start">开始下棋</text>
+  </div>
+</template>
+<style>
+.setup { width:192dp; height:490dp; background-color:#000; padding:18dp 12dp; flex-direction:column; overflow:hidden; }
+.head { width:168dp; height:42dp; flex-direction:row; align-items:center; margin-bottom:9dp; }
+.back { width:32dp; color:#fff; font-size:30dp; text-align:center; }
+.title { color:#fff; font-size:22dp; font-weight:bold; }
+.label { color:rgba(255,255,255,.65); font-size:15dp; margin-bottom:4dp; }
+.time { width:168dp; height:34dp; border-radius:17dp; background-color:#252828; color:#fff; font-size:15dp; line-height:34dp; text-align:center; margin-bottom:4dp; }
+.selected { background-color:#0D6EFF; }
+.selectedText { color:#4EA1FF; font-size:14dp; text-align:center; margin:5dp 0 0; }
+.start { position:absolute; left:12dp; bottom:14dp; width:168dp; height:44dp; border-radius:22dp; background-color:#0D6EFF; color:#fff; font-size:18dp; line-height:44dp; text-align:center; }
+</style>
+<script>
+import router from '@system.router';
+export default {
+  data: { timeControl:'10+0', boardSize:'标准', navigating:false },
+  computed: { timeControlLabel() { return this.timeControl === 'unlimited' ? '无限制' : this.timeControl; } },
+  onInit() { this.boardSize = '标准'; },
+  onShow() { this.navigating = false; },
+  back() { if (!this.navigating) router.back(); },
+  choose(v) { if (!this.navigating) this.timeControl = v; },
+  start() {
+    if (this.navigating) return;
+    this.navigating = true;
+    const unlimited = this.timeControl === 'unlimited';
+    const minutes = unlimited ? '0' : (this.timeControl.split('+')[0] || '10');
+    const size = this.boardSize === '放大' ? '44' : (this.boardSize === '紧凑' ? '24' : '30');
+    // 不等待 storage 回调，避免部分 Vela 版本回调延迟导致卡在本页。
+    try {
+      router.push({ uri:'/pages/game', params:{ minutes:minutes, unlimited: unlimited ? 'true' : 'false', boardSize:size } });
+    } catch (e) {
+      this.navigating = false;
+      try { router.replace({ uri:'/pages/game', params:{ minutes:minutes, unlimited: unlimited ? 'true' : 'false', boardSize:size } }); } catch (ee) {}
+    }
+  }
+}
+</script>
