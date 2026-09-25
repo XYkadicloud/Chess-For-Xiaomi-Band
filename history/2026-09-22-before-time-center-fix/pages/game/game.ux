@@ -1,0 +1,174 @@
+<template>
+  <div class="page" @swipe="blockSwipe">
+    <div class="topbar">
+      <text class="turn">{{ statusText }}</text>
+      <text class="menuButton" @click="toggleMenu">☰</text>
+    </div>
+    <div class="clocks"><text class="clock" style="color:{{turn==='white'?'#4EA1FF':'#FFFFFF'}};">白 {{whiteClock}}</text><text class="clock" style="color:{{turn==='black'?'#4EA1FF':'#FFFFFF'}};">黑 {{blackClock}}</text></div>
+
+    <div class="boardViewport" @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd">
+      <div class="board" style="width:{{boardSize}}dp;height:{{boardSize}}dp;left:{{boardLeft}}dp;top:{{boardTop}}dp;">
+        <div class="rank" for="{{ranks}}"><text class="coord">{{$item}}</text></div>
+        <div class="square" for="{{squares}}"
+             style="width:{{squareSize}}dp;height:{{squareSize}}dp;left:{{$item.x}}dp;top:{{$item.y}}dp;background-color:{{$item.color}};"
+             @click="tapSquare($item.index)">
+          <image class="pieceImage" if="{{$item.pieceSrc}}" src="{{$item.pieceSrc}}"></image>
+          <div class="selected" if="{{$item.selected}}"></div>
+          <div class="lastMove" if="{{$item.lastMove}}"></div>
+          <div class="legalDot" if="{{$item.legal}}"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint"><text class="hintText">{{hintText}}</text></div>
+    <div class="bottom"><text class="action" @click="undoMove">悔棋</text><text class="action" @click="openMenu">菜单</text></div>
+
+    <div class="overlay" if="{{menuVisible}}">
+      <div class="menuCard">
+        <text class="menuTitle">棋局菜单</text>
+        <text class="menuItem" @click="newGame">新建棋局</text>
+        <text class="menuItem" @click="undoMove">悔棋</text>
+        <text class="menuItem" @click="confirmResign">认输</text>
+        <text class="menuItem" @click="offerDraw">和棋</text>
+        <text class="menuItem" @click="openSettings">设置</text>
+        <text class="menuItem exitItem" @click="exitGame">退出对局</text>
+        <text class="menuItem" @click="closeMenu">返回棋局</text>
+      </div>
+    </div>
+
+    <div class="overlay" if="{{settingsVisible}}">
+      <div class="menuCard resultCard">
+        <text class="menuTitle">下棋设置</text>
+        <text class="menuItem" @click="toggleHints">走法提示：{{showHints ? '开' : '关'}}</text>
+        <text class="menuItem" @click="toggleAutoCenter">自动居中：{{autoCenter ? '开' : '关'}}</text>
+        <text class="menuItem" @click="toggleConfirm">认输确认：{{confirmBeforeResign ? '开' : '关'}}</text>
+        <text class="menuItem" @click="cycleBoardSize">棋盘大小：{{boardSizeLabel}}</text>
+        <text class="menuItem" @click="closeSettings">完成</text>
+      </div>
+    </div>
+
+    <div class="overlay" if="{{resultVisible}}">
+      <div class="menuCard">
+        <text class="menuTitle">{{resultTitle}}</text>
+        <text class="menuItem" @click="newGame">再来一局</text>
+        <text class="menuItem" @click="closeResult">查看棋局</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style>
+.page { width:192dp; height:490dp; background-color:#000000; flex-direction:column; overflow:hidden; }
+.topbar { width:192dp; height:48dp; padding:8dp 12dp 0dp 12dp; flex-direction:row; justify-content:space-between; align-items:center; }
+.turn { color:#FFFFFF; font-size:20dp; font-weight:bold; width:170dp; lines:1; text-overflow:ellipsis; }
+.menuButton { color:#FFFFFF; font-size:21dp; width:24dp; text-align:center; }
+.clocks { width:192dp; height:26dp; flex-direction:row; justify-content:space-around; align-items:center; }
+.clock { font-size:16dp; font-weight:bold; width:82dp; text-align:center; }
+.boardViewport { width:192dp; height:280dp; position:relative; overflow:hidden; background-color:#050505; }
+.board { position:absolute; }
+.square { position:absolute; justify-content:center; align-items:center; }
+.pieceImage { width:78%; height:78%; object-fit:contain; z-index:3; }
+.selected { position:absolute; left:2dp; top:2dp; right:2dp; bottom:2dp; border:3dp solid #0D6EFF; z-index:2; }
+.lastMove { position:absolute; left:0dp; top:0dp; right:0dp; bottom:0dp; background-color:rgba(255,149,0,0.32); z-index:1; }
+.legalDot { width:10dp; height:10dp; border-radius:5dp; background-color:#0D6EFF; position:absolute; z-index:4; }
+.hint { width:192dp; height:46dp; justify-content:center; align-items:center; }
+.hintText { color:rgba(255,255,255,0.7); font-size:16dp; text-align:center; }
+.bottom { width:192dp; height:58dp; justify-content:space-around; align-items:center; }
+.action { color:#FFFFFF; background-color:#262626; border-radius:20dp; padding:8dp 18dp; font-size:16dp; font-weight:bold; }
+.overlay { position:absolute; left:0dp; top:0dp; width:192dp; height:490dp; background-color:rgba(0,0,0,0.92); justify-content:center; align-items:center; z-index:20; }
+.menuCard { width:168dp; padding:14dp 10dp; background-color:#262626; border-radius:22dp; align-items:center; flex-direction:column; }
+.resultCard { padding-top:20dp; padding-bottom:20dp; }
+.menuTitle { color:#FFFFFF; font-size:23dp; font-weight:bold; margin-bottom:10dp; }
+.menuItem { width:142dp; height:38dp; margin-top:6dp; border-radius:19dp; background-color:#3A3A3A; color:#FFFFFF; font-size:16dp; text-align:center; line-height:38dp; }
+.exitItem { background-color:#8D2B2B; }
+.coord { color:rgba(255,255,255,0.25); font-size:10dp; }
+</style>
+
+<script>
+import storage from '@system.storage';
+const WHITE = 'white';
+const BLACK = 'black';
+const GLYPHS = { wK:'K', wQ:'Q', wR:'R', wB:'B', wN:'N', wP:'P', bK:'k', bQ:'q', bR:'r', bB:'b', bN:'n', bP:'p' };
+
+export default {
+  private: {
+    board: [], squares: [], history: [], turn: WHITE, selected: -1, legalMoves: [], lastMove: [],
+    squareSize: 30, boardSize: 240, boardLeft: -22, boardTop: 20, castling: {wK:true,wQ:true,bK:true,bQ:true}, legalCache:{},
+    menuVisible: false, settingsVisible: false, resultVisible: false, gameOver: false,
+    showHints: true, autoCenter: true, confirmBeforeResign: true, whiteSeconds:600, blackSeconds:600, whiteClock:'10:00', blackClock:'10:00', timerId:null, lastTick:0, halfmoveClock:0, positionCounts:{},
+    resultTitle: '', hintText: '点击棋子开始走子', touchX: 0, touchY: 0, pendingTouchX: 0, pendingTouchY: 0, dragging: false, touchQueued: false,
+    ranks: ['8','7','6','5','4','3','2','1']
+  },
+  computed: {
+    statusText() { return this.resultVisible ? '对局结束' : (this.turn === WHITE ? '白方回合' : '黑方回合'); },
+    boardSizeLabel() { return this.squareSize===44?'放大':(this.squareSize===24?'紧凑':'标准'); }
+  },
+  protected: { minutes: '10', boardSize: '30' },
+  onInit() { const parsed=parseInt(String(this.minutes),10); this.initialMinutes=isNaN(parsed)||parsed<1?10:parsed; this.loadSettings(); this.applyBoardSize(this.boardSize||30); this.newPosition(); },
+  onShow(){ this.lastTick=Date.now(); if(!this.gameOver&&!this.resultVisible)this.startClock(); },
+  applyBoardSize(v){const n=parseInt(v,10);this.squareSize=n===44?44:(n===24?24:30);this.boardSize=this.squareSize*8;this.boardLeft=Math.max(this.maxBoardLeft(),Math.min(0,this.boardLeft));this.boardTop=Math.max(this.maxBoardTop(),Math.min(0,this.boardTop));},
+  loadSettings(){ storage.get({key:'CHESS_SETTINGS',success:(data)=>{try{const raw=data&&data.data!==undefined?data.data:data;const v=typeof raw==='string'?JSON.parse(raw):raw;if(!v)return;this.showHints=v.showHints!==false;this.autoCenter=v.autoCenter!==false;if(v.boardSize==='放大')this.squareSize=44;else if(v.boardSize==='紧凑')this.squareSize=24;else this.squareSize=30;this.boardSize=this.squareSize*8;this.boardLeft=Math.max(this.maxBoardLeft(),Math.min(0,this.boardLeft));this.boardTop=Math.max(this.maxBoardTop(),Math.min(0,this.boardTop));this.buildSquares();}catch(e){}},fail:()=>{}}); },
+  saveSettings(){storage.set({key:'CHESS_SETTINGS',value:JSON.stringify({showHints:this.showHints,autoCenter:this.autoCenter,confirmBeforeResign:this.confirmBeforeResign,animation:false,boardSize:this.boardSizeLabel})});},
+  onHide(){ this.stopClock(); },
+  startClock(){ if(this.timerId||this.gameOver||this.resultVisible)return; this.timerId=setInterval(()=>this.tickClock(),1000); },
+  stopClock(){ if(this.timerId){clearInterval(this.timerId);this.timerId=null;} },
+  tickClock(){ if(this.resultVisible)return; const now=Date.now(); const elapsed=Math.max(0,Math.floor((now-this.lastTick)/1000)); this.lastTick=now; if(this.turn==='white')this.whiteSeconds=Math.max(0,this.whiteSeconds-elapsed);else this.blackSeconds=Math.max(0,this.blackSeconds-elapsed); this.whiteClock=this.formatClock(this.whiteSeconds);this.blackClock=this.formatClock(this.blackSeconds); if((this.turn==='white'&&this.whiteSeconds<=0)||(this.turn==='black'&&this.blackSeconds<=0))this.finishByTimeout(); },
+  finishByTimeout(){if(this.resultVisible)return;this.gameOver=true;this.resultTitle=(this.turn===WHITE?'黑方':'白方')+'胜（超时）';this.resultVisible=true;this.hintText='对局结束：'+(this.turn===WHITE?'白方':'黑方')+'超时';this.stopClock();},
+  formatClock(s){const mins=Math.floor(s/60);const secs=s%60;return (mins<10?'0':'')+mins+':'+(secs<10?'0':'')+secs;},
+  newPosition() {
+    this.gameOver=false;
+    const b = [];
+    for (let n=0;n<64;n++) b.push(null);
+    const back = ['R','N','B','Q','K','B','N','R'];
+    for (let i=0;i<8;i++) { b[i]='b'+back[i]; b[8+i]='bP'; b[48+i]='wP'; b[56+i]='w'+back[i]; }
+    this.board=b; this.turn=WHITE; this.selected=-1; this.legalMoves=[]; this.lastMove=[]; this.history=[]; this.castling={wK:true,wQ:true,bK:true,bQ:true}; this.halfmoveClock=0; this.positionCounts={}; this.positionCounts[this.positionKey(this.board,this.turn)]=1; const startSeconds=(this.initialMinutes||10)*60; this.whiteSeconds=startSeconds;this.blackSeconds=startSeconds;this.whiteClock=this.formatClock(startSeconds);this.blackClock=this.formatClock(startSeconds);this.lastTick=Date.now(); this.resultVisible=false; this.menuVisible=false; this.settingsVisible=false; this.buildSquares();
+  },
+  buildSquares() {
+    const s=[];
+    for (let i=0;i<64;i++) { const row=Math.floor(i/8), col=i%8; const p=this.board[i]; s.push({index:i,x:col*this.squareSize,y:row*this.squareSize,color:(row+col)%2?'#B8B8B8':'#3A3A3A',piece:p?GLYPHS[p]:'',pieceSrc:p?'/common/pieces/'+p+'.png':'',pieceColor:p&&p[0]==='w'?'#FFFFFF':'#111111',selected:i===this.selected,lastMove:this.lastMove.indexOf(i)>=0,legal:this.legalMoves.indexOf(i)>=0}); }
+    this.squares=s;
+  },
+  tapSquare(i) {
+    if (this.resultVisible || this.gameOver) return;
+    if (this.selected >= 0 && this.legalMoves.indexOf(i)>=0) { this.move(this.selected,i); return; }
+    const p=this.board[i];
+    if (p && p[0]===this.turn[0]) { this.selected=i; this.legalMoves=this.showHints?this.getMoves(i):[]; this.hintText='已选择 '+this.nameOf(i)+'，点击蓝点落子'; if(this.autoCenter)this.centerOn(i); this.buildSquares(); }
+    else { if(this.selected===-1&&this.legalMoves.length===0)return; this.selected=-1; this.legalMoves=[]; this.hintText='请先选择当前回合的棋子'; this.buildSquares(); }
+  },
+  move(from,to) { this.tickClock(); if(this.resultVisible)return; this.history.push({board:this.board.slice(),turn:this.turn,last:this.lastMove.slice(),castling:Object.assign({},this.castling),whiteSeconds:this.whiteSeconds,blackSeconds:this.blackSeconds,halfmoveClock:this.halfmoveClock,positionCounts:Object.assign({},this.positionCounts)}); const b=this.board.slice(); const moving=b[from], type=moving[1], color=moving[0]; const captured=b[to]; const previousLast=this.lastMove.slice(); b[to]=moving; b[from]=null; if(type==='P'&&Math.abs(to-from)===7&&Math.floor(from/8)!==Math.floor(to/8)&&!captured&&previousLast.length===2&&Math.abs(previousLast[1]-previousLast[0])===16&&previousLast[1]===from+(color==='w'?-8:8)){const cap=color==='w'?to+8:to-8;if(b[cap]&&b[cap][1]==='P')b[cap]=null;} if(type==='K'&&Math.abs(to-from)===2){const rookFrom=to>from?from+3:from-4;const rookTo=to>from?from+1:from-1;b[rookTo]=b[rookFrom];b[rookFrom]=null;} if(type==='P'&&(Math.floor(to/8)===0||Math.floor(to/8)===7))b[to]=color+'Q'; if(type==='K'){this.castling[color==='w'?'wK':'bK']=false;this.castling[color==='w'?'wQ':'bQ']=false;} if(type==='R'){if(from===63)this.castling.wK=false;if(from===56)this.castling.wQ=false;if(from===7)this.castling.bK=false;if(from===0)this.castling.bQ=false;} this.halfmoveClock=(type==='P'||captured)?0:this.halfmoveClock+1; this.board=b; this.lastMove=[from,to]; this.selected=-1; this.legalMoves=[]; this.turn=this.turn===WHITE?BLACK:WHITE; const key=this.positionKey(this.board,this.turn); this.positionCounts[key]=(this.positionCounts[key]||0)+1; this.lastTick=Date.now(); this.hintText=this.isInCheckBoard(this.board,this.turn)?'将军，请交给'+(this.turn===WHITE?'白方':'黑方'):'走子完成，请交给'+(this.turn===WHITE?'白方':'黑方'); this.buildSquares(); if(this.isCheckmate(this.turn)){this.resultTitle=(this.turn===WHITE?'黑方':'白方')+'胜（将死）';this.resultVisible=true;this.stopClock();}else if(this.isStalemate(this.turn)){this.resultTitle='和棋（逼和）';this.resultVisible=true;this.stopClock();}else if(this.isInsufficientMaterial()||this.halfmoveClock>=100||this.positionCounts[key]>=3){this.resultTitle='和棋';this.resultVisible=true;this.stopClock();} },
+  undoMove() { if(!this.history.length){this.hintText='还没有可以悔的棋';this.closeMenu();return;} const h=this.history.pop();this.board=h.board;this.turn=h.turn;this.lastMove=h.last;this.castling=h.castling;this.whiteSeconds=h.whiteSeconds;this.blackSeconds=h.blackSeconds;this.halfmoveClock=h.halfmoveClock;this.positionCounts=h.positionCounts;this.whiteClock=this.formatClock(this.whiteSeconds);this.blackClock=this.formatClock(this.blackSeconds);this.lastTick=Date.now();this.selected=-1;this.legalMoves=[];this.resultVisible=false;this.hintText='已悔棋，请继续';this.buildSquares();this.closeMenu(); },
+  getMoves(i){const p=this.board[i];if(!p)return[];const key=this.board.join(',')+'|'+this.turn+'|'+i+'|'+JSON.stringify(this.castling);if(this.legalCache[key])return this.legalCache[key].slice();const pseudo=this.getPseudoMoves(i,this.board,true);const out=[];for(let n=0;n<pseudo.length;n++){const b=this.applyBoardMove(this.board,i,pseudo[n]);if(!this.isInCheckBoard(b,p[0]))out.push(pseudo[n]);}this.legalCache[key]=out.slice();return out;},
+  getPseudoMoves(i,board,includeCastle){const p=board[i],type=p[1],color=p[0],row=Math.floor(i/8),col=i%8,out=[];const add=(r,c)=>{if(r<0||r>7||c<0||c>7)return false;const j=r*8+c;if(!board[j]){out.push(j);return true;}if(board[j][0]!==color)out.push(j);return false;};
+    if(type==='P'){const d=color==='w'?-1:1,start=color==='w'?6:1;if(row+d>=0&&row+d<8&&!board[(row+d)*8+col]){out.push((row+d)*8+col);if(row===start&&!board[(row+2*d)*8+col])out.push((row+2*d)*8+col);}for(const dc of[-1,1]){const r=row+d,c=col+dc;if(r>=0&&r<8&&c>=0&&c<8){const j=r*8+c;if(board[j]&&board[j][0]!==color)out.push(j);else if(!board[j]&&this.lastMove.length===2&&Math.abs(this.lastMove[1]-this.lastMove[0])===16&&this.lastMove[1]===row*8+c&&board[this.lastMove[1]]&&board[this.lastMove[1]][0]!==color&&board[this.lastMove[1]][1]==='P')out.push(j);}}}
+    else if(type==='N'){[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]].forEach(d=>add(row+d[0],col+d[1]));}
+    else if(type==='K'){for(let r=row-1;r<=row+1;r++)for(let c=col-1;c<=col+1;c++)if(r!==row||c!==col)add(r,c);if(includeCastle&&!this.isInCheckBoard(board,color)){if((color==='w'?this.castling.wK:this.castling.bK)&&!board[i+1]&&!board[i+2]&&!this.isSquareAttacked(board,i+1,color==='w'?'b':'w')&&!this.isSquareAttacked(board,i+2,color==='w'?'b':'w'))out.push(i+2);if((color==='w'?this.castling.wQ:this.castling.bQ)&&!board[i-1]&&!board[i-2]&&!board[i-3]&&!this.isSquareAttacked(board,i-1,color==='w'?'b':'w')&&!this.isSquareAttacked(board,i-2,color==='w'?'b':'w'))out.push(i-2);}}
+    else{const dirs=[];if(type==='B'||type==='Q')dirs.push([1,1],[1,-1],[-1,1],[-1,-1]);if(type==='R'||type==='Q')dirs.push([1,0],[-1,0],[0,1],[0,-1]);dirs.forEach(d=>{let r=row+d[0],c=col+d[1];while(add(r,c)){r+=d[0];c+=d[1];}});}return out;},
+  applyBoardMove(board,from,to){const b=board.slice(),p=b[from],color=p[0],type=p[1];b[to]=p;b[from]=null;if(type==='P'&&Math.abs(to-from)===7&&Math.floor(from/8)!==Math.floor(to/8)&&!board[to]){const cap=color==='w'?to+8:to-8;if(b[cap]&&b[cap][0]!==color&&b[cap][1]==='P')b[cap]=null;}if(type==='K'&&Math.abs(to-from)===2){const rf=to>from?from+3:from-4,rt=to>from?from+1:from-1;b[rt]=b[rf];b[rf]=null;}if(type==='P'&&(Math.floor(to/8)===0||Math.floor(to/8)===7))b[to]=color+'Q';return b;},
+  isSquareAttacked(board,sq,by){const r=Math.floor(sq/8),c=sq%8;const pawn=by==='w'?'wP':'bP';const pr=by==='w'?r+1:r-1;for(const dc of[-1,1]){const pc=c+dc;if(pr>=0&&pr<8&&pc>=0&&pc<8&&board[pr*8+pc]===pawn)return true;}const knight=by+'N';for(const d of[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]]){const rr=r+d[0],cc=c+d[1];if(rr>=0&&rr<8&&cc>=0&&cc<8&&board[rr*8+cc]===knight)return true;}const king=by+'K';for(let rr=r-1;rr<=r+1;rr++)for(let cc=c-1;cc<=c+1;cc++)if((rr!==r||cc!==c)&&rr>=0&&rr<8&&cc>=0&&cc<8&&board[rr*8+cc]===king)return true;const scan=(dirs,pieces)=>{for(const d of dirs){let rr=r+d[0],cc=c+d[1];while(rr>=0&&rr<8&&cc>=0&&cc<8){const q=board[rr*8+cc];if(q){if(q[0]===by&&pieces.indexOf(q[1])>=0)return true;break;}rr+=d[0];cc+=d[1];}}return false;};return scan([[1,0],[-1,0],[0,1],[0,-1]],'RQ')||scan([[1,1],[1,-1],[-1,1],[-1,-1]],'BQ');},
+  isInCheckBoard(board,color){const king=color+'K',sq=board.indexOf(king);return sq>=0&&this.isSquareAttacked(board,sq,color==='w'?'b':'w');},
+  hasLegalMove(color){const side=color[0];for(let i=0;i<64;i++)if(this.board[i]&&this.board[i][0]===side&&this.getMoves(i).length)return true;return false;},
+  isCheckmate(color){return this.isInCheckBoard(this.board,color)&&!this.hasLegalMove(color);},
+  isStalemate(color){return !this.isInCheckBoard(this.board,color)&&!this.hasLegalMove(color);},
+  positionKey(board,turn){return board.map(p=>p||'-').join('')+'|'+turn+'|'+JSON.stringify(this.castling);},
+  isInsufficientMaterial(){const pieces=[];for(let i=0;i<64;i++)if(this.board[i]&&this.board[i][1]!=='K')pieces.push(this.board[i]);if(!pieces.length)return true;if(pieces.length===1&&(pieces[0][1]==='B'||pieces[0][1]==='N'))return true;if(pieces.length===2&&pieces[0][1]==='B'&&pieces[1][1]==='B'){const a=this.board.indexOf(pieces[0]),b=this.board.indexOf(pieces[1]);return ((Math.floor(a/8)+a%8)%2)===((Math.floor(b/8)+b%8)%2);}return false;},
+  nameOf(i){return 'abcdefgh'[i%8]+(8-Math.floor(i/8));},
+  maxBoardLeft(){return Math.min(0,192-this.boardSize);},
+  maxBoardTop(){return Math.min(0,280-this.boardSize);},
+  centerOn(i){const col=i%8,row=Math.floor(i/8);const minLeft=this.maxBoardLeft(),minTop=this.maxBoardTop();this.boardLeft=Math.max(minLeft,Math.min(0,96-(col+0.5)*this.squareSize));this.boardTop=Math.max(minTop,Math.min(0,140-(row+0.5)*this.squareSize));},
+  onTouchStart(e){if(e.stopPropagation)e.stopPropagation();this.touchX=e.touches[0].pageX;this.touchY=e.touches[0].pageY;this.pendingTouchX=this.touchX;this.pendingTouchY=this.touchY;this.dragging=true;},
+  onTouchMove(e){if(e.stopPropagation)e.stopPropagation();if(e.preventDefault)e.preventDefault();if(!this.dragging)return;this.pendingTouchX=e.touches[0].pageX;this.pendingTouchY=e.touches[0].pageY;if(this.touchQueued)return;this.touchQueued=true;setTimeout(()=>{this.touchQueued=false;if(!this.dragging)return;const x=this.pendingTouchX,y=this.pendingTouchY;const minLeft=this.maxBoardLeft(),minTop=this.maxBoardTop();this.boardLeft=Math.max(minLeft,Math.min(0,this.boardLeft+x-this.touchX));this.boardTop=Math.max(minTop,Math.min(0,this.boardTop+y-this.touchY));this.touchX=x;this.touchY=y;},16);},
+  onTouchEnd(){this.dragging=false;this.touchQueued=false;},
+  blockSwipe(e){if(e&&e.stopPropagation)e.stopPropagation();return false;},
+  toggleMenu(){this.menuVisible=true;}, openMenu(){this.menuVisible=true;}, closeMenu(){this.menuVisible=false;},
+  newGame(){this.newPosition();}, offerDraw(){this.gameOver=true;this.resultTitle='和棋（双方同意）';this.resultVisible=true;this.closeMenu();this.stopClock();}, confirmResign(){this.gameOver=true;if(this.confirmBeforeResign){this.resultTitle=(this.turn===WHITE?'黑方':'白方')+'胜（对手认输）';this.resultVisible=true;this.closeMenu();}else{this.resultTitle='对局结束';this.resultVisible=true;this.closeMenu();}},
+  openSettings(){this.menuVisible=false;this.settingsVisible=true;},closeSettings(){this.settingsVisible=false;},
+  exitGame(){require('@system.router').back();},
+  toggleHints(){this.showHints=!this.showHints;this.saveSettings();this.buildSquares();},toggleAutoCenter(){this.autoCenter=!this.autoCenter;this.saveSettings();},toggleConfirm(){this.confirmBeforeResign=!this.confirmBeforeResign;this.saveSettings();},cycleBoardSize(){const n=this.squareSize===30?44:(this.squareSize===44?24:30);this.applyBoardSize(n);this.saveSettings();this.buildSquares();},closeResult(){this.gameOver=true;this.resultVisible=false;this.stopClock();}
+}
+</script>
+
+
+
+
+
+

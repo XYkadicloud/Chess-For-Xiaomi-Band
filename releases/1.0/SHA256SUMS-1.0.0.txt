@@ -1,0 +1,1 @@
+49448fb2db1a5e48aa7039386daeecdfc5b2f99a652e311c6f02afe2ce38b93f  dist/com.xykadi.chess.debug.1.0.0.rpk

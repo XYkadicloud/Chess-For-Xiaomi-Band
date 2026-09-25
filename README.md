@@ -1,7 +1,54 @@
-# Vela Chess for Xiaomi Band 9
+# Chess for Xiaomi Band 9 Vela
 
-这是原始构建仓库的整理版，已经同步当前 `com.xykadi.chess` 0.2.8 源码、PNG 棋子资源、RPK、构建报告和 Agent 交接资料。
+这是运行在 Xiaomi Band 9 Vela 系统上的离线 JS 快应用项目。当前主线源码为 **Chess 1.0.0**，包名为 `com.xykadi.chess`，开发者为 `XYKadi`。
 
-从 [AGENT_HANDOFF.md](AGENT_HANDOFF.md) 开始阅读。该文档说明项目用途、实现方式、历史开发过程、Band 9 原机重启问题、当前已知限制和下一步分层优化方案。完整历史对话位于 [项目AI对话.md](项目AI对话.md)。
+## 从哪里开始
 
-当前 RPK：`dist/com.xykadi.chess.debug.0.2.8.rpk`。
+新 Agent 应先阅读：
+
+1. [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md)：仓库原有技术交接资料。
+2. [`docs/AGENT_HANDOFF_20260925.md`](docs/AGENT_HANDOFF_20260925.md)：当前 1.0.0 源码、页面结构、关于页状态和下一步真机验收要求。
+3. [`docs/RELEASE_CATALOG.md`](docs/RELEASE_CATALOG.md)：当前版本和历史归档索引。
+
+## 目录分类
+
+| 目录 | 内容 |
+|---|---|
+| `src/` | 当前可构建的 1.0.0 源码、页面、manifest 和图片资源。 |
+| `tools/` | 当前版本使用的专项校验脚本，以及历史兼容性校验脚本。 |
+| `history/` | 用户原始上传源码、时间修复前快照和原始源码压缩包。只读保存，不作为当前构建输入。 |
+| `releases/` | 已生成的版本 RPK、源码归档和 SHA-256 文件。 |
+| `dist/` | 仓库历史上保留的 0.2.x RPK 构建产物。 |
+| `diagnostics/` | 早期 Band 9 原机低内存和路由烟雾测试资料。 |
+| `docs/` | 当前交接文档和版本索引。 |
+
+## 当前源码构建
+
+```bash
+npm ci --cache .npm-cache
+node tools/verify_about_release.js
+node tools/verify_pause_resume.js
+npm run build
+```
+
+构建入口在 `package.json` 中定义为 `aiot build`。当前版本使用 `aiot-toolkit` 2.0.4，设计宽度为 192dp，设备类型为 `watch`。
+
+## 当前 1.0.0 交付物
+
+最新 RPK 位于 [`releases/1.0/`](releases/1.0/)。该目录包含当前构建包、完整源码归档和 SHA-256 校验文件。主线 `src/` 与该源码归档保持同步。
+
+当前版本已经包含独立关于页、开发者头像、应用图标、爱发电二维码和二维码大图页。关于页的真机滚动和视觉尺寸仍应在 Band 9 上进行最终验收，详细要求见当前交接文档。
+
+## 历史版本
+
+历史源码和不可直接作为当前构建输入的资料位于 [`history/`](history/)。历史 RPK 位于 [`dist/`](dist/)，版本归档包位于 [`exports/`](exports/)。这些资料用于回退、对比和问题定位，不应直接覆盖当前 `src/`。
+
+## Git 约定
+
+当前可构建源码保留在仓库根目录的 `src/`，历史源码只放在 `history/`，交付物只放在 `releases/`。修改当前版本时应先备份 `src/`，完成专项校验后再提交。不要把 `node_modules/`、`build/`、临时目录或日志提交到仓库。
+
+## References
+
+[1]: https://github.com/XYkadicloud/Chess-For-Xiaomi-Band "Chess for Xiaomi Band build repository"
+
+[2]: https://github.com/XYkadicloud/Chess-for-miband9-use-agent "Chess for Mi Band 9 agent handoff repository"

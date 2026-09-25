@@ -1,0 +1,22 @@
+<template>
+  <div class="menuPage">
+    <div class="head"><text class="back" @click="back">‹</text><text class="title">棋局菜单</text></div>
+    <text class="item" @click="undo">悔棋</text>
+    <text class="item" @click="resign">认输</text>
+    <text class="item" @click="newGame">新建棋局</text>
+    <text class="item" @click="settings">下棋设置</text>
+    <text class="exit" @click="home">退出到主菜单</text>
+  </div>
+</template>
+<style>
+.menuPage { width:192dp; height:490dp; background-color:#000; padding:18dp 12dp; flex-direction:column; }
+.head { width:168dp; height:48dp; flex-direction:row; align-items:center; margin-bottom:18dp; }
+.back { width:32dp; color:#fff; font-size:30dp; text-align:center; }
+.title { color:#fff; font-size:22dp; font-weight:bold; }
+.item,.exit { width:168dp; height:46dp; border-radius:20dp; background-color:#252828; color:#fff; font-size:17dp; line-height:46dp; text-align:center; margin-bottom:9dp; }
+.exit { background-color:#8D2B2B; margin-top:8dp; }
+</style>
+<script>
+import router from '@system.router';
+export default { back(){router.back();}, undo(){router.back();}, resign(){router.back();}, newGame(){router.push({uri:'/pages/setup'});}, settings(){router.push({uri:'/pages/settings'});}, home(){router.push({uri:'/pages/index'});} }
+</script>

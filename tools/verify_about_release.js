@@ -1,0 +1,35 @@
+const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
+const root = path.resolve(__dirname, '..');
+const read = p => fs.readFileSync(path.join(root, p), 'utf8');
+const manifest = JSON.parse(read('src/manifest.json'));
+const index = read('src/pages/index/index.ux');
+const about = read('src/pages/about/about.ux');
+const support = read('src/pages/support/support.ux');
+assert.strictEqual(manifest.name, 'Chess');
+assert.strictEqual(manifest.versionName, '1.0.0');
+assert.strictEqual(manifest.versionCode, 100);
+assert.strictEqual(manifest.icon, '/common/icon.png');
+assert(index.includes("uri:'/pages/about'"));
+assert(about.includes('版本 1.0'));
+assert(about.includes('开发者'));
+assert(about.includes('>XYKadi<'));
+assert(about.includes('已支持的规则'));
+assert(about.includes('尚未完整支持'));
+assert(about.includes('<list class="aboutList">'));
+assert(about.includes('/common/avatar.jpg'));
+assert(about.includes('/common/aifadian_qr.jpg'));
+assert(about.includes("uri:'/pages/support'"));
+assert(support.includes('爱发电主页'));
+assert(support.includes('/common/aifadian_qr.jpg'));
+assert(support.includes('qrLarge'));
+const script = about.match(/<script>([\s\S]*?)<\/script>/)[1]
+  .replace(/^\s*import[^\n]*\n/gm, '')
+  .replace(/export\s+default\s*\{/, 'return {');
+new Function(script);
+assert(fs.statSync(path.join(root, 'src/common/icon.png')).size > 0);
+assert(fs.statSync(path.join(root, 'src/common/avatar.jpg')).size > 0);
+assert(fs.statSync(path.join(root, 'src/common/aifadian_qr.jpg')).size > 0);
+console.log('About/release checks: PASS');
+console.log(`release: ${manifest.name} ${manifest.versionName} (${manifest.versionCode})`);
