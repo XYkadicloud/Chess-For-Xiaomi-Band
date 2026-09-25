@@ -5,28 +5,26 @@
 | 版本 | 位置 | 说明 |
 |---|---|---|
 | 1.0.0 | 根目录 `src/` | 当前可构建主线源码。包含时间设置、无限制时间、暂停恢复、全屏菜单、独立关于页、开发者头像和爱发电二维码。 |
-| 1.0.0 | `releases/1.0/` | 当前交付 RPK、完整源码归档和 SHA-256 文件。 |
+| 1.0.0 | `archive/releases/1.0/` | 当前交付 RPK、完整源码归档和 SHA-256 文件。 |
 
 当前 RPK 的 SHA-256：
 
 ```text
-49448fb2db1a5e48aa7039386daeecdfc5b2f99a652e311c6f02afe2ce38b93f
+51779b1d5865ce1bfb0f834c318f3574a9df63379df0d8238279da845e411691
 ```
 
 ## 历史源码
 
 | 归档 | 位置 | 用途 |
 |---|---|---|
-| 用户最初上传源码 | `history/2026-09-22-user-upload-src/` | 2026-09-22 收到的 `src.zip` 解压结果，仅作原始输入对照。 |
-| 时间和自动居中修复前快照 | `history/2026-09-22-before-time-center-fix/` | 修改时间选择和自动居中前的完整源码快照。 |
-| 原始项目源码压缩包 | `history/archives/original-project-source.7z` | 项目共享目录中的历史源码压缩包，保留原始格式。 |
-| 0.2.9 修复源码归档 | `history/archives/Chess-Vela-0.2.9-fixed-source.tar.gz` | 早期时间、居中和设置修复后的源码归档。 |
-| 0.2.4–0.2.8 源码归档 | `exports/` | 仓库此前已经保存的版本化源码和构建工程压缩包。 |
+| 历史源码快照 | `archive/history-20260925.tar.gz` | 包含用户最初上传源码、时间和自动居中修复前快照、0.2.9 修复源码及原始压缩包。 |
+| 诊断资料 | `archive/diagnostics-20260925.tar.gz` | 包含 Band 9 原机低内存、路由烟雾测试和诊断包。 |
+| 0.2.4–0.2.8 源码归档 | `archive/exports/` | 仓库此前已经保存的版本化源码和构建工程压缩包。 |
 
 ## 历史 RPK
 
-0.2.x RPK 位于 `dist/`。其中 `com.xykadi.chess.debug.0.2.8.rpk` 是 1.0.0 改造前最后一个已整理版本。`diagnostics/` 中的 RPK 是早期用于排查 Band 9 原机重启和路由问题的诊断包，不是正式发布包。
+0.2.x RPK 位于 `archive/dist/`。其中 `com.xykadi.chess.debug.0.2.8.rpk` 是 1.0.0 改造前最后一个已整理版本。诊断 RPK 已收录在 `archive/diagnostics-20260925.tar.gz` 中，不是正式发布包。
 
 ## 归档规则
 
-历史目录只读保存。下一位 Agent 如果需要比较版本，应在临时目录解压后比较，不要直接把历史目录复制回根目录。新的正式版本应在 `releases/<version>/` 下保存 RPK、源码归档和校验文件，并在本文追加索引。
+归档文件只读保存。下一位 Agent 如果需要比较版本，应在临时目录解压后比较，不要直接把历史内容复制回根目录。新的正式版本应在 `archive/releases/<version>/` 下保存 RPK、源码归档和校验文件，并在本文追加索引。

@@ -1,0 +1,2 @@
+51779b1d5865ce1bfb0f834c318f3574a9df63379df0d8238279da845e411691  releases/1.0/Chess-Vela-1.0-avatar-fixed-20260925.rpk
+c04f4ed3eb050c684381884dc0ef50d75b773b62d0e3146bf8a092d5786a8f8d  releases/1.0/Chess-Vela-1.0-avatar-fixed-20260925-source.tar.gz

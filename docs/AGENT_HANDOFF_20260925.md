@@ -13,20 +13,20 @@
 
 ## 一、当前总体状态
 
-项目已经从用户提供的源码整理为一个可以使用 AIoT Toolkit 编译的完整 Vela 快应用工程。当前构建链路完整，包含 `package.json`、`package-lock.json`、`.npmrc`、`src/` 和 `dist/`。最近一次构建成功，RPK 中已经包含应用图标、开发者头像、爱发电二维码、关于页和二维码大图页。
+项目已经从用户提供的源码整理为一个可以使用 AIoT Toolkit 编译的完整 Vela 快应用工程。当前构建链路完整，包含 `package.json`、`package-lock.json`、`.npmrc`、`src/` 和 `tools/`。历史 RPK 与版本包统一保存在 `archive/`，不参与根目录构建。最近一次构建成功，RPK 中已经包含应用图标、开发者头像、爱发电二维码、关于页和二维码大图页。
 
 最近一次生成的安装包为：
 
-`/home/ubuntu/Chess-Vela-1.0-about-final.rpk`
+`archive/releases/1.0/Chess-Vela-1.0-avatar-fixed-20260925.rpk`
 
 最近一次生成的源码归档为：
 
-`/home/ubuntu/Chess-Vela-1.0-about-final-source.tar.gz`
+`archive/releases/1.0/Chess-Vela-1.0-avatar-fixed-20260925-source.tar.gz`
 
 最近一次 RPK SHA-256 为：
 
 ```text
-49448fb2db1a5e48aa7039386daeecdfc5b2f99a652e311c6f02afe2ce38b93f
+51779b1d5865ce1bfb0f834c318f3574a9df63379df0d8238279da845e411691
 ```
 
 源码静态校验和 AIoT Toolkit 构建均已通过。当前仍然缺少的是**最新 RPK 在 Xiaomi Band 9 真机上的最终人工验收**，尤其需要验收关于页的纵向滚动、头像显示尺寸、规则说明布局、爱发电二维码点击区域和二维码大图页返回路径。
@@ -40,7 +40,8 @@
 | `package-lock.json` | 锁定 AIoT Toolkit 及其依赖版本，构建前使用 `npm ci --cache .npm-cache`。 |
 | `src/` | Vela 快应用源代码、页面、manifest 和图片资源的根目录。 |
 | `build/` | AIoT Toolkit 生成的中间构建目录，包含构建后的 `app.js`、`manifest.json` 和设备相关 manifest。通常不直接编辑。 |
-| `dist/` | 当前构建产生的 RPK 和 SHA-256 校验文件。 |
+| `archive/releases/1.0/` | 当前 1.0.0 RPK、源码归档和 SHA-256 校验文件。 |
+| `archive/` | 历史源码、诊断资料和旧版本构建产物；压缩归档不参与构建。 |
 | `tools/` | 当前项目使用的源码检查脚本。 |
 | `tools_verify_vela_source.js` | 历史上复制出的校验脚本副本。它不是当前主校验入口，修改时不要优先依赖它。 |
 | `node_modules/` | npm 安装的构建依赖，不属于业务源代码。交接归档时可以排除。 |
@@ -75,7 +76,7 @@
 | 文件 | 作用 |
 |---|---|
 | `src/common/icon.png` | 应用图标。首页使用，manifest 也使用它作为应用图标。 |
-| `src/common/avatar.jpg` | 开发者头像。当前已替换为用户上传的 `IMG_20260905_205731_818.jpg`，在独立关于页的作者卡片中使用。 |
+| `src/common/avatar.jpg` | 开发者头像。当前为用户提供的 128×128 JPEG，在独立关于页的作者卡片中使用。 |
 | `src/common/aifadian_qr.jpg` | 用户上传的爱发电主页二维码，在关于页预览和二维码大图页中使用。 |
 
 ### 3.3 棋子资源
@@ -97,7 +98,7 @@
 | `src/pages/index/index.ux` | `/pages/index` | 首页。显示应用图标和入口按钮；读取 `CHESS_ACTIVE_GAME`，有未结束棋局时显示“继续对局”，否则显示“开始游戏”；提供下棋设置、关于和退出应用入口。 |
 | `src/pages/setup/setup.ux` | `/pages/setup` | 新对局设置页。选择每方用时、无限制时间和棋盘大小，然后把 `minutes`、`unlimited`、`boardSize`、`resume` 参数直接传给对局页。 |
 | `src/pages/game/game.ux` | `/pages/game` | 核心对局页。负责棋盘显示、回合显示、棋子点击、触摸平移、棋规判断、计时、暂停、菜单、设置、悔棋、退出和活动棋局保存恢复。 |
-| `src/pages/settings/settings.ux` | `/pages/settings` | 独立下棋设置页。保存走法提示、自动居中、认输确认、棋盘动画开关和棋盘尺寸。使用 `CHESS_SETTINGS` 存储键。 |
+| `src/pages/settings/settings.ux` | `/pages/settings` | 独立下棋设置页。保存自动居中和棋盘尺寸，使用 `CHESS_SETTINGS` 存储键。 |
 | `src/pages/about/about.ux` | `/pages/about` | 独立关于页。当前按用户最新要求使用 Vela `<list>` 纵向列表，依次展示应用图标和版本、开发者头像和姓名、应用说明与规则说明、爱发电入口和二维码预览。 |
 | `src/pages/support/support.ux` | `/pages/support` | 爱发电二维码独立大图页。点击关于页底部的二维码区域后进入，显示更大的二维码、支持说明和返回关于按钮。 |
 
@@ -162,7 +163,7 @@ npm run build
 5. 确认返回键不会贴到屏幕边缘，并且可以通过 `touchend` 正常返回。
 6. 如果真机仍然显示内容重叠，应优先调整 `about.ux` 中的 `list` 高度、`list-item` 固定高度、内边距和字体行高，不要重新改回悬浮窗或普通静态 `scroll`。
 7. 如果 Vela 真机不支持当前 `list-item` 的静态内容布局，应采用多个固定高度的 `list-item`，每个 item 保持一个明确的根节点；不要使用没有固定内容高度的多层 `div` 堆叠。
-8. 真机验收通过后，再更新 `dist/SHA256SUMS-1.0.0.txt` 和最终交接文档中的 RPK 哈希。
+8. 真机验收通过后，再更新 `archive/releases/1.0/` 中的 SHA-256 文件和最终交接文档中的 RPK 哈希。
 
 ## 七、构建和交付注意事项
 
@@ -196,15 +197,15 @@ pages/support/support.ux
 
 当前最新安装包：
 
-[Chess-Vela-1.0-about-final.rpk](/home/ubuntu/Chess-Vela-1.0-about-final.rpk)
+[Chess-Vela-1.0-avatar-fixed-20260925.rpk](../archive/releases/1.0/Chess-Vela-1.0-avatar-fixed-20260925.rpk)
 
 当前最新完整源码包：
 
-[Chess-Vela-1.0-about-final-source.tar.gz](/home/ubuntu/Chess-Vela-1.0-about-final-source.tar.gz)
+[Chess-Vela-1.0-avatar-fixed-20260925-source.tar.gz](../archive/releases/1.0/Chess-Vela-1.0-avatar-fixed-20260925-source.tar.gz)
 
 当前 SHA-256 文件：
 
-[SHA256SUMS-1.0.0.txt](/home/ubuntu/work_chess/dist/SHA256SUMS-1.0.0.txt)
+[SHA256SUMS-1.0.0-avatar-20260925.txt](../archive/releases/1.0/SHA256SUMS-1.0.0-avatar-20260925.txt)
 
 ## References
 

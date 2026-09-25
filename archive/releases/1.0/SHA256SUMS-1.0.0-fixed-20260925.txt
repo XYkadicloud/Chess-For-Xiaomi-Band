@@ -1,0 +1,2 @@
+4d45d04eea553e85e7fd720d8fbcb54145b672d705a2a96b6a6a667a61ed4961  releases/1.0/Chess-Vela-1.0-about-settings-fixed-20260925.rpk
+62957698f384e38fc817ffc16335d7f584334ea7fa028fdfdf3fe702daad1a4b  releases/1.0/Chess-Vela-1.0-about-settings-fixed-20260925-source.tar.gz
