@@ -34,7 +34,7 @@ npm run build
 
 ## 当前 1.0.0 交付物
 
-最新 RPK 位于 [`archive/releases/1.0/`](archive/releases/1.0/)。该目录包含当前构建包、完整源码归档和 SHA-256 校验文件。主线 `src/` 与该源码归档保持同步。
+最新 RPK 位于 [`https://github.com/XYkadicloud/Chess-For-Xiaomi-Band/releases/tag/%E6%AD%A3%E5%BC%8F%E7%89%88%E6%9C%AC_Official_version`]([archive/releases/1.0/](https://github.com/XYkadicloud/Chess-For-Xiaomi-Band/releases/tag/%E6%AD%A3%E5%BC%8F%E7%89%88%E6%9C%AC_Official_version))。该目录包含当前构建包、完整源码归档和 SHA-256 校验文件。主线 `src/` 与该源码归档保持同步。
 
 当前版本已经包含独立关于页、开发者头像、应用图标、爱发电二维码和二维码大图页。关于页的真机滚动和视觉尺寸仍应在 Band 9 上进行最终验收，详细要求见当前交接文档。
 
