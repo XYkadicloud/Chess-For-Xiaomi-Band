@@ -47,6 +47,13 @@ npm run build
 
 当前可构建源码保留在仓库根目录的 `src/`，历史源码只放在 `history/`，交付物只放在 `releases/`。修改当前版本时应先备份 `src/`，完成专项校验后再提交。不要把 `node_modules/`、`build/`、临时目录或日志提交到仓库。
 
+## 开源许可证
+
+本项目源代码采用 **GNU General Public License v3.0（GPL-3.0）** 发布，具体条款见仓库根目录的 [`LICENSE`](LICENSE) 文件。
+
+GPL-3.0 要求分发本项目或其衍生作品时遵守相同许可证的再发布义务，并保留版权和许可证声明。`releases/` 中的 RPK 属于由本项目构建的发布产物；发布或再分发时，也应同时遵守 GPL-3.0 以及其中包含的第三方代码和资源所适用的额外条款。
+
+本许可证说明不代表对 Xiaomi、Vela、Xiaomi Band、AstroBox 或其他第三方商标、平台、服务和资源授予额外权利。
 ## References
 
 [1]: https://github.com/XYkadicloud/Chess-For-Xiaomi-Band "Chess for Xiaomi Band build repository"
