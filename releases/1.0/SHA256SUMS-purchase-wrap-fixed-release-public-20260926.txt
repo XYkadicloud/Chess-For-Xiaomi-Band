@@ -1,0 +1,3 @@
+34ec19f572efa47ba36f4e7ddc64d04278b9a640678cd95ca6a3b5a952096356  releases/1.0/Chess-Vela-1.0-purchase-wrap-fixed-release-20260926.rpk
+028151b0a196efe9fb6cbca2a4934cefb4e8d851bfca4b468dec8740f4702ba9  releases/1.0/Chess-Vela-1.0-purchase-wrap-fixed-release-source-20260926.tar.gz
+0add05edb6acb0aa7a3d89dd26bfed44cb5777e2238a7f69f2e11898526a0737  releases/1.0/Chess-Vela-1.0-purchase-wrap-fixed-certificate-20260926.zip
