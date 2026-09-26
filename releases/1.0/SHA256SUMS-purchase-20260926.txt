@@ -1,0 +1,1 @@
+26938e3bd3d217db5df1aac827a6e792e6b857db292258dd9557b19c60126dbf  releases/1.0/Chess-Vela-1.0-purchase-qr-source-20260926.tar.gz

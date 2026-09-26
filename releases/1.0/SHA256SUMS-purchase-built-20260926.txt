@@ -1,0 +1,2 @@
+2d60e14c91e3556b732321f15cf27fd503157c0724f70e046e300b657438d130  releases/1.0/Chess-Vela-1.0-purchase-qr-built-20260926.rpk
+26938e3bd3d217db5df1aac827a6e792e6b857db292258dd9557b19c60126dbf  releases/1.0/Chess-Vela-1.0-purchase-qr-built-20260926-source.tar.gz

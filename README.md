@@ -34,7 +34,7 @@ npm run build
 
 ## 当前 1.0.0 交付物
 
-最新 Debug 构建发布在 [`Chess 1.0.0 — Purchase Page Wrap Fix (Debug)`](https://github.com/XYkadicloud/Chess-For-Xiaomi-Band/releases/tag/v1.0.0-purchase-wrap-debug)，包含 Debug RPK、完整源码归档和 SHA-256 校验文件。正式 Release 仍需配置有效的生产签名证书；不能将 Debug 包作为正式版发布。主线 `src/` 与该源码归档保持同步。
+最新正式模式构建发布在 [`Chess 1.0.0 — Purchase Page Wrap Fix (Debug)`](https://github.com/XYkadicloud/Chess-For-Xiaomi-Band/releases/tag/v1.0.0-purchase-wrap-release)，包含 Debug RPK、完整源码归档和 SHA-256 校验文件。生产模式构建已完成；私钥未放入公开仓库，单独保存在私有签名仓库。主线 `src/` 与该源码归档保持同步。
 
 当前版本已经包含独立关于页、开发者头像、应用图标、爱发电二维码、购买提示页、首次启动购买状态和二维码大图页。购买页文字采用固定宽度多行换行，关于页提供“前往付款”入口。页面的真机滚动和视觉尺寸仍应在 Band 9 上进行最终验收，详细要求见当前交接文档。
 
