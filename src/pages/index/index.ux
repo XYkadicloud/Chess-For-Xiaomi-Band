@@ -23,5 +23,15 @@
 import router from '@system.router';
 import app from '@system.app';
 import storage from '@system.storage';
-export default { data:{hasActiveGame:false}, onInit(){this.checkActiveGame();}, onShow(){this.checkActiveGame();}, checkActiveGame(){storage.get({key:'CHESS_ACTIVE_GAME',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;this.hasActiveGame=!!(v&&v.board&&v.board.length===64&&!v.gameOver);}catch(e){this.hasActiveGame=false;}},fail:()=>{this.hasActiveGame=false;}});}, startGame(){router.push(this.hasActiveGame?{uri:'/pages/game',params:{resume:'true'}}:{uri:'/pages/setup'});}, openSettings(){router.push({uri:'/pages/settings'});}, openAbout(){router.push({uri:'/pages/about'});}, exitApp(){app.terminate({});} }
+export default {
+  data:{hasActiveGame:false, purchaseChecked:false, purchaseConfirmed:false},
+  onInit(){this.checkPurchase();this.checkActiveGame();},
+  onShow(){if(this.purchaseChecked)this.checkActiveGame();},
+  checkPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';this.purchaseChecked=true;if(!this.purchaseConfirmed)router.push({uri:'/pages/purchase'});},fail:()=>{this.purchaseChecked=true;this.purchaseConfirmed=false;router.push({uri:'/pages/purchase'});}});},
+  checkActiveGame(){storage.get({key:'CHESS_ACTIVE_GAME',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;this.hasActiveGame=!!(v&&v.board&&v.board.length===64&&!v.gameOver);}catch(e){this.hasActiveGame=false;}},fail:()=>{this.hasActiveGame=false;}});},
+  startGame(){router.push(this.hasActiveGame?{uri:'/pages/game',params:{resume:'true'}}:{uri:'/pages/setup'});},
+  openSettings(){router.push({uri:'/pages/settings'});},
+  openAbout(){router.push({uri:'/pages/about'});},
+  exitApp(){app.terminate({});}
+}
 </script>

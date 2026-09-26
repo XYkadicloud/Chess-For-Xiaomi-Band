@@ -6,24 +6,53 @@
   "versionCode": 100,
   "minPlatformVersion": 1100,
   "simulationVersion": "default",
-  "deviceTypeList": ["watch"],
-  "config": { "designWidth": 192 },
-  "display": { "backgroundColor": "#000000" },
+  "deviceTypeList": [
+    "watch"
+  ],
+  "config": {
+    "designWidth": 192
+  },
+  "display": {
+    "backgroundColor": "#000000"
+  },
   "features": [
-    { "name": "system.router" },
-    { "name": "system.app" },
-    { "name": "system.storage" },
-    { "name": "system.brightness" }
+    {
+      "name": "system.router"
+    },
+    {
+      "name": "system.app"
+    },
+    {
+      "name": "system.storage"
+    },
+    {
+      "name": "system.brightness"
+    }
   ],
   "router": {
     "entry": "pages/index",
     "pages": {
-      "pages/index": { "component": "index" },
-      "pages/game": { "component": "game" },
-      "pages/setup": { "component": "setup" },
-      "pages/settings": { "component": "settings" },
-      "pages/about": { "component": "about" },
-      "pages/support": { "component": "support" }
+      "pages/index": {
+        "component": "index"
+      },
+      "pages/game": {
+        "component": "game"
+      },
+      "pages/setup": {
+        "component": "setup"
+      },
+      "pages/settings": {
+        "component": "settings"
+      },
+      "pages/about": {
+        "component": "about"
+      },
+      "pages/support": {
+        "component": "support"
+      },
+      "pages/purchase": {
+        "component": "purchase"
+      }
     }
   }
 }

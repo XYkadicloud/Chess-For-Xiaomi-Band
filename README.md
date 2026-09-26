@@ -34,9 +34,9 @@ npm run build
 
 ## 当前 1.0.0 交付物
 
-最新 RPK 位于 [`https://github.com/XYkadicloud/Chess-For-Xiaomi-Band/releases/tag/%E6%AD%A3%E5%BC%8F%E7%89%88%E6%9C%AC_Official_version`]([archive/releases/1.0/](https://github.com/XYkadicloud/Chess-For-Xiaomi-Band/releases/tag/%E6%AD%A3%E5%BC%8F%E7%89%88%E6%9C%AC_Official_version))。该目录包含当前构建包、完整源码归档和 SHA-256 校验文件。主线 `src/` 与该源码归档保持同步。
+最新 Debug 构建发布在 [`Chess 1.0.0 — Purchase Page Wrap Fix (Debug)`](https://github.com/XYkadicloud/Chess-For-Xiaomi-Band/releases/tag/v1.0.0-purchase-wrap-debug)，包含 Debug RPK、完整源码归档和 SHA-256 校验文件。正式 Release 仍需配置有效的生产签名证书；不能将 Debug 包作为正式版发布。主线 `src/` 与该源码归档保持同步。
 
-当前版本已经包含独立关于页、开发者头像、应用图标、爱发电二维码和二维码大图页。关于页的真机滚动和视觉尺寸仍应在 Band 9 上进行最终验收，详细要求见当前交接文档。
+当前版本已经包含独立关于页、开发者头像、应用图标、爱发电二维码、购买提示页、首次启动购买状态和二维码大图页。购买页文字采用固定宽度多行换行，关于页提供“前往付款”入口。页面的真机滚动和视觉尺寸仍应在 Band 9 上进行最终验收，详细要求见当前交接文档。
 
 ## 历史版本
 

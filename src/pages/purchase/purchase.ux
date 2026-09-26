@@ -1,0 +1,56 @@
+<template>
+  <div class="purchasePage">
+    <div class="header"><text class="headerTitle">爱发电购买</text></div>
+    <list class="purchaseList">
+      <list-item class="qrItem" type="item">
+        <image class="qr" src="/common/aifadian_qr.jpg"></image>
+      </list-item>
+      <list-item class="priceItem" type="item">
+        <text class="price">2元</text>
+        <text class="bodyText priceText">诚信付费，希望有人购买... (-_-;)</text>
+      </list-item>
+      <list-item class="infoItem" type="item">
+        <text class="bodyText leftText tokenText">消耗了我1.3亿 Token（60元左右）</text>
+        <text class="bodyText leftText gap featureText">主要是要做想做其他功能，但是做一半又放弃了。以后看一下能不能再更新出来一些其他的功能 (@_@)</text>
+      </list-item>
+      <list-item class="browserItem" type="item">
+        <text class="bodyText leftText projectText">也可以看一下我另一个项目</text>
+        <text class="bodyText leftText gap browserText">这个呢是一个带有 AI 功能、RSS 订阅源和浏览器的软件「腕上浏览器」，希望能看看，谢谢喵～</text>
+      </list-item>
+    </list>
+    <div class="buttonArea" if="{{!purchaseConfirmed}}">
+      <text class="confirmButton" @touchend="confirmPurchase">已购买</text>
+    </div>
+  </div>
+</template>
+<style>
+.purchasePage { width:192dp; height:490dp; background-color:#000000; flex-direction:column; }
+.header { width:192dp; height:52dp; align-items:center; justify-content:center; }
+.headerTitle { color:#FFFFFF; font-size:21dp; font-weight:bold; line-height:36dp; }
+.purchaseList { width:192dp; height:374dp; padding:6dp 12dp 14dp 12dp; }
+.qrItem,.priceItem,.infoItem,.browserItem { width:168dp; border-radius:16dp; background-color:#252828; margin-bottom:8dp; padding:10dp 14dp; flex-direction:column; align-items:center; justify-content:flex-start; }
+.qrItem { height:168dp; padding:9dp; }
+.qr { width:150dp; height:150dp; background-color:#FFFFFF; object-fit:contain; }
+.priceItem { height:82dp; align-items:center; justify-content:flex-start; }
+.price { color:#4EA1FF; font-size:22dp; font-weight:bold; line-height:28dp; }
+.infoItem { height:142dp; align-items:flex-start; }
+.browserItem { height:142dp; align-items:flex-start; }
+.bodyText { width:140dp; color:rgba(255,255,255,0.82); font-size:13dp; line-height:19dp; text-align:center; }
+.priceText { height:38dp; lines:2; margin-top:2dp; }
+.leftText { text-align:left; }
+.tokenText,.projectText { height:19dp; lines:1; }
+.featureText,.browserText { height:76dp; lines:4; }
+.gap { margin-top:7dp; }
+.buttonArea { width:192dp; height:64dp; align-items:center; justify-content:center; }
+.confirmButton { width:160dp; height:44dp; border-radius:22dp; background-color:#0D6EFF; color:#FFFFFF; font-size:18dp; font-weight:bold; line-height:44dp; text-align:center; }
+</style>
+<script>
+import router from '@system.router';
+import storage from '@system.storage';
+export default {
+  data:{purchaseConfirmed:false},
+  onInit(){this.loadPurchase();},
+  loadPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';},fail:()=>{this.purchaseConfirmed=false;}});},
+  confirmPurchase(){storage.set({key:'purchase_confirmed',value:'true'});this.purchaseConfirmed=true;router.back();}
+}
+</script>

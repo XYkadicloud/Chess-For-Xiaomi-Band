@@ -35,6 +35,9 @@
         <image class="qrPreview" src="/common/aifadian_qr.jpg"></image>
         <text class="qrButton">点击查看大图二维码</text>
       </list-item>
+      <list-item class="purchaseEntryItem" type="item" @touchend="openPurchase">
+        <text class="purchaseEntry">前往付款</text>
+      </list-item>
       <list-item class="thanksItem" type="item">
         <text class="thanks">感谢你的支持</text>
       </list-item>
@@ -47,7 +50,7 @@
 .back { position:absolute; left:12dp; top:8dp; width:32dp; height:36dp; color:#FFFFFF; font-size:30dp; line-height:36dp; text-align:center; }
 .headerTitle { width:192dp; color:#FFFFFF; font-size:21dp; font-weight:bold; line-height:36dp; text-align:center; }
 .aboutList { width:192dp; height:438dp; padding:8dp 12dp 28dp 12dp; }
-.appItem,.authorItem,.infoItem,.supportItem { width:168dp; margin-bottom:10dp; border-radius:16dp; background-color:#252828; align-items:center; }
+.appItem,.authorItem,.infoItem,.supportItem,.purchaseEntryItem { width:168dp; margin-bottom:10dp; border-radius:16dp; background-color:#252828; align-items:center; }
 .appItem { height:150dp; flex-direction:column; justify-content:center; }
 .appIcon { width:68dp; height:68dp; object-fit:contain; margin-bottom:4dp; }
 .appName { color:#FFFFFF; font-size:20dp; font-weight:bold; line-height:26dp; }
@@ -66,10 +69,21 @@
 .supportText { width:148dp; color:rgba(255,255,255,0.78); font-size:13dp; line-height:19dp; text-align:center; margin-bottom:10dp; }
 .qrPreview { width:160dp; height:160dp; background-color:#FFFFFF; object-fit:contain; }
 .qrButton { width:150dp; height:34dp; margin-top:8dp; border-radius:17dp; background-color:#0D6EFF; color:#FFFFFF; font-size:13dp; line-height:34dp; text-align:center; }
+.purchaseEntryItem { height:54dp; justify-content:center; }
+.purchaseEntry { width:150dp; height:38dp; border-radius:19dp; background-color:#0D6EFF; color:#FFFFFF; font-size:16dp; font-weight:bold; line-height:38dp; text-align:center; }
 .thanksItem { width:168dp; height:50dp; align-items:center; justify-content:center; background-color:#000000; }
 .thanks { color:rgba(255,255,255,0.45); font-size:13dp; text-align:center; }
 </style>
 <script>
 import router from '@system.router';
-export default { back(){router.back();}, openQr(){router.push({uri:'/pages/support'});} }
+import storage from '@system.storage';
+export default {
+  data:{purchaseConfirmed:false},
+  onInit(){this.loadPurchase();},
+  onShow(){this.loadPurchase();},
+  loadPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';},fail:()=>{this.purchaseConfirmed=false;}});},
+  back(){router.back();},
+  openQr(){router.push({uri:'/pages/support'});},
+  openPurchase(){router.push({uri:'/pages/purchase'});}
+}
 </script>
