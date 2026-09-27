@@ -1,0 +1,2 @@
+77a9b3d2008c15db447e8ef0415a8edd9a185b0460a31292b26b3f6937d5a28e  releases/1.0/Chess-Vela-Band10-1.0.0-release-normal-20260927.rpk
+8a94624b6407eac07d9906381b86730f7c1a520bb2c2e09f58532f7f0e77bb00  releases/1.0/Chess-Vela-Band10-1.0.0-release-normal-source-20260927.tar.gz

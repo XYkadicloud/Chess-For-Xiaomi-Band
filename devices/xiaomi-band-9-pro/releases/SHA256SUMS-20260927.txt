@@ -1,0 +1,2 @@
+0e9339b356fe57ab390e258184b2d940f6844810c51dc69f45235fa60e8924aa  releases/band9pro-20260927/Chess-Vela-Band9Pro-1.0.0-debug-20260927.rpk
+cbdafc695223d17d88ceccd7d8cc99ff9f621e15dbc98631bb2b728345e54e38  releases/band9pro-20260927/Chess-Vela-Band9Pro-1.0.0-source-20260927.tar.gz

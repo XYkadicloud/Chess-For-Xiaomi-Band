@@ -1,7 +1,11 @@
 node_modules/
+.npm-cache/
 dist/
 build/
+sign/
+backups/
+*.pem
+*.key
+*.p12
+*.pfx
 .temp_*/
-*.log
-.DS_Store
-Thumbs.db

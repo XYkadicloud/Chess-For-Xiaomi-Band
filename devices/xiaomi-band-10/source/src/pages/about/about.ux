@@ -1,0 +1,89 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <text class="back" @touchend="back">‹</text>
+      <text class="headerTitle">关于</text>
+    </div>
+    <list class="aboutList">
+      <list-item class="appItem" type="item">
+        <image class="appIcon" src="/common/icon.png"></image>
+        <text class="appName">Chess</text>
+        <text class="version">版本 1.0</text>
+      </list-item>
+      <list-item class="authorItem" type="item">
+        <image class="avatar" src="/common/avatar.jpg"></image>
+        <div class="authorInfo">
+          <text class="authorLabel">开发者</text>
+          <text class="developer">XYKadi</text>
+        </div>
+      </list-item>
+      <list-item class="infoItem" type="item">
+        <text class="sectionTitle">应用说明</text>
+        <text class="bodyText">Chess 是一款运行在 Xiaomi Band 10 Vela 上的离线双人西洋棋快应用，不需要网络或手机伴侣。</text>
+      </list-item>
+      <list-item class="infoItem rulesItem" type="item">
+        <text class="sectionTitle">已支持的规则</text>
+        <text class="bodyText">棋子基本走法与吃子、将军、将死、逼和、王车易位、吃过路兵、兵升变、三次重复和棋、五十回合和棋。</text>
+      </list-item>
+      <list-item class="infoItem rulesItem" type="item">
+        <text class="sectionTitle">尚未完整支持</text>
+        <text class="bodyText">兵升变目前自动升为后，暂不支持选择升变为车、象或马；暂不支持棋局历史保存与 PGN 导入导出。</text>
+      </list-item>
+      <list-item class="supportItem" type="item" @touchend="openQr">
+        <text class="sectionTitle supportTitle">爱发电主页</text>
+        <text class="supportText">这是我的爱发电主页，希望能够捐赠支持一下。</text>
+        <image class="qrPreview" src="/common/aifadian_qr.jpg"></image>
+        <text class="qrButton">点击查看大图二维码</text>
+      </list-item>
+      <list-item class="purchaseEntryItem" type="item" @touchend="openPurchase">
+        <text class="purchaseEntry">前往付款</text>
+      </list-item>
+      <list-item class="thanksItem" type="item">
+        <text class="thanks">感谢你的支持</text>
+      </list-item>
+    </list>
+  </div>
+</template>
+<style>
+.page { width:212dp; height:520dp; background-color:#000000; flex-direction:column; }
+.header { width:212dp; height:52dp; position:relative; align-items:center; justify-content:center; }
+.back { position:absolute; left:12dp; top:8dp; width:32dp; height:36dp; color:#FFFFFF; font-size:30dp; line-height:36dp; text-align:center; }
+.headerTitle { width:212dp; color:#FFFFFF; font-size:21dp; font-weight:bold; line-height:36dp; text-align:center; }
+.aboutList { width:212dp; height:438dp; padding:8dp 12dp 28dp 12dp; }
+.appItem,.authorItem,.infoItem,.supportItem,.purchaseEntryItem { width:188dp; margin-bottom:10dp; border-radius:16dp; background-color:#252828; align-items:center; }
+.appItem { height:150dp; flex-direction:column; justify-content:center; }
+.appIcon { width:68dp; height:68dp; object-fit:contain; margin-bottom:4dp; }
+.appName { color:#FFFFFF; font-size:20dp; font-weight:bold; line-height:26dp; }
+.version { color:#4EA1FF; font-size:16dp; font-weight:bold; line-height:23dp; }
+.authorItem { height:92dp; padding:10dp 16dp; flex-direction:row; justify-content:flex-start; }
+.avatar { width:68dp; height:68dp; border-radius:34dp; object-fit:cover; background-color:#101010; margin-right:16dp; }
+.authorInfo { height:62dp; flex-direction:column; justify-content:center; }
+.authorLabel { color:rgba(255,255,255,0.6); font-size:14dp; line-height:21dp; }
+.developer { color:#FFFFFF; font-size:20dp; font-weight:bold; line-height:28dp; }
+.infoItem { height:138dp; padding:14dp 14dp 12dp 14dp; flex-direction:column; align-items:flex-start; justify-content:flex-start; }
+.rulesItem { height:157dp; }
+.sectionTitle { width:160dp; color:#FFFFFF; font-size:16dp; font-weight:bold; line-height:23dp; margin-bottom:5dp; }
+.bodyText { width:160dp; color:rgba(255,255,255,0.78); font-size:13dp; line-height:19dp; }
+.supportItem { height:320dp; padding:14dp 10dp 16dp 10dp; flex-direction:column; justify-content:flex-start; }
+.supportTitle { width:168dp; text-align:center; }
+.supportText { width:168dp; height:38dp; lines:2; text-overflow:clip; color:rgba(255,255,255,0.78); font-size:13dp; line-height:19dp; text-align:center; margin-bottom:10dp; }
+.qrPreview { width:160dp; height:160dp; background-color:#FFFFFF; object-fit:contain; }
+.qrButton { width:150dp; height:34dp; margin-top:8dp; border-radius:17dp; background-color:#0D6EFF; color:#FFFFFF; font-size:13dp; line-height:34dp; text-align:center; }
+.purchaseEntryItem { height:54dp; justify-content:center; }
+.purchaseEntry { width:150dp; height:38dp; border-radius:19dp; background-color:#0D6EFF; color:#FFFFFF; font-size:16dp; font-weight:bold; line-height:38dp; text-align:center; }
+.thanksItem { width:188dp; height:50dp; align-items:center; justify-content:center; background-color:#000000; }
+.thanks { color:rgba(255,255,255,0.45); font-size:13dp; text-align:center; }
+</style>
+<script>
+import router from '@system.router';
+import storage from '@system.storage';
+export default {
+  data:{purchaseConfirmed:false},
+  onInit(){this.loadPurchase();},
+  onShow(){this.loadPurchase();},
+  loadPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';},fail:()=>{this.purchaseConfirmed=false;}});},
+  back(){router.back();},
+  openQr(){router.push({uri:'/pages/support'});},
+  openPurchase(){router.push({uri:'/pages/purchase'});}
+}
+</script>
