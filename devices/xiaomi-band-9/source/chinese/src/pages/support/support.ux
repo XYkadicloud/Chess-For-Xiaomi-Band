@@ -1,0 +1,31 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <text class="back" @touchend="back">‹</text>
+      <text class="title">爱发电主页</text>
+    </div>
+    <div class="body">
+      <text class="hint">扫码支持开发者</text>
+      <image class="qrLarge" src="/common/aifadian_qr.jpg"></image>
+      <text class="caption">这是我的爱发电主页</text>
+      <text class="support">如果你喜欢这个项目，希望能够捐赠支持一下。</text>
+      <text class="backButton" @touchend="back">返回关于</text>
+    </div>
+  </div>
+</template>
+<style>
+.page { width:192dp; height:490dp; background-color:#000000; flex-direction:column; }
+.header { width:192dp; height:52dp; position:relative; align-items:center; justify-content:center; }
+.back { position:absolute; left:12dp; top:8dp; width:32dp; height:36dp; color:#FFFFFF; font-size:30dp; line-height:36dp; text-align:center; }
+.title { width:192dp; color:#FFFFFF; font-size:21dp; font-weight:bold; line-height:36dp; text-align:center; }
+.body { width:192dp; height:438dp; align-items:center; flex-direction:column; padding-top:20dp; }
+.hint { color:#4EA1FF; font-size:18dp; font-weight:bold; line-height:28dp; margin-bottom:12dp; }
+.qrLarge { width:180dp; height:180dp; background-color:#FFFFFF; object-fit:contain; }
+.caption { color:#FFFFFF; font-size:16dp; line-height:26dp; margin-top:12dp; }
+.support { width:160dp; color:rgba(255,255,255,0.72); font-size:13dp; line-height:19dp; text-align:center; margin-top:4dp; }
+.backButton { width:140dp; height:38dp; border-radius:19dp; background-color:#252828; color:#FFFFFF; font-size:15dp; line-height:38dp; text-align:center; margin-top:15dp; }
+</style>
+<script>
+import router from '@system.router';
+export default { back(){router.back();} }
+</script>

@@ -1,63 +1,54 @@
-# Chess for Xiaomi Vela Bands
+# Chess for Xiaomi Vela Bands / 小米 Vela 手环国际象棋
 
-小米 Vela 手环国际象棋快应用。仓库已经按目标设备明确分类，避免 Xiaomi Smart Band 9、Band 9 Pro 和 Band 10 的屏幕基准与构建产物混淆。
+Offline two-player chess quick app for Xiaomi Vela bands. 本项目是运行在 Xiaomi Vela 手环上的离线双人国际象棋快应用。
 
-## 设备版本总览
+## Bilingual release / 双语发布
 
-| 设备目录 | 屏幕规格 | 设计宽度 | 当前内容 |
-|---|---:|---:|---|
-| [`devices/xiaomi-band-9`](devices/xiaomi-band-9) | 192×490 | 192dp | Band 9 源码、历史归档和公开 RPK |
-| [`devices/xiaomi-band-9-pro`](devices/xiaomi-band-9-pro) | 336×480 | 336dp | Band 9 Pro 完整可构建源码、签名正式 RPK、审计报告 |
-| [`devices/xiaomi-band-10`](devices/xiaomi-band-10) | 212×520 | 212dp | Band 10 源码、公开 RPK 和校验文件 |
+The repository contains **separate Chinese and English source trees for every device**. Each language directory is a complete, independently buildable Vela project. 仓库为每个设备提供**独立分开的中文和英文源代码目录**；每个语言目录都是可以单独构建的完整 Vela 工程。
 
-根目录保留 **Xiaomi Smart Band 9 Pro** 当前工程，便于直接执行构建；设备专属的完整源码副本也放在对应 `devices/*/source/` 目录中。
+| Device / 设备 | Screen / 屏幕 | Chinese source / 中文源码 | English source / 英文源码 |
+|---|---:|---|---|
+| Xiaomi Smart Band 9 | 192×490 / 192dp | [`source/chinese`](devices/xiaomi-band-9/source/chinese) | [`source/english`](devices/xiaomi-band-9/source/english) |
+| Xiaomi Smart Band 9 Pro | 336×480 / 336dp | [`source/chinese`](devices/xiaomi-band-9-pro/source/chinese) | [`source/english`](devices/xiaomi-band-9-pro/source/english) |
+| Xiaomi Smart Band 10 | 212×520 / 212dp | [`source/chinese`](devices/xiaomi-band-10/source/chinese) | [`source/english`](devices/xiaomi-band-10/source/english) |
 
-## 目录规则
+Chinese source is restored from the pre-translation 1.0.0 baseline commit. English source is the translated and validated 1.0.0 source. 中文源码恢复自翻译前的 1.0.0 基线提交；英文源码是已翻译并验证的 1.0.0 源码。
 
-```text
-devices/
-├── xiaomi-band-9/
-│   ├── source/       # 192×490 Band 9 源码与历史归档
-│   └── releases/     # Band 9 RPK、旧版本和校验文件
-├── xiaomi-band-9-pro/
-│   ├── source/       # 336×480 Band 9 Pro 完整工程源码
-│   └── releases/     # Band 9 Pro Debug/正式签名 RPK与审计资料
-└── xiaomi-band-10/
-    ├── source/       # 212×520 Band 10 完整工程源码
-    └── releases/     # Band 10 普通正式 RPK与校验文件
+## Build / 构建
 
-docs/
-├── DEVICE_MATRIX.md          # 三种设备的适配矩阵
-└── ENGLISH_VERSION_PLAN.md   # 英语版本预留方案
-```
+These are Xiaomi Vela quick-app packages (`.rpk`), not Android APK files. 以下是 Xiaomi Vela 快应用包（`.rpk`），不是 Android APK 文件。
 
-## 当前 Band 9 Pro 构建
-
-根目录和 `devices/xiaomi-band-9-pro/source/` 使用相同的 336×480 适配基线：
+Run the following inside the desired language directory. 请在目标设备和语言目录中执行：
 
 ```bash
 npm ci --cache .npm-cache
-node tools/verify_band9pro_adaptation.js
-node tools/audit_band9pro_layout.js
 npm run build
-npm run release
 ```
 
-JSC 和 Protobuf 保持关闭，以避免目标设备启动兼容性问题。签名私钥不属于仓库内容；正式签名构建需要在本地安全提供证书和私钥。
+For example / 示例：
 
-## 安全说明
+```bash
+cd devices/xiaomi-band-9/source/english
+npm ci --cache .npm-cache
+npm run build
+```
 
-本次整理只上传公开源码、公开资源、RPK、校验文件和审计文档。**不会上传 `private.pem`、任何私钥、包含私钥的签名压缩包或构建临时目录。**
+The build output is written to that language project's `dist/` directory. 构建产物会写入对应语言工程的 `dist/` 目录。
 
-## 英语版本
+## Releases / 发布
 
-英语版本暂不混入设备目录，统一预留在 [`locales/`](locales/)；设备适配和语言内容分离，后续可以为同一设备分别加入 `zh-CN` 与 `en-US` 文案，而不复制三套设备布局。
+- [Bilingual release notes — English](docs/RELEASE_NOTES_EN.md)
+- [双语发布说明 — 中文](docs/RELEASE_NOTES_ZH-CN.md)
+- [GitHub bilingual release / GitHub 双语发布](https://github.com/XYkadicloud/Chess-For-Xiaomi-Band/releases/tag/v1.0.0-bilingual-20260927)
 
-## 许可证
+Each device release directory contains language-labelled RPK files, complete source archives, and SHA-256 files. 每个设备的发布目录都包含带语言标识的 RPK、完整源码归档和 SHA-256 校验文件。
 
-本项目源代码采用 **GNU General Public License v3.0（GPL-3.0）** 发布，具体条款见 [`LICENSE`](LICENSE)。本许可证说明不代表对 Xiaomi、Vela、Xiaomi Band 或其他第三方商标、平台和资源授予额外权利。
+## Validation boundary / 验证边界
 
-## 官方设备资料
+The Chinese and English source trees have been checked for manifest parity, device-specific design widths, page structure, UX script syntax, and successful toolkit builds. 中文和英文源码已检查 manifest 一致性、设备设计宽度、页面结构、UX 脚本语法，并完成 Toolkit 构建。
 
-- [Xiaomi Smart Band 9 Pro Global Specs](https://www.mi.com/global/product/xiaomi-smart-band-9-pro/specs/)
-- [Xiaomi Smart Band 10 Global Specs](https://www.mi.com/global/product/xiaomi-smart-band-10/specs/)
+No physical Band 9, Band 9 Pro, or Band 10 installation test was performed in this sandbox. 本次沙箱环境未在真实 Band 9、Band 9 Pro 或 Band 10 上安装和回归测试。
+
+## License / 许可证
+
+GPL-3.0. See [`LICENSE`](LICENSE). 本项目采用 GPL-3.0，详见 [`LICENSE`](LICENSE)。

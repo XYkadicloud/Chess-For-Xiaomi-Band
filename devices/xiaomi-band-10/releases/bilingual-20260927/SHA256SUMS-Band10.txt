@@ -1,0 +1,6 @@
+cb808dd7a19da3f4b143833720682d495212dc0e243f879107fd3b8938c56f0d  ./Chess-Vela-Band10-Chinese-1.0.0-debug-20260927.rpk
+a17023f8ad9a275fd1a1ffd66d6376902e8bad42f8530c8dcaa5b680a709a7a2  ./Chess-Vela-Band10-Chinese-1.0.0-production-20260927.rpk
+c7deb3c7804f73615ae809452cea37d49ea3e720d77fb3ff4241d8c1d3790ce9  ./Chess-Vela-Band10-Chinese-1.0.0-source-20260927.tar.gz
+866aaaefc7ab1ce6eb7247b65940c6d7bb21fb96be014b4d7cc0d33e689f3b88  ./Chess-Vela-Band10-English-1.0.0-debug-20260927.rpk
+3f7933457886a402ffa322b29e39ab1a0b44a0bf49aff8b2ea546780216ff535  ./Chess-Vela-Band10-English-1.0.0-production-20260927.rpk
+57e7da0a732409fdb77ba50c5e6e163ec508084f85766811c8a2e4972d6380e0  ./Chess-Vela-Band10-English-1.0.0-source-20260927.tar.gz
