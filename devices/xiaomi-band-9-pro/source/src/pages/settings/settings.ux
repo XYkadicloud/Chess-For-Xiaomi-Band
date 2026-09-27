@@ -1,9 +1,9 @@
 <template>
   <div class="settingsPage">
-    <div class="header"><text class="back" @click="back">‹</text><text class="headerTitle">下棋设置</text></div>
-    <div class="setting" @click="toggleAuto"><text class="settingName">选中后自动居中</text><text class="settingValue">{{autoCenter?'开启':'关闭'}}</text></div>
-    <div class="setting" @click="cycleBoard"><text class="settingName">棋盘大小</text><text class="settingValue">{{boardSize}}</text></div>
-    <text class="footer" @click="back">完成</text>
+    <div class="header"><text class="back" @click="back">‹</text><text class="headerTitle">Chess settings</text></div>
+    <div class="setting" @click="toggleAuto"><text class="settingName">Auto-center after selection</text><text class="settingValue">{{autoCenter?'On':'Off'}}</text></div>
+    <div class="setting" @click="cycleBoard"><text class="settingName">Board size</text><text class="settingValue">{{boardSize}}</text></div>
+    <text class="footer" @click="back">Done</text>
   </div>
 </template>
 <style>
@@ -20,13 +20,13 @@
 import router from '@system.router';
 import storage from '@system.storage';
 export default {
-  data:{autoCenter:true,boardSize:'标准'},
+  data:{autoCenter:true,boardSize:'Standard'},
   onInit(){this.load();},
   onShow(){this.load();},
-  load(){storage.get({key:'CHESS_SETTINGS',success:(data)=>{try{const raw=data&&data.data!==undefined?data.data:data;if(raw===undefined||raw===null||raw==='')return;const v=typeof raw==='string'?JSON.parse(raw):raw;this.autoCenter=v.autoCenter!==false;this.boardSize=v.boardSize||'标准';}catch(e){}},fail:()=>{}});},
+  load(){storage.get({key:'CHESS_SETTINGS',success:(data)=>{try{const raw=data&&data.data!==undefined?data.data:data;if(raw===undefined||raw===null||raw==='')return;const v=typeof raw==='string'?JSON.parse(raw):raw;this.autoCenter=v.autoCenter!==false;const oldSize=v.boardSize;this.boardSize=oldSize==='Large'||oldSize==='\u653e\u5927'?'Large':(oldSize==='Compact'||oldSize==='\u7d27\u51d1'?'Compact':'Standard');}catch(e){}},fail:()=>{}});},
   save(){storage.set({key:'CHESS_SETTINGS',value:JSON.stringify({autoCenter:this.autoCenter,boardSize:this.boardSize})});},
   back(){this.save();router.back();},
   toggleAuto(){this.autoCenter=!this.autoCenter;this.save();},
-  cycleBoard(){this.boardSize=this.boardSize==='标准'?'放大':(this.boardSize==='放大'?'紧凑':'标准');this.save();}
+  cycleBoard(){this.boardSize=this.boardSize==='Standard'?'Large':(this.boardSize==='Large'?'Compact':'Standard');this.save();}
 }
 </script>

@@ -1,0 +1,2 @@
+0367f87ce071801f875f94ccf4f5ad2107b07ea95e8300b5c8483467a62843bd  ./Chess-Vela-Band10-English-1.0.0-debug-20260927.rpk
+384c839dc60d870ef53e595b4472688db7863ccbc4187dcef3261da3054d5f6a  ./Chess-Vela-Band10-English-1.0.0-source-20260927.tar.gz

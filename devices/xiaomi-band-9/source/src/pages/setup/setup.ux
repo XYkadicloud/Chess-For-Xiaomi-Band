@@ -1,15 +1,15 @@
 <template>
   <div class="setup">
-    <div class="head"><text class="back" @click="back">‹</text><text class="title">开始对局</text></div>
-    <text class="label">选择每方用时</text>
-    <text class="{{timeControl === '5+0' ? 'time selected' : 'time'}}" @touchend="choose('5+0')">5 分钟 · 标准</text>
-    <text class="{{timeControl === '10+0' ? 'time selected' : 'time'}}" @touchend="choose('10+0')">10 分钟 · 休闲</text>
-    <text class="{{timeControl === '15+0' ? 'time selected' : 'time'}}" @touchend="choose('15+0')">15 分钟 · 长局</text>
-    <text class="{{timeControl === '20+0' ? 'time selected' : 'time'}}" @touchend="choose('20+0')">20 分钟 · 耐心</text>
-    <text class="{{timeControl === 'unlimited' ? 'time selected' : 'time'}}" @touchend="choose('unlimited')">无限制时间</text>
-    <text class="selectedText">当前：{{timeControl === 'unlimited' ? '无限制' : timeControl}}</text>
-    <text class="selectedText">棋盘：{{boardSize}}</text>
-    <text class="start" @touchend="start">开始下棋</text>
+    <div class="head"><text class="back" @click="back">‹</text><text class="title">Start game</text></div>
+    <text class="label">Time per player</text>
+    <text class="{{timeControl === '5+0' ? 'time selected' : 'time'}}" @touchend="choose('5+0')">5 min · Standard</text>
+    <text class="{{timeControl === '10+0' ? 'time selected' : 'time'}}" @touchend="choose('10+0')">10 min · Casual</text>
+    <text class="{{timeControl === '15+0' ? 'time selected' : 'time'}}" @touchend="choose('15+0')">15 min · Long game</text>
+    <text class="{{timeControl === '20+0' ? 'time selected' : 'time'}}" @touchend="choose('20+0')">20 min · Patient</text>
+    <text class="{{timeControl === 'unlimited' ? 'time selected' : 'time'}}" @touchend="choose('unlimited')">Unlimited time</text>
+    <text class="selectedText">Current: {{timeControl === 'unlimited' ? 'Unlimited' : timeControl}}</text>
+    <text class="selectedText">Board: {{boardSize}}</text>
+    <text class="start" @touchend="start">Start playing</text>
   </div>
 </template>
 <style>
@@ -26,5 +26,5 @@
 <script>
 import router from '@system.router';
 import storage from '@system.storage';
-export default { data:{timeControl:'10+0',boardSize:'标准'}, onInit(){this.loadBoardSize();}, onShow(){this.loadBoardSize();}, loadBoardSize(){storage.get({key:'CHESS_SETTINGS',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;this.boardSize=v&&v.boardSize?v.boardSize:'标准';}catch(e){this.boardSize='标准';}},fail:()=>{this.boardSize='标准';}});}, back(){router.back();}, choose(v){this.timeControl=v;}, start(){const unlimited=this.timeControl==='unlimited';const minutes=unlimited?'0':(this.timeControl.split('+')[0]||'10');const size=this.boardSize==='放大'?'44':(this.boardSize==='紧凑'?'24':'30');router.push({uri:'/pages/game',params:{minutes:minutes,unlimited:unlimited?'true':'false',boardSize:size,resume:'false'}});} }
+export default { data:{timeControl:'10+0',boardSize:'Standard'}, onInit(){this.loadBoardSize();}, onShow(){this.loadBoardSize();}, loadBoardSize(){storage.get({key:'CHESS_SETTINGS',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;const oldSize=v&&v.boardSize;this.boardSize=oldSize==='Large'||oldSize==='\u653e\u5927'?'Large':(oldSize==='Compact'||oldSize==='\u7d27\u51d1'?'Compact':'Standard');}catch(e){this.boardSize='Standard';}},fail:()=>{this.boardSize='Standard';}});}, back(){router.back();}, choose(v){this.timeControl=v;}, start(){const unlimited=this.timeControl==='unlimited';const minutes=unlimited?'0':(this.timeControl.split('+')[0]||'10');const size=this.boardSize==='Large'?'44':(this.boardSize==='Compact'?'24':'30');router.push({uri:'/pages/game',params:{minutes:minutes,unlimited:unlimited?'true':'false',boardSize:size,resume:'false'}});} }
 </script>

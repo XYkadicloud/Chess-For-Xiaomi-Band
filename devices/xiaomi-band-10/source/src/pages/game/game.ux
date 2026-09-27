@@ -4,7 +4,7 @@
       <text class="turn">{{ statusText }}</text>
       <text class="menuButton" @click="toggleMenu">☰</text>
     </div>
-    <div class="clocks"><text class="clock" style="color:{{turn==='white'?'#4EA1FF':'#FFFFFF'}};">白 {{whiteClock}}</text><text class="clock" style="color:{{turn==='black'?'#4EA1FF':'#FFFFFF'}};">黑 {{blackClock}}</text></div>
+    <div class="clocks"><text class="clock" style="color:{{turn==='white'?'#4EA1FF':'#FFFFFF'}};">White {{whiteClock}}</text><text class="clock" style="color:{{turn==='black'?'#4EA1FF':'#FFFFFF'}};">Black {{blackClock}}</text></div>
 
     <div class="boardViewport" @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd">
       <div class="board" style="width:{{boardSize}}dp;height:{{boardSize}}dp;left:{{boardLeft}}dp;top:{{boardTop}}dp;">
@@ -21,35 +21,35 @@
     </div>
 
     <div class="hint"><text class="hintText">{{hintText}}</text></div>
-    <div class="bottom"><text class="action" @click="undoMove">悔棋</text><text class="action" @click="openMenu">菜单</text></div>
+    <div class="bottom"><text class="action" @click="undoMove">Undo</text><text class="action" @click="openMenu">Menu</text></div>
 
     <div class="overlay" if="{{menuVisible}}">
       <div class="menuCard">
-        <text class="menuTitle">棋局菜单</text>
-        <text class="menuItem" @click="newGame">新建棋局</text>
-        <text class="menuItem" @click="undoMove">悔棋</text>
-        <text class="menuItem" @click="confirmResign">认输</text>
-        <text class="menuItem" @click="offerDraw">和棋</text>
-        <text class="menuItem" @click="openSettings">设置</text>
-        <text class="menuItem exitItem" @click="exitGame">退出对局</text>
-        <text class="menuItem" @click="closeMenu">继续对局</text>
+        <text class="menuTitle">Game menu</text>
+        <text class="menuItem" @click="newGame">New game</text>
+        <text class="menuItem" @click="undoMove">Undo</text>
+        <text class="menuItem" @click="confirmResign">Resign</text>
+        <text class="menuItem" @click="offerDraw">Draw</text>
+        <text class="menuItem" @click="openSettings">Settings</text>
+        <text class="menuItem exitItem" @click="exitGame">Exit game</text>
+        <text class="menuItem" @click="closeMenu">Continue game</text>
       </div>
     </div>
 
     <div class="overlay" if="{{settingsVisible}}">
       <div class="menuCard resultCard">
-        <text class="menuTitle">下棋设置</text>
-        <text class="menuItem" @click="toggleAutoCenter">自动居中：{{autoCenter ? '开' : '关'}}</text>
-        <text class="menuItem" @click="cycleBoardSize">棋盘大小：{{boardSizeLabel}}</text>
-        <text class="menuItem" @click="closeSettings">完成</text>
+        <text class="menuTitle">Chess settings</text>
+        <text class="menuItem" @click="toggleAutoCenter">Auto-center: {{autoCenter ? 'On' : 'Off'}}</text>
+        <text class="menuItem" @click="cycleBoardSize">Board size: {{boardSizeLabel}}</text>
+        <text class="menuItem" @click="closeSettings">Done</text>
       </div>
     </div>
 
     <div class="overlay" if="{{resultVisible}}">
       <div class="menuCard">
         <text class="menuTitle">{{resultTitle}}</text>
-        <text class="menuItem" @click="newGame">再来一局</text>
-        <text class="menuItem" @click="closeResult">查看棋局</text>
+        <text class="menuItem" @click="newGame">Play again</text>
+        <text class="menuItem" @click="closeResult">View game</text>
       </div>
     </div>
   </div>
@@ -94,27 +94,27 @@ export default {
     squareSize: 30, boardSize: 240, boardLeft: -22, boardTop: 20, castling: {wK:true,wQ:true,bK:true,bQ:true}, legalCache:{},
     menuVisible: false, settingsVisible: false, resultVisible: false, gameOver: false, paused: false, restoring: false,
     showHints: true, autoCenter: true, confirmBeforeResign: true, unlimited:false, initialMinutes:10, whiteSeconds:600, blackSeconds:600, whiteClock:'10:00', blackClock:'10:00', timerId:null, lastTick:0, halfmoveClock:0, positionCounts:{},
-    resultTitle: '', hintText: '点击棋子开始走子', touchX: 0, touchY: 0, pendingTouchX: 0, pendingTouchY: 0, dragging: false, touchQueued: false,
+    resultTitle: '', hintText: 'Tap a piece to move', touchX: 0, touchY: 0, pendingTouchX: 0, pendingTouchY: 0, dragging: false, touchQueued: false,
     ranks: ['8','7','6','5','4','3','2','1']
   },
   computed: {
-    statusText() { return this.resultVisible ? '对局结束' : (this.turn === WHITE ? '白方回合' : '黑方回合'); },
-    boardSizeLabel() { return this.squareSize===44?'放大':(this.squareSize===24?'紧凑':'标准'); }
+    statusText() { return this.resultVisible ? 'Game over' : (this.turn === WHITE ? "White's turn" : "Black's turn"); },
+    boardSizeLabel() { return this.squareSize===44?'Large':(this.squareSize===24?'Compact':'Standard'); }
   },
   protected: { minutes: '10', unlimited: 'false', boardSize: '30', resume: 'false' },
   onInit() { this.unlimited=String(this.unlimited)==='true'; const parsed=parseInt(String(this.minutes),10); this.initialMinutes=this.unlimited?0:(isNaN(parsed)||parsed<1?10:parsed); this.restoring=String(this.resume)==='true'; this.loadSettings(); if(this.restoring)this.loadActiveGame();else{this.clearActiveGame();this.applyBoardSize(this.boardSize||30);this.newPosition();} },
   onShow(){ this.lastTick=Date.now(); if(!this.gameOver&&!this.resultVisible&&!this.paused)this.startClock(); },
   applyBoardSize(v){const n=parseInt(v,10);this.squareSize=n===44?44:(n===24?24:30);this.boardSize=this.squareSize*8;this.boardLeft=Math.max(this.maxBoardLeft(),Math.min(0,this.boardLeft));this.boardTop=Math.max(this.maxBoardTop(),Math.min(0,this.boardTop));},
-  loadSettings(){ storage.get({key:'CHESS_SETTINGS',success:(data)=>{try{const raw=data&&data.data!==undefined?data.data:data;const v=typeof raw==='string'?JSON.parse(raw):raw;if(!v)return;this.showHints=true;this.autoCenter=v.autoCenter!==false;if(v.boardSize==='放大')this.squareSize=44;else if(v.boardSize==='紧凑')this.squareSize=24;else this.squareSize=30;this.boardSize=this.squareSize*8;this.boardLeft=Math.max(this.maxBoardLeft(),Math.min(0,this.boardLeft));this.boardTop=Math.max(this.maxBoardTop(),Math.min(0,this.boardTop));this.buildSquares();}catch(e){}},fail:()=>{}}); },
+  loadSettings(){ storage.get({key:'CHESS_SETTINGS',success:(data)=>{try{const raw=data&&data.data!==undefined?data.data:data;const v=typeof raw==='string'?JSON.parse(raw):raw;if(!v)return;this.showHints=true;this.autoCenter=v.autoCenter!==false;if(v.boardSize==='Large'||v.boardSize==='\u653e\u5927')this.squareSize=44;else if(v.boardSize==='Compact'||v.boardSize==='\u7d27\u51d1')this.squareSize=24;else this.squareSize=30;this.boardSize=this.squareSize*8;this.boardLeft=Math.max(this.maxBoardLeft(),Math.min(0,this.boardLeft));this.boardTop=Math.max(this.maxBoardTop(),Math.min(0,this.boardTop));this.buildSquares();}catch(e){}},fail:()=>{}}); },
   saveSettings(){storage.set({key:'CHESS_SETTINGS',value:JSON.stringify({autoCenter:this.autoCenter,boardSize:this.boardSizeLabel})});},
   clearActiveGame(){storage.set({key:'CHESS_ACTIVE_GAME',value:''});},
   saveActiveGame(){if(this.gameOver||this.resultVisible||!this.board||this.board.length!==64)return;storage.set({key:'CHESS_ACTIVE_GAME',value:JSON.stringify({board:this.board,history:this.history,turn:this.turn,lastMove:this.lastMove,castling:this.castling,unlimited:this.unlimited,whiteSeconds:this.whiteSeconds,blackSeconds:this.blackSeconds,initialMinutes:this.initialMinutes,squareSize:this.squareSize,boardLeft:this.boardLeft,boardTop:this.boardTop,halfmoveClock:this.halfmoveClock,positionCounts:this.positionCounts,showHints:this.showHints,autoCenter:this.autoCenter,confirmBeforeResign:this.confirmBeforeResign,gameOver:false})});},
-  loadActiveGame(){storage.get({key:'CHESS_ACTIVE_GAME',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;if(!v||!v.board||v.board.length!==64){this.restoring=false;this.applyBoardSize(this.boardSize||30);this.newPosition();return;}this.board=v.board;this.history=v.history||[];this.turn=v.turn||WHITE;this.lastMove=v.lastMove||[];this.castling=v.castling||{wK:true,wQ:true,bK:true,bQ:true};this.unlimited=v.unlimited===true||String(v.unlimited)==='true';this.whiteSeconds=Number(v.whiteSeconds)||0;this.blackSeconds=Number(v.blackSeconds)||0;this.initialMinutes=this.unlimited?0:(Number(v.initialMinutes)||this.initialMinutes);this.applyBoardSize(v.squareSize||this.boardSize||30);this.boardLeft=Number(v.boardLeft)||0;this.boardTop=Number(v.boardTop)||0;this.halfmoveClock=Number(v.halfmoveClock)||0;this.positionCounts=v.positionCounts||{};this.showHints=true;this.autoCenter=v.autoCenter!==false;this.confirmBeforeResign=true;this.selected=-1;this.legalMoves=[];this.resultVisible=false;this.gameOver=false;this.paused=false;this.whiteClock=this.unlimited?'∞':this.formatClock(this.whiteSeconds);this.blackClock=this.unlimited?'∞':this.formatClock(this.blackSeconds);this.lastTick=Date.now();this.buildSquares();this.hintText='已恢复对局，轮到'+(this.turn===WHITE?'白方':'黑方');this.startClock();}catch(e){this.restoring=false;this.applyBoardSize(this.boardSize||30);this.newPosition();}},fail:()=>{this.restoring=false;this.applyBoardSize(this.boardSize||30);this.newPosition();}});},
+  loadActiveGame(){storage.get({key:'CHESS_ACTIVE_GAME',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;if(!v||!v.board||v.board.length!==64){this.restoring=false;this.applyBoardSize(this.boardSize||30);this.newPosition();return;}this.board=v.board;this.history=v.history||[];this.turn=v.turn||WHITE;this.lastMove=v.lastMove||[];this.castling=v.castling||{wK:true,wQ:true,bK:true,bQ:true};this.unlimited=v.unlimited===true||String(v.unlimited)==='true';this.whiteSeconds=Number(v.whiteSeconds)||0;this.blackSeconds=Number(v.blackSeconds)||0;this.initialMinutes=this.unlimited?0:(Number(v.initialMinutes)||this.initialMinutes);this.applyBoardSize(v.squareSize||this.boardSize||30);this.boardLeft=Number(v.boardLeft)||0;this.boardTop=Number(v.boardTop)||0;this.halfmoveClock=Number(v.halfmoveClock)||0;this.positionCounts=v.positionCounts||{};this.showHints=true;this.autoCenter=v.autoCenter!==false;this.confirmBeforeResign=true;this.selected=-1;this.legalMoves=[];this.resultVisible=false;this.gameOver=false;this.paused=false;this.whiteClock=this.unlimited?'∞':this.formatClock(this.whiteSeconds);this.blackClock=this.unlimited?'∞':this.formatClock(this.blackSeconds);this.lastTick=Date.now();this.buildSquares();this.hintText='Game restored. It is '+(this.turn===WHITE?'White':'Black');this.startClock();}catch(e){this.restoring=false;this.applyBoardSize(this.boardSize||30);this.newPosition();}},fail:()=>{this.restoring=false;this.applyBoardSize(this.boardSize||30);this.newPosition();}});},
   onHide(){ if(!this.paused&&!this.gameOver&&!this.resultVisible)this.tickClock(); this.stopClock(); this.saveActiveGame(); },
   startClock(){ if(this.unlimited||this.timerId||this.gameOver||this.resultVisible||this.paused)return; this.lastTick=Date.now(); this.timerId=setInterval(()=>this.tickClock(),1000); },
   stopClock(){ if(this.timerId){clearInterval(this.timerId);this.timerId=null;} },
   tickClock(){ if(this.unlimited||this.resultVisible)return; const now=Date.now(); const elapsed=Math.max(0,Math.floor((now-this.lastTick)/1000)); this.lastTick=now; if(this.turn==='white')this.whiteSeconds=Math.max(0,this.whiteSeconds-elapsed);else this.blackSeconds=Math.max(0,this.blackSeconds-elapsed); this.whiteClock=this.formatClock(this.whiteSeconds);this.blackClock=this.formatClock(this.blackSeconds); if((this.turn==='white'&&this.whiteSeconds<=0)||(this.turn==='black'&&this.blackSeconds<=0))this.finishByTimeout(); },
-  finishByTimeout(){if(this.resultVisible)return;this.gameOver=true;this.resultTitle=(this.turn===WHITE?'黑方':'白方')+'胜（超时）';this.resultVisible=true;this.hintText='对局结束：'+(this.turn===WHITE?'白方':'黑方')+'超时';this.stopClock();},
+  finishByTimeout(){if(this.resultVisible)return;this.gameOver=true;this.resultTitle=(this.turn===WHITE?'Black':'White')+' wins (timeout)';this.resultVisible=true;this.hintText='Game over: '+(this.turn===WHITE?'White':'Black')+' timed out';this.stopClock();},
   formatClock(s){const mins=Math.floor(s/60);const secs=s%60;return (mins<10?'0':'')+mins+':'+(secs<10?'0':'')+secs;},
   newPosition() {
     this.gameOver=false;
@@ -133,11 +133,11 @@ export default {
     if (this.resultVisible || this.gameOver) return;
     if (this.selected >= 0 && this.legalMoves.indexOf(i)>=0) { this.move(this.selected,i); return; }
     const p=this.board[i];
-    if (p && p[0]===this.turn[0]) { this.selected=i; this.legalMoves=this.showHints?this.getMoves(i):[]; this.hintText='已选择 '+this.nameOf(i)+'，点击蓝点落子'; if(this.autoCenter)this.centerOn(i); this.buildSquares(); }
-    else { if(this.selected===-1&&this.legalMoves.length===0)return; this.selected=-1; this.legalMoves=[]; this.hintText='请先选择当前回合的棋子'; this.buildSquares(); }
+    if (p && p[0]===this.turn[0]) { this.selected=i; this.legalMoves=this.showHints?this.getMoves(i):[]; this.hintText='Selected '+this.nameOf(i)+'. Tap a blue dot to move'; if(this.autoCenter)this.centerOn(i); this.buildSquares(); }
+    else { if(this.selected===-1&&this.legalMoves.length===0)return; this.selected=-1; this.legalMoves=[]; this.hintText='Select a piece for the current turn first'; this.buildSquares(); }
   },
-  move(from,to) { this.tickClock(); if(this.resultVisible)return; this.history.push({board:this.board.slice(),turn:this.turn,last:this.lastMove.slice(),castling:Object.assign({},this.castling),whiteSeconds:this.whiteSeconds,blackSeconds:this.blackSeconds,halfmoveClock:this.halfmoveClock,positionCounts:Object.assign({},this.positionCounts)}); const b=this.board.slice(); const moving=b[from], type=moving[1], color=moving[0]; const captured=b[to]; const previousLast=this.lastMove.slice(); b[to]=moving; b[from]=null; if(type==='P'&&Math.abs(to-from)===7&&Math.floor(from/8)!==Math.floor(to/8)&&!captured&&previousLast.length===2&&Math.abs(previousLast[1]-previousLast[0])===16&&previousLast[1]===from+(color==='w'?-8:8)){const cap=color==='w'?to+8:to-8;if(b[cap]&&b[cap][1]==='P')b[cap]=null;} if(type==='K'&&Math.abs(to-from)===2){const rookFrom=to>from?from+3:from-4;const rookTo=to>from?from+1:from-1;b[rookTo]=b[rookFrom];b[rookFrom]=null;} if(type==='P'&&(Math.floor(to/8)===0||Math.floor(to/8)===7))b[to]=color+'Q'; if(type==='K'){this.castling[color==='w'?'wK':'bK']=false;this.castling[color==='w'?'wQ':'bQ']=false;} if(type==='R'){if(from===63)this.castling.wK=false;if(from===56)this.castling.wQ=false;if(from===7)this.castling.bK=false;if(from===0)this.castling.bQ=false;} this.halfmoveClock=(type==='P'||captured)?0:this.halfmoveClock+1; this.board=b; this.lastMove=[from,to]; this.selected=-1; this.legalMoves=[]; this.turn=this.turn===WHITE?BLACK:WHITE; const key=this.positionKey(this.board,this.turn); this.positionCounts[key]=(this.positionCounts[key]||0)+1; this.lastTick=Date.now(); this.hintText=this.isInCheckBoard(this.board,this.turn)?'将军，请交给'+(this.turn===WHITE?'白方':'黑方'):'走子完成，请交给'+(this.turn===WHITE?'白方':'黑方'); this.buildSquares(); if(this.isCheckmate(this.turn)){this.resultTitle=(this.turn===WHITE?'黑方':'白方')+'胜（将死）';this.resultVisible=true;this.stopClock();}else if(this.isStalemate(this.turn)){this.resultTitle='和棋（逼和）';this.resultVisible=true;this.stopClock();}else if(this.isInsufficientMaterial()||this.halfmoveClock>=100||this.positionCounts[key]>=3){this.resultTitle='和棋';this.resultVisible=true;this.stopClock();} },
-  undoMove() { if(!this.history.length){this.hintText='还没有可以悔的棋';this.closeMenu();return;} const h=this.history.pop();this.board=h.board;this.turn=h.turn;this.lastMove=h.last;this.castling=h.castling;this.whiteSeconds=h.whiteSeconds;this.blackSeconds=h.blackSeconds;this.halfmoveClock=h.halfmoveClock;this.positionCounts=h.positionCounts;this.whiteClock=this.formatClock(this.whiteSeconds);this.blackClock=this.formatClock(this.blackSeconds);this.lastTick=Date.now();this.selected=-1;this.legalMoves=[];this.resultVisible=false;this.hintText='已悔棋，请继续';this.buildSquares();this.closeMenu(); },
+  move(from,to) { this.tickClock(); if(this.resultVisible)return; this.history.push({board:this.board.slice(),turn:this.turn,last:this.lastMove.slice(),castling:Object.assign({},this.castling),whiteSeconds:this.whiteSeconds,blackSeconds:this.blackSeconds,halfmoveClock:this.halfmoveClock,positionCounts:Object.assign({},this.positionCounts)}); const b=this.board.slice(); const moving=b[from], type=moving[1], color=moving[0]; const captured=b[to]; const previousLast=this.lastMove.slice(); b[to]=moving; b[from]=null; if(type==='P'&&Math.abs(to-from)===7&&Math.floor(from/8)!==Math.floor(to/8)&&!captured&&previousLast.length===2&&Math.abs(previousLast[1]-previousLast[0])===16&&previousLast[1]===from+(color==='w'?-8:8)){const cap=color==='w'?to+8:to-8;if(b[cap]&&b[cap][1]==='P')b[cap]=null;} if(type==='K'&&Math.abs(to-from)===2){const rookFrom=to>from?from+3:from-4;const rookTo=to>from?from+1:from-1;b[rookTo]=b[rookFrom];b[rookFrom]=null;} if(type==='P'&&(Math.floor(to/8)===0||Math.floor(to/8)===7))b[to]=color+'Q'; if(type==='K'){this.castling[color==='w'?'wK':'bK']=false;this.castling[color==='w'?'wQ':'bQ']=false;} if(type==='R'){if(from===63)this.castling.wK=false;if(from===56)this.castling.wQ=false;if(from===7)this.castling.bK=false;if(from===0)this.castling.bQ=false;} this.halfmoveClock=(type==='P'||captured)?0:this.halfmoveClock+1; this.board=b; this.lastMove=[from,to]; this.selected=-1; this.legalMoves=[]; this.turn=this.turn===WHITE?BLACK:WHITE; const key=this.positionKey(this.board,this.turn); this.positionCounts[key]=(this.positionCounts[key]||0)+1; this.lastTick=Date.now(); this.hintText=this.isInCheckBoard(this.board,this.turn)?'Check. Pass to '+(this.turn===WHITE?'White':'Black'):'Move complete. Pass to '+(this.turn===WHITE?'White':'Black'); this.buildSquares(); if(this.isCheckmate(this.turn)){this.resultTitle=(this.turn===WHITE?'Black':'White')+' wins (checkmate)';this.resultVisible=true;this.stopClock();}else if(this.isStalemate(this.turn)){this.resultTitle='Draw (stalemate)';this.resultVisible=true;this.stopClock();}else if(this.isInsufficientMaterial()||this.halfmoveClock>=100||this.positionCounts[key]>=3){this.resultTitle='Draw';this.resultVisible=true;this.stopClock();} },
+  undoMove() { if(!this.history.length){this.hintText='No moves to undo';this.closeMenu();return;} const h=this.history.pop();this.board=h.board;this.turn=h.turn;this.lastMove=h.last;this.castling=h.castling;this.whiteSeconds=h.whiteSeconds;this.blackSeconds=h.blackSeconds;this.halfmoveClock=h.halfmoveClock;this.positionCounts=h.positionCounts;this.whiteClock=this.formatClock(this.whiteSeconds);this.blackClock=this.formatClock(this.blackSeconds);this.lastTick=Date.now();this.selected=-1;this.legalMoves=[];this.resultVisible=false;this.hintText='Move undone. Continue playing';this.buildSquares();this.closeMenu(); },
   getMoves(i){const p=this.board[i];if(!p)return[];const key=this.board.join(',')+'|'+this.turn+'|'+i+'|'+JSON.stringify(this.castling);if(this.legalCache[key])return this.legalCache[key].slice();const pseudo=this.getPseudoMoves(i,this.board,true);const out=[];for(let n=0;n<pseudo.length;n++){const b=this.applyBoardMove(this.board,i,pseudo[n]);if(!this.isInCheckBoard(b,p[0]))out.push(pseudo[n]);}this.legalCache[key]=out.slice();return out;},
   getPseudoMoves(i,board,includeCastle){const p=board[i],type=p[1],color=p[0],row=Math.floor(i/8),col=i%8,out=[];const add=(r,c)=>{if(r<0||r>7||c<0||c>7)return false;const j=r*8+c;if(!board[j]){out.push(j);return true;}if(board[j][0]!==color)out.push(j);return false;};
     if(type==='P'){const d=color==='w'?-1:1,start=color==='w'?6:1;if(row+d>=0&&row+d<8&&!board[(row+d)*8+col]){out.push((row+d)*8+col);if(row===start&&!board[(row+2*d)*8+col])out.push((row+2*d)*8+col);}for(const dc of[-1,1]){const r=row+d,c=col+dc;if(r>=0&&r<8&&c>=0&&c<8){const j=r*8+c;if(board[j]&&board[j][0]!==color)out.push(j);else if(!board[j]&&this.lastMove.length===2&&Math.abs(this.lastMove[1]-this.lastMove[0])===16&&this.lastMove[1]===row*8+c&&board[this.lastMove[1]]&&board[this.lastMove[1]][0]!==color&&board[this.lastMove[1]][1]==='P')out.push(j);}}}
@@ -161,7 +161,7 @@ export default {
   onTouchEnd(){this.dragging=false;this.touchQueued=false;},
   blockSwipe(e){if(e&&e.stopPropagation)e.stopPropagation();return false;},
   toggleMenu(){if(this.menuVisible){this.closeMenu();return;}this.menuVisible=true;this.paused=true;this.stopClock();this.saveActiveGame();}, openMenu(){this.toggleMenu();}, closeMenu(){this.menuVisible=false;if(!this.settingsVisible&&!this.resultVisible){this.paused=false;this.startClock();}},
-  newGame(){this.clearActiveGame();this.paused=false;this.newPosition();this.closeMenu();this.startClock();}, offerDraw(){this.gameOver=true;this.resultTitle='和棋（双方同意）';this.resultVisible=true;this.clearActiveGame();this.closeMenu();this.stopClock();}, confirmResign(){this.gameOver=true;if(this.confirmBeforeResign){this.resultTitle=(this.turn===WHITE?'黑方':'白方')+'胜（对手认输）';this.resultVisible=true;this.closeMenu();}else{this.resultTitle='对局结束';this.resultVisible=true;this.closeMenu();}this.clearActiveGame();},
+  newGame(){this.clearActiveGame();this.paused=false;this.newPosition();this.closeMenu();this.startClock();}, offerDraw(){this.gameOver=true;this.resultTitle='Draw (agreement)';this.resultVisible=true;this.clearActiveGame();this.closeMenu();this.stopClock();}, confirmResign(){this.gameOver=true;if(this.confirmBeforeResign){this.resultTitle=(this.turn===WHITE?'Black':'White')+' wins (opponent resigned)';this.resultVisible=true;this.closeMenu();}else{this.resultTitle='Game over';this.resultVisible=true;this.closeMenu();}this.clearActiveGame();},
   openSettings(){this.menuVisible=false;this.settingsVisible=true;this.paused=true;this.stopClock();},closeSettings(){this.settingsVisible=false;this.paused=false;this.startClock();},
   exitGame(){this.saveActiveGame();this.stopClock();require('@system.router').back();},
 toggleAutoCenter(){this.autoCenter=!this.autoCenter;this.saveSettings();},cycleBoardSize(){const n=this.squareSize===30?44:(this.squareSize===44?24:30);this.applyBoardSize(n);this.saveSettings();this.buildSquares();},closeResult(){this.gameOver=true;this.resultVisible=false;this.stopClock();}

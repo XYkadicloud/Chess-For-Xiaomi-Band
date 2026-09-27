@@ -1,0 +1,2 @@
+e2bdf3fe39f689a9422a7ea119494ecba64ba3893cdfc9b254703e949bd94354  ./Chess-Vela-Band9-English-1.0.0-debug-20260927.rpk
+2fa870c88578b23bb7e8589f7230f26ecbd3aec9681d8e4a7db960e7bcbe2f2d  ./Chess-Vela-Band9-English-1.0.0-source-20260927.tar.gz

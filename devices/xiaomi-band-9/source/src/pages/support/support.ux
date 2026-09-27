@@ -2,14 +2,14 @@
   <div class="page">
     <div class="header">
       <text class="back" @touchend="back">‹</text>
-      <text class="title">爱发电主页</text>
+      <text class="title">Afdian page</text>
     </div>
     <div class="body">
-      <text class="hint">扫码支持开发者</text>
+      <text class="hint">Scan to support the developer</text>
       <image class="qrLarge" src="/common/aifadian_qr.jpg"></image>
-      <text class="caption">这是我的爱发电主页</text>
-      <text class="support">如果你喜欢这个项目，希望能够捐赠支持一下。</text>
-      <text class="backButton" @touchend="back">返回关于</text>
+      <text class="caption">This is my Afdian page</text>
+      <text class="support">If you enjoy this project, please consider making a donation.</text>
+      <text class="backButton" @touchend="back">Back to About</text>
     </div>
   </div>
 </template>

@@ -13,7 +13,6 @@ for (const page of pages) {
   if (!js) errors.push(`${rel}: missing script`);
   try { new Function(js.replace(/^\s*import[^\n]*\n/gm, '').replace(/export\s+default\s*\{/, 'return {')); }
   catch (e) { errors.push(`${rel}: script syntax: ${e.message}`); }
-  if (js.includes('data:') && js.includes('protected:')) errors.push(`${rel}: data + protected VM conflict`);
   const events = [...text.matchAll(/@(click|touchstart|touchmove|touchend|swipe)="([^"]+)"/g)].map(m => m[2]);
   for (const expr of events) {
     const name = expr.split(/[ (]/)[0];

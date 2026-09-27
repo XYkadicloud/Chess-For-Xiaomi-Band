@@ -23,9 +23,9 @@ assert(setup.includes('@touchend="choose'));
 assert(setup.includes("params:{minutes:minutes,unlimited:unlimited?'true':'false',boardSize:size,resume:'false'}"));
 assert(settings.includes('autoCenter'));
 assert(settings.includes('boardSize'));
-assert(!settings.includes('走法提示'));
-assert(!settings.includes('认输前确认'));
-assert(!settings.includes('棋盘动画'));
+assert(!settings.includes('Move hints'));
+assert(!settings.includes('Confirm before resigning'));
+assert(!settings.includes('Board animation'));
 for (const [file, source] of [['game', game], ['setup', setup], ['settings', settings]]) {
   const script = source.match(/<script>([\s\S]*?)<\/script>/)[1]
     .replace(/^\s*import[^\n]*\n/gm, '')

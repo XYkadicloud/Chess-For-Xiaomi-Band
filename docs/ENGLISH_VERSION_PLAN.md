@@ -1,20 +1,17 @@
-# English Version Plan
+# English Version
 
-英语版本将与设备布局分离，避免为 Band 9、Band 9 Pro、Band 10 各复制一套页面。
+The active source trees now contain English UI text for all three device targets without duplicating or changing their chess logic.
 
-## 预留结构
+## Device targets
 
-```text
-locales/
-├── README.md
-├── zh-CN/
-└── en-US/
-```
+- `devices/xiaomi-band-9/source/` — Xiaomi Band 9, 192dp
+- `devices/xiaomi-band-9-pro/source/` — Xiaomi Band 9 Pro, 336dp
+- `devices/xiaomi-band-10/source/` — Xiaomi Band 10, 212dp
 
-## 迁移原则
+## Translation rules applied
 
-1. 页面结构和设备尺寸继续放在各自源码目录。
-2. 中文和英文只替换文本，不改变棋局逻辑、存储键、路由和设备布局。
-3. 所有英文文本需要检查窄屏换行，尤其是购买页、关于页和设置页。
-4. 翻译完成后分别执行三种设备的静态检查和构建。
-5. 发布包名称中同时标注设备和语言，例如 `Band9Pro-en-US`。
+1. Translated user-visible UX text and source-package README files to English.
+2. Preserved route names, storage keys, chess rules, dimensions, assets, and device-specific layout.
+3. Converted board-size display values to `Standard`, `Large`, and `Compact`.
+4. Kept backward-compatible reads for existing Chinese board-size values, while new writes use English values.
+5. Build and release are intentionally not performed in this translation-only phase.
