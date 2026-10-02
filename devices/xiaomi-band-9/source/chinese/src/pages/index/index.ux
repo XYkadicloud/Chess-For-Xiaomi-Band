@@ -2,7 +2,7 @@
   <div class="home">
     <div class="homeMark"><image class="homeIcon" src="/common/icon.png"></image></div>
     <text class="title">Chess</text>
-    <text class="subtitle">单机双人 · Xiaomi Band 9</text>
+    <text class="subtitle">双人对弈 / 人机对战 · Xiaomi Band 9</text>
     <text class="primary" @click="startGame">{{hasActiveGame?'继续对局':'开始游戏'}}</text>
     <text class="secondary" @click="openSettings">下棋设置</text>
     <text class="secondary" @click="openAbout">关于</text>

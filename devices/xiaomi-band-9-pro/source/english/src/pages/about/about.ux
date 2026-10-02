@@ -19,7 +19,7 @@
       </list-item>
       <list-item class="infoItem" type="item">
         <text class="sectionTitle">About this app</text>
-        <text class="bodyText">Chess is an offline two-player chess quick app for Xiaomi Band 9 Pro Vela. No network or phone companion is required.</text>
+        <text class="bodyText">Chess is an offline two-player chess quick app for Xiaomi Band 9 Pro Vela. No network or phone companion is required. A built-in AI engine lets you play against the computer when no second player is available.</text>
       </list-item>
       <list-item class="infoItem rulesItem" type="item">
         <text class="sectionTitle">Supported rules</text>
@@ -60,7 +60,7 @@
 .authorInfo { height:62dp; flex-direction:column; justify-content:center; }
 .authorLabel { color:rgba(255,255,255,0.6); font-size:14dp; line-height:21dp; }
 .developer { color:#FFFFFF; font-size:20dp; font-weight:bold; line-height:28dp; }
-.infoItem { height:112dp; padding:14dp 14dp 12dp 14dp; flex-direction:column; align-items:flex-start; justify-content:flex-start; }
+.infoItem { height:127dp; padding:14dp 14dp 12dp 14dp; flex-direction:column; align-items:flex-start; justify-content:flex-start; }
 .rulesItem { height:128dp; }
 .sectionTitle { width:280dp; color:#FFFFFF; font-size:16dp; font-weight:bold; line-height:23dp; margin-bottom:5dp; }
 .bodyText { width:280dp; color:rgba(255,255,255,0.78); font-size:13dp; line-height:19dp; }

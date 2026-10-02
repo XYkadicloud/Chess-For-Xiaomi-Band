@@ -2,7 +2,7 @@
   <div class="home">
     <div class="homeMark"><image class="homeIcon" src="/common/icon.png"></image></div>
     <text class="title">Chess</text>
-    <text class="subtitle">Local 2-player · Xiaomi Band 10</text>
+    <text class="subtitle">2-player / vs AI · Xiaomi Band 10</text>
     <text class="primary" @click="startGame">{{hasActiveGame?'Continue game':'Start game'}}</text>
     <text class="secondary" @click="openSettings">Chess settings</text>
     <text class="secondary" @click="openAbout">About</text>

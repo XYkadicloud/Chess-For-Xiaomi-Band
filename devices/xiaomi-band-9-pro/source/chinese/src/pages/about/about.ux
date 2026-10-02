@@ -19,7 +19,7 @@
       </list-item>
       <list-item class="infoItem" type="item">
         <text class="sectionTitle">应用说明</text>
-        <text class="bodyText">Chess 是一款运行在 Xiaomi Band 9 Pro Vela 上的离线双人西洋棋快应用，不需要网络或手机伴侣。</text>
+        <text class="bodyText">Chess 是一款运行在 Xiaomi Band 9 Pro Vela 上的离线双人西洋棋快应用，不需要网络或手机伴侣。 内置 AI 引擎，可在没有第二位玩家时与电脑对弈。</text>
       </list-item>
       <list-item class="infoItem rulesItem" type="item">
         <text class="sectionTitle">已支持的规则</text>

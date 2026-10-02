@@ -19,7 +19,7 @@
       </list-item>
       <list-item class="infoItem" type="item">
         <text class="sectionTitle">应用说明</text>
-        <text class="bodyText">Chess 是一款运行在 Xiaomi Band 10 Vela 上的离线双人西洋棋快应用，不需要网络或手机伴侣。</text>
+        <text class="bodyText">Chess 是一款运行在 Xiaomi Band 10 Vela 上的离线双人西洋棋快应用，不需要网络或手机伴侣。 内置 AI 引擎，可在没有第二位玩家时与电脑对弈。</text>
       </list-item>
       <list-item class="infoItem rulesItem" type="item">
         <text class="sectionTitle">已支持的规则</text>
@@ -60,10 +60,10 @@
 .authorInfo { height:62dp; flex-direction:column; justify-content:center; }
 .authorLabel { color:rgba(255,255,255,0.6); font-size:14dp; line-height:21dp; }
 .developer { color:#FFFFFF; font-size:20dp; font-weight:bold; line-height:28dp; }
-.infoItem { height:138dp; padding:14dp 14dp 12dp 14dp; flex-direction:column; align-items:flex-start; justify-content:flex-start; }
+.infoItem { height:146dp; padding:14dp 14dp 12dp 14dp; flex-direction:column; align-items:flex-start; justify-content:flex-start; }
 .rulesItem { height:157dp; }
 .sectionTitle { width:160dp; color:#FFFFFF; font-size:16dp; font-weight:bold; line-height:23dp; margin-bottom:5dp; }
-.bodyText { width:160dp; color:rgba(255,255,255,0.78); font-size:13dp; line-height:19dp; }
+.bodyText { width:160dp; color:rgba(255,255,255,0.78); font-size:12dp; line-height:17dp; }
 .supportItem { height:320dp; padding:14dp 10dp 16dp 10dp; flex-direction:column; justify-content:flex-start; }
 .supportTitle { width:168dp; text-align:center; }
 .supportText { width:168dp; height:38dp; lines:2; text-overflow:clip; color:rgba(255,255,255,0.78); font-size:13dp; line-height:19dp; text-align:center; margin-bottom:10dp; }

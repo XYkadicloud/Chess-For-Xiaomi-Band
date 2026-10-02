@@ -9,22 +9,39 @@
     <text class="{{timeControl === 'unlimited' ? 'time selected' : 'time'}}" @touchend="choose('unlimited')">Unlimited time</text>
     <text class="selectedText">Current: {{timeControl === 'unlimited' ? 'Unlimited' : timeControl}}</text>
     <text class="selectedText">Board: {{boardSize}}</text>
-    <text class="start" @touchend="start">Start playing</text>
+        <text class="optLabel">Opponent</text>
+    <div class="segRow">
+      <text class="{{aiMode ? 'seg' : 'seg sel'}}" @touchend="setOpponent('two')">2 Players</text>
+      <text class="{{aiMode ? 'seg sel' : 'seg'}}" @touchend="setOpponent('ai')">vs AI</text>
+    </div>
+    <text class="optLabel" if="{{aiMode}}">AI level</text>
+    <div class="segRow" if="{{aiMode}}">
+      <text class="{{aiLevel==='easy'?'seg lv sel':'seg lv'}}" @touchend="setLevel('easy')">Easy</text>
+      <text class="{{aiLevel==='normal'?'seg lv sel':'seg lv'}}" @touchend="setLevel('normal')">Normal</text>
+      <text class="{{aiLevel==='hard'?'seg lv sel':'seg lv'}}" @touchend="setLevel('hard')">Hard</text>
+      <text class="{{aiLevel==='master'?'seg lv sel':'seg lv'}}" @touchend="setLevel('master')">Master</text>
+    </div>
+<text class="start" @touchend="start">Start playing</text>
   </div>
 </template>
 <style>
 .setup { width:192dp; height:490dp; background-color:#000; padding:18dp 12dp; flex-direction:column; overflow:hidden; }
-.head { width:168dp; height:42dp; flex-direction:row; align-items:center; margin-bottom:12dp; }
+.head { width:168dp; height:38dp; flex-direction:row; align-items:center; margin-bottom:6dp; }
 .back { width:32dp; color:#fff; font-size:30dp; text-align:center; }
 .title { color:#fff; font-size:22dp; font-weight:bold; }
-.label { color:rgba(255,255,255,.65); font-size:15dp; margin-bottom:6dp; }
-.time { width:168dp; height:38dp; border-radius:19dp; background-color:#252828; color:#fff; font-size:16dp; line-height:38dp; text-align:center; margin-bottom:5dp; }
+.label { color:rgba(255,255,255,.65); font-size:15dp; margin-bottom:4dp; }
+.time { width:168dp; border-radius:19dp; background-color:#252828; color:#fff; text-align:center; font-size:14dp; height:30dp; line-height:30dp; margin-bottom:3dp; }
 .selected { background-color:#0D6EFF; }
-.selectedText { color:#4EA1FF; font-size:14dp; text-align:center; margin:7dp 0 0; }
+.selectedText { color:#4EA1FF; font-size:13dp; text-align:center; margin:7dp 0 0; }
 .start { position:absolute; left:12dp; bottom:14dp; width:168dp; height:44dp; border-radius:22dp; background-color:#0D6EFF; color:#fff; font-size:18dp; line-height:44dp; text-align:center; }
+.optLabel { color:rgba(255,255,255,.6); font-size:13dp; line-height:17dp; margin:4dp 0 3dp; }
+.segRow { width:100%; flex-direction:row; justify-content:space-between; }
+.seg { flex:1; height:30dp; margin:0 1dp; border-radius:15dp; background-color:#252828; color:#fff; font-size:13dp; line-height:30dp; text-align:center; }
+.seg.sel { background-color:#0D6EFF; }
+.seg.lv { font-size:11dp; }
 </style>
 <script>
 import router from '@system.router';
 import storage from '@system.storage';
-export default { data:{timeControl:'10+0',boardSize:'Standard'}, onInit(){this.loadBoardSize();}, onShow(){this.loadBoardSize();}, loadBoardSize(){storage.get({key:'CHESS_SETTINGS',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;const oldSize=v&&v.boardSize;this.boardSize=oldSize==='Large'||oldSize==='\u653e\u5927'?'Large':(oldSize==='Compact'||oldSize==='\u7d27\u51d1'?'Compact':'Standard');}catch(e){this.boardSize='Standard';}},fail:()=>{this.boardSize='Standard';}});}, back(){router.back();}, choose(v){this.timeControl=v;}, start(){const unlimited=this.timeControl==='unlimited';const minutes=unlimited?'0':(this.timeControl.split('+')[0]||'10');const size=this.boardSize==='Large'?'44':(this.boardSize==='Compact'?'24':'30');router.push({uri:'/pages/game',params:{minutes:minutes,unlimited:unlimited?'true':'false',boardSize:size,resume:'false'}});} }
+export default { data:{aiMode:false,aiLevel:'normal',timeControl:'10+0',boardSize:'Standard'}, onInit(){this.loadBoardSize();}, onShow(){this.loadBoardSize();}, loadBoardSize(){storage.get({key:'CHESS_SETTINGS',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;const oldSize=v&&v.boardSize;this.boardSize=oldSize==='Large'||oldSize==='\u653e\u5927'?'Large':(oldSize==='Compact'||oldSize==='\u7d27\u51d1'?'Compact':'Standard');}catch(e){this.boardSize='Standard';}},fail:()=>{this.boardSize='Standard';}});}, back(){router.back();}, choose(v){this.timeControl=v;}, start(){const unlimited=this.timeControl==='unlimited';const minutes=unlimited?'0':(this.timeControl.split('+')[0]||'10');const size=this.boardSize==='Large'?'44':(this.boardSize==='Compact'?'24':'30');router.push({uri:'/pages/game',params:{minutes:minutes,unlimited:unlimited?'true':'false',boardSize:size,resume:'false',aiMode:this.aiMode?'true':'false',aiLevel:this.aiLevel}});} }
 </script>

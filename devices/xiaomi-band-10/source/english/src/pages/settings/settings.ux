@@ -12,7 +12,7 @@
 .back { color:#FFFFFF; font-size:30dp; width:32dp; text-align:center; }
 .headerTitle { color:#FFFFFF; font-size:22dp; font-weight:bold; }
 .setting { width:188dp; min-height:54dp; border-radius:18dp; background-color:#252828; margin-bottom:8dp; padding:0 14dp; flex-direction:row; align-items:center; justify-content:space-between; }
-.settingName { color:#FFFFFF; font-size:17dp; lines:1; }
+.settingName { color:#FFFFFF; font-size:17dp; lines:2; }
 .settingValue { color:#4EA1FF; font-size:15dp; }
 .footer { width:188dp; height:44dp; border-radius:22dp; background-color:#0D6EFF; color:#FFFFFF; text-align:center; line-height:44dp; font-size:18dp; margin-top:12dp; }
 </style>

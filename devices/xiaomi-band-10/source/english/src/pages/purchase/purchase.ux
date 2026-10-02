@@ -36,7 +36,7 @@
 .infoItem { height:180dp; align-items:flex-start; }
 .browserItem { height:180dp; align-items:flex-start; }
 .bodyText { width:160dp; color:rgba(255,255,255,0.82); font-size:13dp; line-height:19dp; text-align:center; }
-.priceText { height:38dp; lines:2; text-overflow:clip; margin-top:2dp; }
+.priceText { height:57dp; lines:3; text-overflow:clip; margin-top:2dp; }
 .leftText { text-align:left; }
 .tokenText,.projectText { height:38dp; lines:2; text-overflow:clip; }
 .featureText,.browserText { height:114dp; lines:6; text-overflow:clip; }
