@@ -6,11 +6,11 @@
     </div>
 
     <div class="pane" if="{{step===1}}">
-      <div class="{{mode==='ai' ? 'card sel' : 'card'}}" @touchend="pickMode('two')">
+      <div class="card" style="background-color:{{mode==='two'?'#0D6EFF':'#24262B'}};color:{{mode==='two'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickMode('two')">
         <text class="cardTitle">2 Players</text>
         <text class="cardDesc">Two people share this band</text>
       </div>
-      <div class="{{mode==='ai' ? 'card sel' : 'card'}}" @touchend="pickMode('ai')">
+      <div class="card" style="background-color:{{mode==='ai'?'#0D6EFF':'#24262B'}};color:{{mode==='ai'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickMode('ai')">
         <text class="cardTitle">vs AI</text>
         <text class="cardDesc">Play the built-in engine</text>
       </div>
@@ -20,8 +20,8 @@
       <div class="row" if="{{mode==='ai'}}">
         <text class="rowLabel">I play</text>
         <div class="sideRow">
-          <text class="{{mySide==='white' ? 'side sel' : 'side'}}" @touchend="pickSide('white')">White</text>
-          <text class="{{mySide==='black' ? 'side sel' : 'side'}}" @touchend="pickSide('black')">Black</text>
+          <text class="side" style="background-color:{{mySide==='white'?'#0D6EFF':'#24262B'}};color:{{mySide==='white'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickSide('white')">White</text>
+          <text class="side" style="background-color:{{mySide==='black'?'#0D6EFF':'#24262B'}};color:{{mySide==='black'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickSide('black')">Black</text>
         </div>
       </div>
 
@@ -46,19 +46,19 @@
       <div class="row">
         <text class="rowLabel">Board</text>
         <div class="segRow">
-          <text class="{{boardSize==='Large'?'seg sel':'seg'}}" @touchend="pickBoard('Large')">Big</text>
-          <text class="{{boardSize==='Standard'?'seg sel':'seg'}}" @touchend="pickBoard('Standard')">Std</text>
-          <text class="{{boardSize==='Compact'?'seg sel':'seg'}}" @touchend="pickBoard('Compact')">Mini</text>
+          <text class="seg" style="background-color:{{boardSize==='Large'?'#0D6EFF':'#24262B'}};color:{{boardSize==='Large'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickBoard('Large')">Big</text>
+          <text class="seg" style="background-color:{{boardSize==='Standard'?'#0D6EFF':'#24262B'}};color:{{boardSize==='Standard'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickBoard('Standard')">Std</text>
+          <text class="seg" style="background-color:{{boardSize==='Compact'?'#0D6EFF':'#24262B'}};color:{{boardSize==='Compact'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickBoard('Compact')">Mini</text>
         </div>
       </div>
 
       <div class="row" if="{{mode==='ai'}}">
         <text class="rowLabel">Level</text>
         <div class="segRow">
-          <text class="{{aiLevel==='easy'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('easy')">Easy</text>
-          <text class="{{aiLevel==='normal'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('normal')">Norm</text>
-          <text class="{{aiLevel==='hard'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('hard')">Hard</text>
-          <text class="{{aiLevel==='master'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('master')">Pro</text>
+          <text class="seg lv" style="background-color:{{aiLevel==='easy'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='easy'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('easy')">Easy</text>
+          <text class="seg lv" style="background-color:{{aiLevel==='normal'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='normal'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('normal')">Norm</text>
+          <text class="seg lv" style="background-color:{{aiLevel==='hard'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='hard'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('hard')">Hard</text>
+          <text class="seg lv" style="background-color:{{aiLevel==='master'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='master'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('master')">Pro</text>
         </div>
       </div>
     </div>
@@ -70,32 +70,29 @@
 <style>
 .setup { width:212dp; height:520dp; background-color:#000; padding:16dp 12dp; flex-direction:column; overflow:hidden; }
 .head { width:188dp; height:40dp; flex-direction:row; align-items:center; margin-bottom:6dp; }
-.back { width:32dp; color:#fff; font-size:30dp; text-align:center; }
-.title { color:#fff; font-size:22dp; font-weight:bold; }
+.back { width:32dp; height:40dp; color:#fff; font-size:30dp; line-height:40dp; text-align:center; }
+.title { color:#fff; font-size:22dp; line-height:40dp; font-weight:bold; }
 .pane { width:188dp; flex-direction:column; }
 
-.card { width:188dp; height:76dp; border-radius:14dp; background-color:#252828; margin-bottom:12dp; padding:12dp; flex-direction:column; justify-content:center; }
-.card.sel { background-color:#0D6EFF; }
-.cardTitle { color:#fff; font-size:19dp; font-weight:bold; margin-bottom:5dp; }
-.cardDesc { color:rgba(255,255,255,.7); font-size:13dp; }
+.card { width:188dp; height:76dp; border-radius:14dp; margin-bottom:12dp; padding:12dp; flex-direction:column; justify-content:center; }
+.cardTitle { color:#fff; font-size:19dp; line-height:24dp; font-weight:bold; margin-bottom:5dp; }
+.cardDesc { color:rgba(255,255,255,.72); font-size:13dp; line-height:17dp; }
 
 .row { width:188dp; min-height:62dp; flex-direction:column; align-items:stretch; justify-content:space-between; margin-bottom:4dp; }
-.rowLabel { width:100%; color:#fff; font-size:13dp; line-height:15dp; margin-bottom:3dp; }
+.rowLabel { width:100%; height:15dp; color:#fff; font-size:13dp; line-height:15dp; margin-bottom:3dp; }
 
 .sideRow { width:188dp; flex-direction:row; justify-content:space-between; }
-.side { width:91dp; height:46dp; border-radius:12dp; background-color:#252828; color:#fff; font-size:16dp; line-height:46dp; text-align:center; }
-.side.sel { background-color:#0D6EFF; font-weight:bold; }
+.side { width:91dp; height:48dp; border-radius:12dp; font-size:16dp; line-height:48dp; text-align:center; font-weight:bold; }
 
 .stepper { width:188dp; flex-direction:row; justify-content:space-between; align-items:center; }
-.stepBtn { width:52dp; height:48dp; border-radius:12dp; background-color:#252828; color:#fff; font-size:26dp; line-height:48dp; text-align:center; }
-.stepVal { flex:1; color:#fff; font-size:15dp; text-align:center; }
+.stepBtn { width:52dp; height:46dp; border-radius:12dp; background-color:#2E3138; color:#fff; font-size:26dp; line-height:46dp; text-align:center; }
+.stepVal { flex:1; height:46dp; line-height:46dp; margin:0 4dp; border-radius:12dp; background-color:#1C1E22; color:#fff; font-size:16dp; font-weight:bold; text-align:center; }
 
 .segRow { width:188dp; flex-direction:row; justify-content:space-between; }
-.seg { flex:1; height:44dp; margin:0 2dp; border-radius:12dp; background-color:#252828; color:#fff; font-size:14dp; line-height:44dp; text-align:center; }
-.seg.sel { background-color:#0D6EFF; }
+.seg { flex:1; height:44dp; margin:0 2dp; border-radius:12dp; font-size:14dp; line-height:44dp; text-align:center; }
 .seg.lv { font-size:12dp; }
 
-.start { position:absolute; left:12dp; bottom:14dp; width:188dp; height:46dp; border-radius:23dp; background-color:#0D6EFF; color:#fff; font-size:18dp; line-height:46dp; text-align:center; }
+.start { position:absolute; left:12dp; bottom:14dp; width:188dp; height:50dp; border-radius:25dp; background-color:#0D6EFF; color:#fff; font-size:18dp; line-height:50dp; text-align:center; font-weight:bold; }
 </style>
 <script>
 import router from '@system.router';

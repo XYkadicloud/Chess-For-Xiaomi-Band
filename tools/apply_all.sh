@@ -49,6 +49,9 @@ echo "== 5. fix text overflow =="
 echo "== 6. fix porting constants =="
 "$NODE" tools/fix_porting.js
 
+echo "== 7. give text nodes an explicit box (collapsed text is invisible) =="
+"$NODE" tools/fix_back_text.js | tail -1
+
 echo
 echo "== verification =="
 "$NODE" tools/verify_handlers.js

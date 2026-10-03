@@ -49,22 +49,38 @@ for (const dev of DEVICES) {
     const fsSeg = num(decl(src, 'seg', 'font-size'));
     const fsLv = num(decl(src, 'lv', 'font-size')) || fsSeg;
 
-    // collect labels from the template
+    // collect labels from the template.
+    // The current generator uses a STATIC class plus an inline style ternary:
+    //   <text class="seg lv" style="background-color:{{aiLevel==='easy'?...}}" ...>简单</text>
+    // The older form (ternary inside class) is still parsed for safety.
     const tpl = src.match(/<template>([\s\S]*?)<\/template>/)[1];
     const groups = { seg: [], lv: [] };
-    const re = /<text class="\{\{([^"]*)\}\}"[^>]*>([^<]*)<\/text>/g;
+    const re = /<text([^>]*)>([^<]*)<\/text>/g;
     let m;
     while ((m = re.exec(tpl))) {
-      const expr = m[1].replace(/[=!]==?\s*'[^']*'/g, '');
-      const lits = [...expr.matchAll(/'([^']+)'/g)].map(x => x[1]);
+      const attrs = m[1];
+      const label = m[2].trim();
+      if (!label || /\{\{/.test(label)) continue;
+
+      // --- static class (new form) ---
+      const clsM = attrs.match(/\bclass="([^"]*)"/);
+      if (clsM && !/\{\{/.test(clsM[1])) {
+        const toks = clsM[1].split(/\s+/).filter(Boolean);
+        if (toks[0] === 'seg') {
+          (toks.includes('lv') ? groups.lv : groups.seg).push(label);
+        }
+        continue;
+      }
+
+      // --- legacy form: ternary inside class ---
+      if (!clsM) continue;
+      const expr = clsM[1].replace(/[=!]==?\s*'[^']*'/g, '');
+      const lits = [...expr.matchAll(/'([^']+)'/g)].map((x) => x[1]);
       if (!lits.length) continue;
-      // Only genuine .seg / .seg.lv chips belong here — the time-option rows
-      // use the same `class="{{...}}"` form but resolve to `.time`.
       const first = lits[0].split(/\s+/)[0];
       if (first !== 'seg') continue;
       const isLv = lits[0].split(/\s+/).includes('lv');
-      const label = m[2].trim();
-      if (label && !/\{\{/.test(label)) (isLv ? groups.lv : groups.seg).push(label);
+      (isLv ? groups.lv : groups.seg).push(label);
     }
 
     const rows = [
@@ -125,11 +141,17 @@ for (const dev of DEVICES) {
     if (sideRowW && sideW) {
       const need = sideW * 2 + 6;
       // Side labels ("White"/"黑方") must fit inside one button.
-      const sideRe = /<text class="\{\{mySide[^"]*\}\}"[^>]*>([^<]*)<\/text>/g;
+      // Works for both the static-class form and the legacy class-ternary form.
+      const sideRe = /<text([^>]*)>([^<]*)<\/text>/g;
       const fsSide = num(decl(src, 'side', 'font-size'));
       let sm, worstS = 0, worstSide = '';
       while ((sm = sideRe.exec(tpl))) {
-        const s = sm[1].trim();
+        const attrs = sm[1];
+        const clsM = attrs.match(/\bclass="([^"]*)"/);
+        if (!clsM) continue;
+        const isSide = /\bside\b/.test(clsM[1]) || /mySide/.test(clsM[1]);
+        if (!isSide) continue;
+        const s = sm[2].trim();
         if (!s || /\{\{/.test(s)) continue;
         const w = emWidth(s) * fsSide;
         if (w > worstS) { worstS = w; worstSide = s; }

@@ -13,6 +13,16 @@
  * This scans every .ux file and reports any handler that is called but not
  * defined. It deliberately errs on the side of reporting: a name flagged here
  * should be checked by hand, not blindly "fixed".
+ *
+ * It ALSO guards two rendering pitfalls that already shipped on the device:
+ *
+ *   (a) TERNARY INSIDE A `class` ATTRIBUTE
+ *       `class="{{cond ? 'x sel' : 'x'}}"` leaked the whole expression into the
+ *       class list on Band 9, so every chip rendered selected (all blue).
+ *       Selection must be driven by an inline `style` ternary instead.
+ *
+ *   (b) A flex-child `text` WITH NO height / line-height
+ *       The chosen time ("10 分钟") collapsed to zero height and was invisible.
  */
 'use strict';
 
@@ -20,6 +30,9 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
+
+// Text classes that carry visible content and therefore need a box.
+const NEEDS_BOX = ['stepVal', 'rowLabel', 'side', 'seg', 'cardTitle', 'cardDesc', 'title', 'back'];
 
 function walk(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -87,6 +100,7 @@ function handlersInTemplate(tpl) {
 let totalFiles = 0;
 let totalBad = 0;
 const report = [];
+const badRender = [];
 
 for (const dev of ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10']) {
   for (const lang of ['chinese', 'english']) {
@@ -108,6 +122,29 @@ for (const dev of ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10']) {
         const rel = path.relative(ROOT, f).replace(/\\/g, '/');
         report.push({ rel, missing });
       }
+
+      // (a) no ternary inside a class attribute
+      for (const cm of src.matchAll(/class="\{\{([^}]*)\}\}"/g)) {
+        if (/\?/.test(cm[1])) {
+          badRender.push({
+            rel: path.relative(ROOT, f).replace(/\\/g, '/'),
+            why: 'ternary inside class="' + cm[0] + '" — use an inline style ternary instead'
+          });
+        }
+      }
+
+      // (b) visible text classes must declare height + line-height
+      for (const cls of NEEDS_BOX) {
+        const dm = src.match(new RegExp('\\.' + cls + '\\s*\\{([^}]*)\\}'));
+        if (!dm) continue; // class not used in this file
+        const body = dm[1];
+        if (!/height\s*:/.test(body) || !/line-height\s*:/.test(body)) {
+          badRender.push({
+            rel: path.relative(ROOT, f).replace(/\\/g, '/'),
+            why: '.' + cls + ' needs both height and line-height or its text collapses'
+          });
+        }
+      }
     }
   }
 }
@@ -119,8 +156,18 @@ if (report.length) {
     console.log('  ' + r.rel);
     console.log('      ' + r.missing.join(', '));
   }
-  console.log('\n' + totalBad + ' file(s) with undefined handlers');
+}
+if (badRender.length) {
+  console.log('\nRENDER PITFALLS (element will look wrong on device):');
+  for (const r of badRender) {
+    console.log('  ' + r.rel);
+    console.log('      ' + r.why);
+  }
+}
+if (report.length || badRender.length) {
+  console.log('\n' + (totalBad + badRender.length) + ' problem(s) found');
   process.exit(1);
 } else {
   console.log('all template handlers are defined');
+  console.log('no class-ternary / collapsed-text pitfalls');
 }

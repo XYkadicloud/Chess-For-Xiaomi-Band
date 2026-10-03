@@ -9,7 +9,7 @@
 <style>
 .settingsPage { width:336dp; height:480dp; background-color:#000000; padding:18dp 12dp; flex-direction:column; }
 .header { width:312dp; height:48dp; flex-direction:row; align-items:center; margin-bottom:12dp; }
-.back { color:#FFFFFF; font-size:30dp; width:32dp; text-align:center; }
+.back { color:#FFFFFF; font-size:30dp; width:32dp; text-align:center; height:40dp; line-height:40dp; }
 .headerTitle { color:#FFFFFF; font-size:22dp; font-weight:bold; }
 .setting { width:312dp; min-height:54dp; border-radius:18dp; background-color:#252828; margin-bottom:8dp; padding:0 14dp; flex-direction:row; align-items:center; justify-content:space-between; }
 .settingName { color:#FFFFFF; font-size:17dp; lines:1; }
