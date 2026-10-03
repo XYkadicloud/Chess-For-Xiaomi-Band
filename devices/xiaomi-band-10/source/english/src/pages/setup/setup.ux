@@ -1,47 +1,145 @@
 <template>
   <div class="setup">
-    <div class="head"><text class="back" @click="back">‹</text><text class="title">Start game</text></div>
-    <text class="label">Time per player</text>
-    <text class="{{timeControl === '5+0' ? 'time selected' : 'time'}}" @touchend="choose('5+0')">5 min · Standard</text>
-    <text class="{{timeControl === '10+0' ? 'time selected' : 'time'}}" @touchend="choose('10+0')">10 min · Casual</text>
-    <text class="{{timeControl === '15+0' ? 'time selected' : 'time'}}" @touchend="choose('15+0')">15 min · Long game</text>
-    <text class="{{timeControl === '20+0' ? 'time selected' : 'time'}}" @touchend="choose('20+0')">20 min · Patient</text>
-    <text class="{{timeControl === 'unlimited' ? 'time selected' : 'time'}}" @touchend="choose('unlimited')">Unlimited time</text>
-    <text class="selectedText">Current: {{timeControl === 'unlimited' ? 'Unlimited' : timeControl}}</text>
-    <text class="selectedText">Board: {{boardSize}}</text>
-        <text class="optLabel">Opponent</text>
-    <div class="segRow">
-      <text class="{{aiMode ? 'seg' : 'seg sel'}}" @touchend="setOpponent('two')">2 Players</text>
-      <text class="{{aiMode ? 'seg sel' : 'seg'}}" @touchend="setOpponent('ai')">vs AI</text>
+    <div class="head">
+      <text class="back" @click="goBack">‹</text>
+      <text class="title">{{step===1 ? 'Choose mode' : 'Time'}}</text>
     </div>
-    <text class="optLabel" if="{{aiMode}}">AI level</text>
-    <div class="segRow" if="{{aiMode}}">
-      <text class="{{aiLevel==='easy'?'seg lv sel':'seg lv'}}" @touchend="setLevel('easy')">Easy</text>
-      <text class="{{aiLevel==='normal'?'seg lv sel':'seg lv'}}" @touchend="setLevel('normal')">Normal</text>
-      <text class="{{aiLevel==='hard'?'seg lv sel':'seg lv'}}" @touchend="setLevel('hard')">Hard</text>
-      <text class="{{aiLevel==='master'?'seg lv sel':'seg lv'}}" @touchend="setLevel('master')">Master</text>
+
+    <div class="pane" if="{{step===1}}">
+      <div class="{{mode==='ai' ? 'card sel' : 'card'}}" @touchend="pickMode('two')">
+        <text class="cardTitle">2 Players</text>
+        <text class="cardDesc">Two people share this band</text>
+      </div>
+      <div class="{{mode==='ai' ? 'card sel' : 'card'}}" @touchend="pickMode('ai')">
+        <text class="cardTitle">vs AI</text>
+        <text class="cardDesc">Play the built-in engine</text>
+      </div>
     </div>
-<text class="start" @touchend="start">Start playing</text>
+
+    <div class="pane" if="{{step===2}}">
+      <div class="row" if="{{mode==='ai'}}">
+        <text class="rowLabel">I play</text>
+        <div class="sideRow">
+          <text class="{{mySide==='white' ? 'side sel' : 'side'}}" @touchend="pickSide('white')">White</text>
+          <text class="{{mySide==='black' ? 'side sel' : 'side'}}" @touchend="pickSide('black')">Black</text>
+        </div>
+      </div>
+
+      <div class="row">
+        <text class="rowLabel">Time</text>
+        <div class="stepper">
+          <text class="stepBtn" @touchend="decMinutes">−</text>
+          <text class="stepVal">{{minutesLabel}}</text>
+          <text class="stepBtn" @touchend="incMinutes">+</text>
+        </div>
+      </div>
+
+      <div class="row" if="{{!unlimited}}">
+        <text class="rowLabel">Incr.</text>
+        <div class="stepper">
+          <text class="stepBtn" @touchend="decIncrement">−</text>
+          <text class="stepVal">{{incrementLabel}}</text>
+          <text class="stepBtn" @touchend="incIncrement">+</text>
+        </div>
+      </div>
+
+      <div class="row">
+        <text class="rowLabel">Board</text>
+        <div class="segRow">
+          <text class="{{boardSize==='Large'?'seg sel':'seg'}}" @touchend="pickBoard('Large')">Big</text>
+          <text class="{{boardSize==='Standard'?'seg sel':'seg'}}" @touchend="pickBoard('Standard')">Std</text>
+          <text class="{{boardSize==='Compact'?'seg sel':'seg'}}" @touchend="pickBoard('Compact')">Mini</text>
+        </div>
+      </div>
+
+      <div class="row" if="{{mode==='ai'}}">
+        <text class="rowLabel">Level</text>
+        <div class="segRow">
+          <text class="{{aiLevel==='easy'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('easy')">Easy</text>
+          <text class="{{aiLevel==='normal'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('normal')">Norm</text>
+          <text class="{{aiLevel==='hard'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('hard')">Hard</text>
+          <text class="{{aiLevel==='master'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('master')">Pro</text>
+        </div>
+      </div>
+    </div>
+
+    <text class="start" if="{{step===1}}" @touchend="goStep2">Next</text>
+    <text class="start" if="{{step===2}}" @touchend="start">Start</text>
   </div>
 </template>
 <style>
-.setup { width:212dp; height:520dp; background-color:#000; padding:18dp 12dp; flex-direction:column; overflow:hidden; }
-.head { width:188dp; height:38dp; flex-direction:row; align-items:center; margin-bottom:6dp; }
+.setup { width:212dp; height:520dp; background-color:#000; padding:16dp 12dp; flex-direction:column; overflow:hidden; }
+.head { width:188dp; height:40dp; flex-direction:row; align-items:center; margin-bottom:6dp; }
 .back { width:32dp; color:#fff; font-size:30dp; text-align:center; }
 .title { color:#fff; font-size:22dp; font-weight:bold; }
-.label { color:rgba(255,255,255,.65); font-size:15dp; margin-bottom:4dp; }
-.time { width:188dp; border-radius:19dp; background-color:#252828; color:#fff; text-align:center; font-size:14dp; height:30dp; line-height:30dp; margin-bottom:3dp; }
-.selected { background-color:#0D6EFF; }
-.selectedText { color:#4EA1FF; font-size:13dp; text-align:center; margin:7dp 0 0; }
-.start { position:absolute; left:12dp; bottom:14dp; width:188dp; height:44dp; border-radius:22dp; background-color:#0D6EFF; color:#fff; font-size:18dp; line-height:44dp; text-align:center; }
-.optLabel { color:rgba(255,255,255,.6); font-size:13dp; line-height:17dp; margin:4dp 0 3dp; }
-.segRow { width:100%; flex-direction:row; justify-content:space-between; }
-.seg { flex:1; height:30dp; margin:0 1dp; border-radius:15dp; background-color:#252828; color:#fff; font-size:13dp; line-height:30dp; text-align:center; }
+.pane { width:188dp; flex-direction:column; }
+
+.card { width:188dp; height:76dp; border-radius:14dp; background-color:#252828; margin-bottom:12dp; padding:12dp; flex-direction:column; justify-content:center; }
+.card.sel { background-color:#0D6EFF; }
+.cardTitle { color:#fff; font-size:19dp; font-weight:bold; margin-bottom:5dp; }
+.cardDesc { color:rgba(255,255,255,.7); font-size:13dp; }
+
+.row { width:188dp; min-height:62dp; flex-direction:column; align-items:stretch; justify-content:space-between; margin-bottom:4dp; }
+.rowLabel { width:100%; color:#fff; font-size:13dp; line-height:15dp; margin-bottom:3dp; }
+
+.sideRow { width:188dp; flex-direction:row; justify-content:space-between; }
+.side { width:91dp; height:46dp; border-radius:12dp; background-color:#252828; color:#fff; font-size:16dp; line-height:46dp; text-align:center; }
+.side.sel { background-color:#0D6EFF; font-weight:bold; }
+
+.stepper { width:188dp; flex-direction:row; justify-content:space-between; align-items:center; }
+.stepBtn { width:52dp; height:48dp; border-radius:12dp; background-color:#252828; color:#fff; font-size:26dp; line-height:48dp; text-align:center; }
+.stepVal { flex:1; color:#fff; font-size:15dp; text-align:center; }
+
+.segRow { width:188dp; flex-direction:row; justify-content:space-between; }
+.seg { flex:1; height:44dp; margin:0 2dp; border-radius:12dp; background-color:#252828; color:#fff; font-size:14dp; line-height:44dp; text-align:center; }
 .seg.sel { background-color:#0D6EFF; }
-.seg.lv { font-size:11dp; }
+.seg.lv { font-size:12dp; }
+
+.start { position:absolute; left:12dp; bottom:14dp; width:188dp; height:46dp; border-radius:23dp; background-color:#0D6EFF; color:#fff; font-size:18dp; line-height:46dp; text-align:center; }
 </style>
 <script>
 import router from '@system.router';
 import storage from '@system.storage';
-export default { data:{aiMode:false,aiLevel:'normal',timeControl:'10+0',boardSize:'Standard'}, onInit(){this.loadBoardSize();}, onShow(){this.loadBoardSize();}, loadBoardSize(){storage.get({key:'CHESS_SETTINGS',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;const oldSize=v&&v.boardSize;this.boardSize=oldSize==='Large'||oldSize==='\u653e\u5927'?'Large':(oldSize==='Compact'||oldSize==='\u7d27\u51d1'?'Compact':'Standard');}catch(e){this.boardSize='Standard';}},fail:()=>{this.boardSize='Standard';}});}, back(){router.back();}, choose(v){this.timeControl=v;}, start(){const unlimited=this.timeControl==='unlimited';const minutes=unlimited?'0':(this.timeControl.split('+')[0]||'10');const size=this.boardSize==='Large'?'44':(this.boardSize==='Compact'?'24':'30');router.push({uri:'/pages/game',params:{minutes:minutes,unlimited:unlimited?'true':'false',boardSize:size,resume:'false',aiMode:this.aiMode?'true':'false',aiLevel:this.aiLevel}});} }
+export default {
+  data: { step:1, mode:'two', mySide:'white', aiLevel:'normal', minutes:10, increment:0, boardSize:'Standard' },
+  onInit(){ this.loadSettings(); },
+  onShow(){ this.loadSettings(); },
+  loadBoardSize(){
+    storage.get({key:'CHESS_SETTINGS',success:(r)=>{
+      try{
+        const raw=r&&r.data!==undefined?r.data:r;
+        const v=typeof raw==='string'?JSON.parse(raw):raw;
+        this.boardSize = v&&v.boardSize ? v.boardSize : 'Standard';
+      }catch(e){ this.boardSize='Standard'; }
+    },fail:()=>{ this.boardSize='Standard'; }});
+  },
+  loadSettings(){ this.loadBoardSize(); },
+  get unlimited(){ return this.minutes === 0; },
+  get minutesLabel(){ return this.unlimited ? 'No limit' : this.minutes + ' min'; },
+  get incrementLabel(){ return this.increment + ' sec'; },
+  goBack(){ if(this.step===2){ this.step=1; } else { router.back(); } },
+  pickMode(m){ this.mode = m; },
+  pickSide(s){ this.mySide = s; },
+  pickLevel(l){ this.aiLevel = l; },
+  pickBoard(b){ this.boardSize = b; },
+  incMinutes(){ if(this.minutes===0){ this.minutes=1; } else if(this.minutes<10){ this.minutes+=1; } else if(this.minutes<60){ this.minutes+=5; } },
+  decMinutes(){ if(this.minutes<=1){ this.minutes=0; } else if(this.minutes<=10){ this.minutes-=1; } else { this.minutes-=5; } },
+  incIncrement(){ if(this.increment<10){ this.increment+=1; } else if(this.increment<30){ this.increment+=5; } },
+  decIncrement(){ if(this.increment<=10){ this.increment-=1; } else { this.increment-=5; } if(this.increment<0){ this.increment=0; } },
+  goStep2(){ this.step=2; },
+  start(){
+    const unlimited = this.minutes === 0;
+    const size = this.boardSize==='Large' ? '44' : (this.boardSize==='Compact' ? '24' : '30');
+    router.push({uri:'/pages/game',params:{
+      minutes: String(unlimited ? 0 : this.minutes),
+      increment: String(unlimited ? 0 : this.increment),
+      unlimited: unlimited ? 'true' : 'false',
+      boardSize: size,
+      resume: 'false',
+      aiMode: this.mode==='ai' ? 'true' : 'false',
+      aiLevel: this.aiLevel,
+      mySide: this.mode==='ai' ? this.mySide : 'white'
+    }});
+  }
+}
 </script>

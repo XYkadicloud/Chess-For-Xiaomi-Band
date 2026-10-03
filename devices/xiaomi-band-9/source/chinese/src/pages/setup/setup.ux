@@ -1,47 +1,145 @@
 <template>
   <div class="setup">
-    <div class="head"><text class="back" @click="back">‹</text><text class="title">开始对局</text></div>
-    <text class="label">选择每方用时</text>
-    <text class="{{timeControl === '5+0' ? 'time selected' : 'time'}}" @touchend="choose('5+0')">5 分钟 · 标准</text>
-    <text class="{{timeControl === '10+0' ? 'time selected' : 'time'}}" @touchend="choose('10+0')">10 分钟 · 休闲</text>
-    <text class="{{timeControl === '15+0' ? 'time selected' : 'time'}}" @touchend="choose('15+0')">15 分钟 · 长局</text>
-    <text class="{{timeControl === '20+0' ? 'time selected' : 'time'}}" @touchend="choose('20+0')">20 分钟 · 耐心</text>
-    <text class="{{timeControl === 'unlimited' ? 'time selected' : 'time'}}" @touchend="choose('unlimited')">无限制时间</text>
-    <text class="selectedText">当前：{{timeControl === 'unlimited' ? '无限制' : timeControl}}</text>
-    <text class="selectedText">棋盘：{{boardSize}}</text>
-        <text class="optLabel">对手</text>
-    <div class="segRow">
-      <text class="{{aiMode ? 'seg' : 'seg sel'}}" @touchend="setOpponent('two')">双人对弈</text>
-      <text class="{{aiMode ? 'seg sel' : 'seg'}}" @touchend="setOpponent('ai')">人机对弈</text>
+    <div class="head">
+      <text class="back" @click="goBack">‹</text>
+      <text class="title">{{step===1 ? '选择对局模式' : '用时设置'}}</text>
     </div>
-    <text class="optLabel" if="{{aiMode}}">AI 难度</text>
-    <div class="segRow" if="{{aiMode}}">
-      <text class="{{aiLevel==='easy'?'seg lv sel':'seg lv'}}" @touchend="setLevel('easy')">简单</text>
-      <text class="{{aiLevel==='normal'?'seg lv sel':'seg lv'}}" @touchend="setLevel('normal')">普通</text>
-      <text class="{{aiLevel==='hard'?'seg lv sel':'seg lv'}}" @touchend="setLevel('hard')">困难</text>
-      <text class="{{aiLevel==='master'?'seg lv sel':'seg lv'}}" @touchend="setLevel('master')">大师</text>
+
+    <div class="pane" if="{{step===1}}">
+      <div class="{{mode==='ai' ? 'card sel' : 'card'}}" @touchend="pickMode('two')">
+        <text class="cardTitle">双人对弈</text>
+        <text class="cardDesc">两人在同一台手环上轮流走子</text>
+      </div>
+      <div class="{{mode==='ai' ? 'card sel' : 'card'}}" @touchend="pickMode('ai')">
+        <text class="cardTitle">人机对战</text>
+        <text class="cardDesc">与内置 AI 对弈，无需第二个人</text>
+      </div>
     </div>
-<text class="start" @touchend="start">开始下棋</text>
+
+    <div class="pane" if="{{step===2}}">
+      <div class="row" if="{{mode==='ai'}}">
+        <text class="rowLabel">我执</text>
+        <div class="sideRow">
+          <text class="{{mySide==='white' ? 'side sel' : 'side'}}" @touchend="pickSide('white')">白方</text>
+          <text class="{{mySide==='black' ? 'side sel' : 'side'}}" @touchend="pickSide('black')">黑方</text>
+        </div>
+      </div>
+
+      <div class="row">
+        <text class="rowLabel">每方时长</text>
+        <div class="stepper">
+          <text class="stepBtn" @touchend="decMinutes">−</text>
+          <text class="stepVal">{{minutesLabel}}</text>
+          <text class="stepBtn" @touchend="incMinutes">+</text>
+        </div>
+      </div>
+
+      <div class="row" if="{{!unlimited}}">
+        <text class="rowLabel">每步加秒</text>
+        <div class="stepper">
+          <text class="stepBtn" @touchend="decIncrement">−</text>
+          <text class="stepVal">{{incrementLabel}}</text>
+          <text class="stepBtn" @touchend="incIncrement">+</text>
+        </div>
+      </div>
+
+      <div class="row">
+        <text class="rowLabel">棋盘大小</text>
+        <div class="segRow">
+          <text class="{{boardSize==='放大'?'seg sel':'seg'}}" @touchend="pickBoard('放大')">放大</text>
+          <text class="{{boardSize==='标准'?'seg sel':'seg'}}" @touchend="pickBoard('标准')">标准</text>
+          <text class="{{boardSize==='紧凑'?'seg sel':'seg'}}" @touchend="pickBoard('紧凑')">紧凑</text>
+        </div>
+      </div>
+
+      <div class="row" if="{{mode==='ai'}}">
+        <text class="rowLabel">AI 难度</text>
+        <div class="segRow">
+          <text class="{{aiLevel==='easy'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('easy')">简单</text>
+          <text class="{{aiLevel==='normal'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('normal')">普通</text>
+          <text class="{{aiLevel==='hard'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('hard')">困难</text>
+          <text class="{{aiLevel==='master'?'seg lv sel':'seg lv'}}" @touchend="pickLevel('master')">大师</text>
+        </div>
+      </div>
+    </div>
+
+    <text class="start" if="{{step===1}}" @touchend="goStep2">下一步</text>
+    <text class="start" if="{{step===2}}" @touchend="start">开始下棋</text>
   </div>
 </template>
 <style>
-.setup { width:192dp; height:490dp; background-color:#000; padding:18dp 12dp; flex-direction:column; overflow:hidden; }
-.head { width:168dp; height:38dp; flex-direction:row; align-items:center; margin-bottom:6dp; }
+.setup { width:192dp; height:490dp; background-color:#000; padding:16dp 12dp; flex-direction:column; overflow:hidden; }
+.head { width:168dp; height:40dp; flex-direction:row; align-items:center; margin-bottom:6dp; }
 .back { width:32dp; color:#fff; font-size:30dp; text-align:center; }
 .title { color:#fff; font-size:22dp; font-weight:bold; }
-.label { color:rgba(255,255,255,.65); font-size:15dp; margin-bottom:4dp; }
-.time { width:168dp; border-radius:19dp; background-color:#252828; color:#fff; text-align:center; font-size:14dp; height:30dp; line-height:30dp; margin-bottom:3dp; }
-.selected { background-color:#0D6EFF; }
-.selectedText { color:#4EA1FF; font-size:13dp; text-align:center; margin:7dp 0 0; }
-.start { position:absolute; left:12dp; bottom:14dp; width:168dp; height:44dp; border-radius:22dp; background-color:#0D6EFF; color:#fff; font-size:18dp; line-height:44dp; text-align:center; }
-.optLabel { color:rgba(255,255,255,.6); font-size:13dp; line-height:17dp; margin:4dp 0 3dp; }
-.segRow { width:100%; flex-direction:row; justify-content:space-between; }
-.seg { flex:1; height:30dp; margin:0 1dp; border-radius:15dp; background-color:#252828; color:#fff; font-size:13dp; line-height:30dp; text-align:center; }
+.pane { width:168dp; flex-direction:column; }
+
+.card { width:168dp; height:76dp; border-radius:14dp; background-color:#252828; margin-bottom:12dp; padding:12dp; flex-direction:column; justify-content:center; }
+.card.sel { background-color:#0D6EFF; }
+.cardTitle { color:#fff; font-size:19dp; font-weight:bold; margin-bottom:5dp; }
+.cardDesc { color:rgba(255,255,255,.7); font-size:13dp; }
+
+.row { width:168dp; min-height:62dp; flex-direction:column; align-items:stretch; justify-content:space-between; margin-bottom:4dp; }
+.rowLabel { width:100%; color:#fff; font-size:13dp; line-height:15dp; margin-bottom:3dp; }
+
+.sideRow { width:168dp; flex-direction:row; justify-content:space-between; }
+.side { width:81dp; height:46dp; border-radius:12dp; background-color:#252828; color:#fff; font-size:16dp; line-height:46dp; text-align:center; }
+.side.sel { background-color:#0D6EFF; font-weight:bold; }
+
+.stepper { width:168dp; flex-direction:row; justify-content:space-between; align-items:center; }
+.stepBtn { width:52dp; height:48dp; border-radius:12dp; background-color:#252828; color:#fff; font-size:26dp; line-height:48dp; text-align:center; }
+.stepVal { flex:1; color:#fff; font-size:15dp; text-align:center; }
+
+.segRow { width:168dp; flex-direction:row; justify-content:space-between; }
+.seg { flex:1; height:44dp; margin:0 2dp; border-radius:12dp; background-color:#252828; color:#fff; font-size:14dp; line-height:44dp; text-align:center; }
 .seg.sel { background-color:#0D6EFF; }
-.seg.lv { font-size:11dp; }
+.seg.lv { font-size:12dp; }
+
+.start { position:absolute; left:12dp; bottom:14dp; width:168dp; height:46dp; border-radius:23dp; background-color:#0D6EFF; color:#fff; font-size:18dp; line-height:46dp; text-align:center; }
 </style>
 <script>
 import router from '@system.router';
 import storage from '@system.storage';
-export default { data:{aiMode:false,aiLevel:'normal',timeControl:'10+0',boardSize:'标准'}, onInit(){this.loadBoardSize();}, onShow(){this.loadBoardSize();}, loadBoardSize(){storage.get({key:'CHESS_SETTINGS',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;this.boardSize=v&&v.boardSize?v.boardSize:'标准';}catch(e){this.boardSize='标准';}},fail:()=>{this.boardSize='标准';}});}, back(){router.back();}, choose(v){this.timeControl=v;}, start(){const unlimited=this.timeControl==='unlimited';const minutes=unlimited?'0':(this.timeControl.split('+')[0]||'10');const size=this.boardSize==='放大'?'44':(this.boardSize==='紧凑'?'24':'30');router.push({uri:'/pages/game',params:{minutes:minutes,unlimited:unlimited?'true':'false',boardSize:size,resume:'false',aiMode:this.aiMode?'true':'false',aiLevel:this.aiLevel}});} }
+export default {
+  data: { step:1, mode:'two', mySide:'white', aiLevel:'normal', minutes:10, increment:0, boardSize:'标准' },
+  onInit(){ this.loadSettings(); },
+  onShow(){ this.loadSettings(); },
+  loadBoardSize(){
+    storage.get({key:'CHESS_SETTINGS',success:(r)=>{
+      try{
+        const raw=r&&r.data!==undefined?r.data:r;
+        const v=typeof raw==='string'?JSON.parse(raw):raw;
+        this.boardSize = v&&v.boardSize ? v.boardSize : '标准';
+      }catch(e){ this.boardSize='标准'; }
+    },fail:()=>{ this.boardSize='标准'; }});
+  },
+  loadSettings(){ this.loadBoardSize(); },
+  get unlimited(){ return this.minutes === 0; },
+  get minutesLabel(){ return this.unlimited ? '无限制' : this.minutes + ' 分钟'; },
+  get incrementLabel(){ return this.increment + ' 秒'; },
+  goBack(){ if(this.step===2){ this.step=1; } else { router.back(); } },
+  pickMode(m){ this.mode = m; },
+  pickSide(s){ this.mySide = s; },
+  pickLevel(l){ this.aiLevel = l; },
+  pickBoard(b){ this.boardSize = b; },
+  incMinutes(){ if(this.minutes===0){ this.minutes=1; } else if(this.minutes<10){ this.minutes+=1; } else if(this.minutes<60){ this.minutes+=5; } },
+  decMinutes(){ if(this.minutes<=1){ this.minutes=0; } else if(this.minutes<=10){ this.minutes-=1; } else { this.minutes-=5; } },
+  incIncrement(){ if(this.increment<10){ this.increment+=1; } else if(this.increment<30){ this.increment+=5; } },
+  decIncrement(){ if(this.increment<=10){ this.increment-=1; } else { this.increment-=5; } if(this.increment<0){ this.increment=0; } },
+  goStep2(){ this.step=2; },
+  start(){
+    const unlimited = this.minutes === 0;
+    const size = this.boardSize==='放大' ? '44' : (this.boardSize==='紧凑' ? '24' : '30');
+    router.push({uri:'/pages/game',params:{
+      minutes: String(unlimited ? 0 : this.minutes),
+      increment: String(unlimited ? 0 : this.increment),
+      unlimited: unlimited ? 'true' : 'false',
+      boardSize: size,
+      resume: 'false',
+      aiMode: this.mode==='ai' ? 'true' : 'false',
+      aiLevel: this.aiLevel,
+      mySide: this.mode==='ai' ? this.mySide : 'white'
+    }});
+  }
+}
 </script>

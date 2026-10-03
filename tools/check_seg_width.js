@@ -68,13 +68,13 @@ for (const dev of DEVICES) {
     }
 
     const rows = [
-      { name: 'opponent', labels: groups.seg, fs: fsSeg },
-      { name: 'level', labels: groups.lv, fs: fsLv }
+      { name: 'opponent', labels: groups.seg, fs: fsSeg, avail: num(decl(src, 'segRow', 'width')) || contentW },
+      { name: 'level', labels: groups.lv, fs: fsLv, avail: num(decl(src, 'segRow', 'width')) || contentW }
     ];
     for (const r of rows) {
       if (!r.labels.length) continue;
       const n = r.labels.length;
-      const colW = (contentW - segMarginX * 2 * n) / n;
+      const colW = (r.avail - segMarginX * 2 * n) / n;
       let worst = 0, worstLabel = '';
       for (const l of r.labels) {
         const w = emWidth(l) * r.fs;
@@ -84,6 +84,61 @@ for (const dev of DEVICES) {
       if (!ok) problems++;
       console.log(`${ok ? 'OK  ' : 'FAIL'} ${dev}/${lang} ${r.name.padEnd(9)} cols=${n} colW=${colW.toFixed(1)}dp  widest="${worstLabel}"=${worst.toFixed(1)}dp` +
         (ok ? '' : `  OVER ${(worst - colW).toFixed(1)}dp`));
+    }
+
+    // --- two-column setting rows: label | control -------------------------
+    const stacked = /flex-direction:\s*column/.test(String(decl(src, 'row', 'flex-direction') || ''));
+    const rowLabelW = stacked ? contentW : num(decl(src, 'rowLabel', 'width'));
+    const fsLabel = num(decl(src, 'rowLabel', 'font-size'));
+    const stepBtnW = num(decl(src, 'stepBtn', 'width'));
+    const stepperW = num(decl(src, 'stepper', 'width'));
+    const sideW = num(decl(src, 'side', 'width'));
+    const sideRowW = num(decl(src, 'sideRow', 'width'));
+
+    // (a) label column must hold its widest text
+    const labelRe = /<text class="rowLabel"[^>]*>([^<]*)<\/text>/g;
+    let lm;
+    let worstL = 0, worstLbl = '';
+    while ((lm = labelRe.exec(tpl))) {
+      const s = lm[1].trim();
+      if (!s || /\{\{/.test(s)) continue;
+      const w = emWidth(s) * fsLabel;
+      if (w > worstL) { worstL = w; worstLbl = s; }
+    }
+    if (rowLabelW) {
+      const ok = worstL <= rowLabelW;
+      if (!ok) problems++;
+      console.log(`${ok ? 'OK  ' : 'FAIL'} ${dev}/${lang} ${'label'.padEnd(9)} colW=${rowLabelW}dp  widest="${worstLbl}"=${worstL.toFixed(1)}dp` +
+        (ok ? '' : `  OVER ${(worstL - rowLabelW).toFixed(1)}dp`));
+    }
+
+    // (b) stepper row must hold [-] value [+]
+    if (stepperW && stepBtnW) {
+      const need = stepBtnW * 2 + 24; // 24dp reserved for the value text
+      const ok = need <= stepperW;
+      if (!ok) problems++;
+      console.log(`${ok ? 'OK  ' : 'FAIL'} ${dev}/${lang} ${'stepper'.padEnd(9)} colW=${stepperW}dp  need=${need}dp` +
+        (ok ? '' : `  OVER ${(need - stepperW)}dp`));
+    }
+
+    // (c) side chooser row must hold two buttons
+    if (sideRowW && sideW) {
+      const need = sideW * 2 + 6;
+      // Side labels ("White"/"黑方") must fit inside one button.
+      const sideRe = /<text class="\{\{mySide[^"]*\}\}"[^>]*>([^<]*)<\/text>/g;
+      const fsSide = num(decl(src, 'side', 'font-size'));
+      let sm, worstS = 0, worstSide = '';
+      while ((sm = sideRe.exec(tpl))) {
+        const s = sm[1].trim();
+        if (!s || /\{\{/.test(s)) continue;
+        const w = emWidth(s) * fsSide;
+        if (w > worstS) { worstS = w; worstSide = s; }
+      }
+      const ok = need <= sideRowW && worstS <= sideW;
+      if (!ok) problems++;
+      const over = Math.max(need - sideRowW, worstS - sideW);
+      console.log(`${ok ? 'OK  ' : 'FAIL'} ${dev}/${lang} ${'side'.padEnd(9)} colW=${sideW}dp  widest="${worstSide}"=${worstS.toFixed(1)}dp` +
+        (ok ? '' : `  OVER ${over.toFixed(1)}dp`));
     }
   }
 }

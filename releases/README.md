@@ -4,12 +4,12 @@
 
 | 文件 | 设备 | 语言 | 大小 |
 |---|---|---|---|
-| Chess_Band9_中文_v1.0.0_release.rpk | Band9 | 中文 | 80.4 KB |
-| Chess_Band9_英文_v1.0.0_release.rpk | Band9 | 英文 | 79.9 KB |
-| Chess_Band9Pro_中文_v1.0.0_release.rpk | Band9Pro | 中文 | 84.7 KB |
-| Chess_Band9Pro_英文_v1.0.0_release.rpk | Band9Pro | 英文 | 84.2 KB |
-| Chess_Band10_中文_v1.0.0_release.rpk | Band10 | 中文 | 84.8 KB |
-| Chess_Band10_英文_v1.0.0_release.rpk | Band10 | 英文 | 84.3 KB |
+| Chess_Band9_中文_v1.0.0_release.rpk | Band9 | 中文 | 119.6 KB |
+| Chess_Band9_英文_v1.0.0_release.rpk | Band9 | 英文 | 119.1 KB |
+| Chess_Band9Pro_中文_v1.0.0_release.rpk | Band9Pro | 中文 | 123.9 KB |
+| Chess_Band9Pro_英文_v1.0.0_release.rpk | Band9Pro | 英文 | 123.3 KB |
+| Chess_Band10_中文_v1.0.0_release.rpk | Band10 | 中文 | 124.1 KB |
+| Chess_Band10_英文_v1.0.0_release.rpk | Band10 | 英文 | 123.5 KB |
 
 说明：
 

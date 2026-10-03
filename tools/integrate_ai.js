@@ -116,7 +116,10 @@ function patch(file, lang, device) {
     const e = src.indexOf(END);
     if (b >= 0 && e > b) {
       src = src.slice(0, b) + src.slice(e + END.length);
-      src = src.replace(/\n\s*\n\s*(\/\* __AI_METHODS_BEGIN__|undoMove\(\))/, '\n  $1');
+      // Collapse the whitespace the block used to sit on, so repeated runs do
+      // not accumulate orphaned "\n  " lines.
+      src = src.replace(/\n(\s*\n)+(\s*)(?=\/\* __AI_METHODS_BEGIN__|undoMoveBase|undoMove\()/, '\n\n  ');
+      src = src.replace(/([;{}])\n(\s*\n)+(\s*)(\/\* __AI_METHODS_BEGIN__)/, '$1\n\n  $4');
     }
     // ensure the base undo is renamed exactly once
     if (!src.includes('undoMoveBase()')) {
@@ -194,31 +197,134 @@ function patch(file, lang, device) {
   }
 
   /* 8. onHide: clear any pending AI timer so it does not fire off-screen. */
-  if (!src.includes('this.aiTimerId&&clearTimeout')) {
-    src = src.replace(/onHide\(\)\s*\{/,
-      'onHide(){if(this.aiTimerId){clearTimeout(this.aiTimerId);this.aiTimerId=null;}this.aiThinking=false;');
-    changes.push('hideCleanup');
+  // First, collapse any duplicates left behind by the old buggy guard (which
+  // re-ran on every pass and stacked up to four copies). Then ensure exactly
+  // one copy is present.
+  const HIDE = 'if(this.aiTimerId){clearTimeout(this.aiTimerId);this.aiTimerId=null;}this.aiThinking=false;';
+  const onHideM = src.match(/onHide\(\)\s*\{/);
+  if (onHideM) {
+    const from = onHideM.index + onHideM[0].length;
+    // find the end of the onHide body: next method definition at the same indent
+    const rest = src.slice(from);
+    const restMatch = rest.match(/\n\s{2}[a-zA-Z_$][\w$]*\s*\(/);
+    const to = restMatch ? from + restMatch.index : src.length;
+    let body = src.slice(from, to);
+    // strip every occurrence of the injected cleanup
+    const cleaned = body.split(HIDE).join('');
+    const dupes = (body.length - cleaned.length) / HIDE.length;
+    if (dupes > 1) changes.push('hideCleanupDedup(' + dupes + ')');
+    body = cleaned;
+    if (!body.includes(HIDE)) {
+      body = HIDE + body;
+      changes.push('hideCleanup');
+    }
+    src = src.slice(0, from) + body + src.slice(to);
+    // ASSERT: exactly one copy inside onHide. (Other methods such as resetAi
+    // legitimately contain the same clearTimeout call, so scope the check.)
+    const hideBody = src.slice(from, from + src.slice(from).search(/\n\s{2}[a-zA-Z_$][\w$]*\s*\(/) + 1);
+    const count = (hideBody.match(/this\.aiTimerId\)\{clearTimeout\(this\.aiTimerId\);this\.aiTimerId=null;\}/g) || []).length;
+    if (count !== 1) throw new Error('injection failed: hideCleanup (found ' + count + ' copies in onHide)');
   }
 
-  /* 9. Accept aiMode / aiLevel router params from the setup page and apply
-   *    them at the END of onInit (after the board exists). */
-  if (!src.includes("String(this.aiMode)==='true'")) {
-    src = src.replace(/protected:\s*\{([^}]*)\}/,
-      "protected: {$1, aiMode: 'false', aiLevel: 'normal' }");
-    // append setup-AI activation just before onInit's closing brace
+  /* 9. Accept aiMode / aiLevel / mySide / increment router params from the
+   *    setup wizard and apply them at the END of onInit (after the board
+   *    exists). mySide decides which colour the human plays, which in turn
+   *    decides the engine colour; increment (Fischer bonus seconds) is credited
+   *    to a player after each of their moves. */
+  {
+    const MARK = '/* __SIDE_TIME_PARAMS__ */';
+    const inject = MARK +
+      ' this.aiEnabled=String(this.aiMode)===\'true\';' +
+      ' const _inc=parseInt(String(this.increment),10);this.incrementSeconds=(isNaN(_inc)||_inc<0)?0:_inc;' +
+      ' if(this.aiEnabled){this.aiLevel=this.aiLevel||\'normal\';' +
+      'this.aiColor=(String(this.mySide)===\'black\')?\'white\':\'black\';}else{this.aiColor=this.aiColor||\'black\';}' +
+      'this.resetAi();if(this.aiEnabled&&this.isAiTurn()){this.hintText=this.aiColor===\'white\'?\'AI 执白先行\':\'\';}';
+
+    // (a) drop the legacy single-purpose block shipped in earlier commits
+    const LEGACY = "this.aiEnabled=String(this.aiMode)==='true';" +
+      " if(this.aiEnabled){this.aiLevel=this.aiLevel||'normal';" +
+      "this.aiColor=this.turn==='white'?'black':'white';}this.resetAi();";
+    if (src.includes(LEGACY)) {
+      src = src.replace(LEGACY, '');
+      changes.push('legacyBlockRemoved');
+    }
+
+    // (b) drop any previously injected block. The block always ends with the
+    //     substring "...执白先行':'';}" so remove marker..that close-brace.
+    const END_OF_BLOCK = "执白先行':'';}";
+    const prev = src.indexOf(MARK);
+    if (prev >= 0) {
+      let stop = src.indexOf(END_OF_BLOCK, prev);
+      stop = stop >= 0 ? stop + END_OF_BLOCK.length : src.indexOf(MARK) + MARK.length;
+      src = src.slice(0, prev) + src.slice(stop);
+    }
+
+    // (c) splice the fresh block in just before onInit's closing brace. The
+    //     segment ends with the page object's "}," on its own indent.
     const start = src.indexOf('onInit()');
     const end = src.indexOf("\n  onShow()", start);
     if (start >= 0 && end > start) {
       const seg = src.slice(start, end);
-      const tail = seg.lastIndexOf('},');
-      if (tail > 0) {
-        const inject =
-          ' this.aiEnabled=String(this.aiMode)===\'true\';' +
-          ' if(this.aiEnabled){this.aiLevel=this.aiLevel||\'normal\';this.aiColor=this.turn===\'white\'?\'black\':\'white\';}this.resetAi();';
-        const patched = seg.slice(0, tail) + inject + seg.slice(tail);
+      const at = seg.lastIndexOf('}');
+      if (at >= 0) {
+        const patched = seg.slice(0, at) + inject + seg.slice(at);
         src = src.slice(0, start) + patched + src.slice(end);
-        changes.push('params');
+        changes.push(prev >= 0 ? 'paramsRefresh' : 'params');
       }
+    }
+
+    // (d) extend `protected` with the new router params (once)
+    if (!src.includes("mySide: 'white'")) {
+      src = src.replace(/protected:\s*\{([^}]*)\}/,
+        "protected: {$1, mySide: 'white', increment: '0' }");
+      changes.push('protected');
+    }
+
+    // ASSERT: exactly one param block, and the legacy text is gone.
+    const hits = (src.match(/__SIDE_TIME_PARAMS__/g) || []).length;
+    if (hits !== 1) throw new Error('injection failed: sideTimeParams (found ' + hits + ' copies)');
+    if (src.includes(LEGACY)) throw new Error('injection failed: legacy param block survived');
+  }
+
+  /* 9b. Fischer increment: credit `incrementSeconds` to the player who just
+   *     completed a move. Inserted right after the turn switch inside move(). */
+  {
+    const MARK = '/* __INC_CREDIT__ */';
+    const CREDIT = MARK + ' if(this.incrementSeconds>0&&!this.unlimited){if(this.turn===\'white\'){this.blackSeconds+=this.incrementSeconds;}else{this.whiteSeconds+=this.incrementSeconds;}this.whiteClock=this.formatClock(this.whiteSeconds);this.blackClock=this.formatClock(this.blackSeconds);}';
+    const hasMark = src.includes(MARK);
+    const anchored = /this\.turn=this\.turn===WHITE\?BLACK:WHITE;/.test(src);
+    if (!hasMark && anchored) {
+      src = src.replace(/(this\.turn=this\.turn===WHITE\?BLACK:WHITE;)/, '$1' + CREDIT);
+      changes.push('incrementCredit');
+    }
+    // The state field must exist for the credit to work.
+    if (!src.includes('incrementSeconds:0,')) {
+      src = src.replace(/(private:\s*\{)/, '$1\n    incrementSeconds:0,');
+      changes.push('incrementState');
+    }
+    const hits = (src.match(/__INC_CREDIT__/g) || []).length;
+    if (hits !== 1) throw new Error('injection failed: incrementCredit (found ' + hits + ' copies)');
+  }
+
+  /* 9c. Persist the increment alongside the saved game so a resume keeps it. */
+  {
+    if (!src.includes('incrementSeconds:this.incrementSeconds')) {
+      src = src.replace(
+        /(initialMinutes:this\.initialMinutes,)/,
+        '$1incrementSeconds:this.incrementSeconds,');
+      src = src.replace(
+        /(this\.initialMinutes=this\.unlimited\?0:\(Number\(v\.initialMinutes\)\|\|this\.initialMinutes\);)/,
+        '$1this.incrementSeconds=this.unlimited?0:(Number(v.incrementSeconds)||0);');
+      changes.push('incrementPersist');
+    }
+  }
+
+  /* 9d. newPosition must also seed incrementSeconds' baseline (no-op if unset). */
+  {
+    if (!src.includes('this.incrementSeconds=this.incrementSeconds||0;')) {
+      src = src.replace(/(newPosition\(\)\s*\{\s*this\.gameOver=false;)/,
+        '$1 this.incrementSeconds=this.incrementSeconds||0;');
+      changes.push('newPosInc');
     }
   }
 
@@ -227,6 +333,76 @@ function patch(file, lang, device) {
     src = src.replace(/onShow\(\)\s*\{([^}]*)\}/,
       'onShow(){ $1 if(!this.gameOver&&!this.resultVisible&&!this.paused&&this.isAiTurn())this.maybeAiMove();}');
     changes.push('onShowAi');
+  }
+
+  /* 11. Performance: incremental square updates. The board UI is a flat list of
+   *     64 objects; rebuilding all of them on every tap and every move is the
+   *     single hottest path in the page. `updateSquares()` patches only the
+   *     squares whose visual state actually changed, and keeps the array
+   *     identity stable so Vela can diff it cheaply.
+   *
+   *     buildSquares() is kept for full rebuilds (new game, resize, load). */
+  {
+    const MARK = '/* __INCR_SQUARES__ */';
+    const fn =
+      MARK + ' squareOf(i){const row=Math.floor(i/8),col=i%8,p=this.board[i];' +
+      'return{index:i,x:col*this.squareSize,y:row*this.squareSize,' +
+      "color:(row+col)%2?'#B8B8B8':'#3A3A3A',piece:p?GLYPHS[p]:''," +
+      "pieceSrc:p?'/common/pieces/'+p+'.png':''," +
+      "pieceColor:p&&p[0]==='w'?'#FFFFFF':'#111111'," +
+      'selected:i===this.selected,lastMove:this.lastMove.indexOf(i)>=0,' +
+      'legal:this.legalMoves.indexOf(i)>=0};},' +
+      'updateSquares(){if(!this.squares||this.squares.length!==64){this.buildSquares();return;}' +
+      'const out=this.squares.slice();let changed=false;' +
+      'for(let i=0;i<64;i++){const n=this.squareOf(i),o=out[i];' +
+      "if(!o||o.piece!==n.piece||o.pieceSrc!==n.pieceSrc||o.selected!==n.selected||" +
+      'o.lastMove!==n.lastMove||o.legal!==n.legal){out[i]=n;changed=true;}}' +
+      'if(changed)this.squares=out;},';
+
+    // Strip a previously injected version (idempotent). The block is preceded
+    // by the "\n  " separator we add on insert, so consume that too.
+    const prev = src.indexOf(MARK);
+    if (prev >= 0) {
+      const TAIL = 'if(changed)this.squares=out;},';
+      const tailAt = src.indexOf(TAIL, prev);
+      const stop = tailAt >= 0 ? tailAt + TAIL.length : src.indexOf(MARK) + MARK.length;
+      let head = prev;
+      if (src.slice(head - 3, head) === '\n  ') head -= 3;
+      src = src.slice(0, head) + src.slice(stop);
+    }
+
+    // Insert right after buildSquares()'s closing "  }," line.
+    const anchor = src.indexOf('    this.squares=s;\n  },');
+    if (anchor >= 0) {
+      const at = anchor + '    this.squares=s;\n  },'.length;
+      src = src.slice(0, at) + '\n  ' + fn + src.slice(at);
+      changes.push(prev >= 0 ? 'incrSquaresRefresh' : 'incrSquares');
+    }
+    const hits = (src.match(/__INCR_SQUARES__/g) || []).length;
+    if (hits !== 1) throw new Error('injection failed: incrSquares (found ' + hits + ' copies)');
+  }
+
+  /* 12. Route the hot paths through updateSquares(). Tap-to-select, tap-to-move
+   *     and undo only ever change a handful of squares, so a full 64-square
+   *     rebuild there is pure waste. Full rebuilds stay for new games, resume,
+   *     board resizing and settings loads. */
+  {
+    // tapSquare: both branches only move the selection / legal dots, so the
+    // rebuild can be incremental. Anchor on structure, not on the hint copy
+    // (which differs per language).
+    const tapPatched = src.replace(
+      /(this\.legalMoves=this\.showHints\?this\.getMoves\(i\):\[\];\s*this\.hintText=[^;]*;\s*if\(this\.autoCenter\)this\.centerOn\(i\);\s*)this\.buildSquares\(\);/,
+      '$1this.updateSquares();');
+    if (tapPatched !== src) { src = tapPatched; changes.push('incrTap'); }
+    const tapPatched2 = src.replace(
+      /(this\.selected=-1;\s*this\.legalMoves=\[\];\s*this\.hintText=[^;]*;\s*)this\.buildSquares\(\);/,
+      '$1this.updateSquares();');
+    if (tapPatched2 !== src) { src = tapPatched2; changes.push('incrTap2'); }
+    // undoMoveBase only reverts the board.
+    const undoPatched = src.replace(
+      /(this\.resultVisible=false;\s*this\.hintText=[^;]*;\s*)this\.buildSquares\(\);/,
+      '$1this.updateSquares();');
+    if (undoPatched !== src) { src = undoPatched; changes.push('incrUndo'); }
   }
 
   if (src !== before) {

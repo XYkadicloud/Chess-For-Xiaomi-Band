@@ -144,28 +144,69 @@ for (const dev of DEVICES) {
     // subtracted here.
     const usable = H - pad.top - startBottom - startH - gap;
 
-    // sum flow rows for each mode
+    // The page is now a two-step wizard: .pane rows live at depth 2, nested in
+    // .pane (depth 1) inside .setup. Only one pane is visible at a time, and
+    // each is followed by its own pinned button, so measure the tallest pane.
     const rows = rowsOf(template(src));
     const rules = {};
     for (const r of rows) if (r.cls && rules[r.cls] === undefined) rules[r.cls] = rule(src, r.cls);
 
-    function sum(mode) {
+    // Find the pane containers (depth 1) so we can attribute rows to them.
+    const panes = rows.filter((r) => r.depth === 1 && r.cls === 'pane');
+    const hasPanes = panes.length > 0;
+
+    // Which pane is shown in which step: the wizard uses if="{{step===N}}".
+    function paneStep(r) {
+      const m = (r.cond || '').match(/step\s*===?\s*(\d+)/);
+      return m ? +m[1] : null;
+    }
+
+    // Collect the rows that belong to a given pane index (1-based).
+    function rowsForStep(stepNo) {
+      if (!hasPanes) return rows.filter((r) => r.depth === 1);
+      // walk the flat list: rows after a pane opener belong to it until the next
+      // depth-1 element
+      const out = [];
+      let cur = null;
+      for (const r of rows) {
+        if (r.depth === 1) { cur = r.cls === 'pane' ? paneStep(r) : null; continue; }
+        if (r.depth === 2 && cur === stepNo) out.push(r);
+      }
+      return out;
+    }
+
+    function sum(stepNo, mode) {
       let total = 0;
       const detail = [];
-      for (const r of rows) {
-        if (r.depth !== 1) continue;                 // only direct children of .setup
-        if (r.cls === 'start') continue;             // pinned to bottom, excluded
-        // AI-only rows carry if="{{aiMode}}"
-        if (r.hasIf && /aiMode/.test(r.cond) && !mode.ai) continue;
+      for (const r of rowsForStep(stepNo)) {
+        if (r.cls === 'start') continue;
+        // Rows that only appear in AI mode
+        if (r.hasIf && /mode\s*===?\s*'ai'/.test(r.cond) && !mode.ai) continue;
+        // Rows hidden when time is unlimited ("no increment" row).
+        if (r.hasIf && /!\s*unlimited/.test(r.cond) && mode.unlimited) continue;
+        if (r.hasIf && /\bunlimited\b/.test(r.cond) && /^\s*unlimited\s*$/.test(r.cond) && !mode.unlimited) continue;
         const d = rules[r.cls] || {};
         if (!r.cls) continue;
         let h = textHeight(r.cls, d);
-        // A flex row (.segRow) has no height of its own; its height is the
-        // height of its tallest child (.seg / .seg.lv).
-        if (r.cls === 'segRow') {
-          const seg = rule(src, 'seg');
-          h = num(seg, 'height', 30);
+        // A .row wraps a label + control. When it is a flex row its height is
+        // the taller of the two; when stacked (narrow screens) it is the sum.
+        if (r.cls === 'row') {
+          const labelD = rule(src, 'rowLabel') || {};
+          const labelH = textHeight('rowLabel', labelD) + marginBottom(labelD);
+          const ctrlH = Math.max(
+            num(rule(src, 'side'), 'height', 52),
+            num(rule(src, 'stepBtn'), 'height', 48),
+            num(rule(src, 'seg'), 'height', 44)
+          );
+          const column = /flex-direction:\s*column/.test(d['flex-direction'] || '');
+          h = column ? labelH + ctrlH : Math.max(labelH, ctrlH);
+          h = Math.max(num(d, 'min-height', 0), h);
         }
+        // Standalone flex rows (kept for safety if a tree still uses them).
+        if (r.cls === 'segRow') h = num(rule(src, 'seg'), 'height', 44);
+        if (r.cls === 'sideRow') h = num(rule(src, 'side'), 'height', 52);
+        if (r.cls === 'stepper') h = num(rule(src, 'stepBtn'), 'height', 48);
+        if (r.cls === 'card') h = num(d, 'height', 76);
         const mb = marginBottom(d);
         const mt = marginTop(d);
         total += h + mb + mt;
@@ -174,8 +215,27 @@ for (const dev of DEVICES) {
       return { total, detail };
     }
 
-    const two = sum({ ai: false });
-    const ai = sum({ ai: true });
+    // The wizard's panes sit directly under the header, so add the header once.
+    const headD = rule(src, 'head') || {};
+    const headH = num(headD, 'height', 40) + marginBottom(headD);
+
+    function worstFor(mode2) {
+      if (!hasPanes) return sum(1, mode2);
+      let best = { total: 0, detail: [], step: 0 };
+      for (let i = 1; i <= 2; i++) {
+        const s = sum(i, mode2);
+        const withHead = { total: s.total + headH, detail: [['head', num(headD, 'height', 40), marginBottom(headD), 0]].concat(s.detail), step: i };
+        if (withHead.total > best.total) best = withHead;
+      }
+      return best;
+    }
+
+    // The increment row is hidden when the time is unlimited, which only
+    // happens after the user dials minutes down to 0. Measure the worst case
+    // (increment row visible) and the unlimited case both.
+    const two = worstFor({ ai: false, unlimited: false });
+    const ai = worstFor({ ai: true, unlimited: false });
+    const aiUnl = worstFor({ ai: true, unlimited: true });
     const worst = Math.max(two.total, ai.total);
     const ok = worst <= usable;
     const flag = ok ? 'OK  ' : 'FAIL';
