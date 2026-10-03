@@ -8,7 +8,7 @@
       <list-item class="appItem" type="item">
         <image class="appIcon" src="/common/icon.png"></image>
         <text class="appName">Chess</text>
-        <text class="version">版本 1.0</text>
+        <text class="version">版本 1.1</text>
       </list-item>
       <list-item class="authorItem" type="item">
         <image class="avatar" src="/common/avatar.jpg"></image>

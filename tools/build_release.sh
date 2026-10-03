@@ -15,6 +15,12 @@ export CODEBUDDY_SAFE_DELETE_ENABLED=0
 
 pass=0; fail=0; failed=""
 
+# Bump the upload counter before building. versionCode must increase on every
+# uploaded package (iot.mi.com: "推荐每次重新上传包时 versionCode+1"), otherwise
+# the band may refuse to overwrite the existing install. versionName is left to
+# manual bumps via tools/bump_version.js --name X.Y.Z.
+"$NODE" tools/bump_version.js --code auto | tail -1
+
 for d in xiaomi-band-9 xiaomi-band-9-pro xiaomi-band-10; do
   for l in chinese english; do
     dir="devices/$d/source/$l"
