@@ -18,3 +18,12 @@ tools/_pieces_out/
 # Visual proof sheets dumped out of a built RPK (tools/dump_rpk_pieces.js +
 # tools/make_piece_sheet.py). Regenerable, not source.
 tools/_piece_preview/
+
+# Local extracts of the upstream piece-assets zip the artist provided.
+# install_pieces_from_assets.js reads from here; the 512x512 originals are
+# not shipped in the repo (they are ~10x larger than the 128x128 we use).
+_pieces_src/
+
+# One-off debug artefacts (icon look-primes, side-by-side piece dumps).
+# Regenerable from tools/dump_rpk_pieces.js / verify_release_rpk.js.
+_look_pieces/

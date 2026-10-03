@@ -4,7 +4,7 @@
       <text class="turn">{{ statusText }}</text>
       <text class="menuButton" @click="toggleMenu">☰</text>
     </div>
-    <div class="clocks"><text class="clock" style="color:{{turn==='white'?'#4EA1FF':'#FFFFFF'}};">White {{whiteClock}}</text><text class="clock" style="color:{{turn==='black'?'#4EA1FF':'#FFFFFF'}};">Black {{blackClock}}</text></div>
+    <div class="clocks"><div class="clockCol" style="width:100dp;color:{{turn==='white'?'#4EA1FF':'#FFFFFF'}};"><text class="clockLabel">White</text><text class="clockTime">{{whiteClock}}</text></div><div class="clockCol" style="width:100dp;color:{{turn==='black'?'#4EA1FF':'#FFFFFF'}};"><text class="clockLabel">Black</text><text class="clockTime">{{blackClock}}</text></div></div>
 
     <div class="boardViewport" @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd">
       <div class="board" style="width:{{boardSize}}dp;height:{{boardSize}}dp;left:{{boardLeft}}dp;top:{{boardTop}}dp;">
@@ -62,9 +62,9 @@
 .topbar { width:212dp; height:48dp; padding:8dp 12dp 0dp 12dp; position:relative; flex-direction:row; justify-content:center; align-items:center; }
 .turn { color:#FFFFFF; font-size:20dp; font-weight:bold; width:212dp; lines:1; text-align:center; text-overflow:ellipsis; }
 .menuButton { position:absolute; right:12dp; top:10dp; color:#FFFFFF; font-size:21dp; width:24dp; text-align:center; }
-.clocks { width:212dp; height:26dp; flex-direction:row; justify-content:space-around; align-items:center; }
-.clock { font-size:16dp; font-weight:bold; width:82dp; text-align:center; }
-.boardViewport { width:212dp; height:280dp; position:relative; overflow:hidden; background-color:#050505; }
+.clocks { width:212dp; height:42dp; flex-direction:row; justify-content:space-around; align-items:center; }.clockCol { flex-direction:column; justify-content:center; align-items:center; }.clockLabel { font-size:11dp; height:14dp; line-height:14dp; text-align:center; opacity:0.85; }.clockTime  { font-size:20dp; font-weight:bold; height:24dp; line-height:24dp; text-align:center; }
+
+.boardViewport { width:212dp; height:264dp; position:relative; overflow:hidden; background-color:#050505; }
 .board { position:absolute; }
 .square { position:absolute; justify-content:center; align-items:center; }
 .pieceImage { width:78%; height:78%; object-fit:contain; z-index:3; }
@@ -97,7 +97,7 @@ export default {
     aiEnabled: false, aiLevel: 'normal', aiThinking: false, aiColor: 'black', aiStatusText: '', aiTimerId: null, aiDisabledByUser:false,
     
     board: [], squares: [], history: [], turn: WHITE, selected: -1, legalMoves: [], lastMove: [],
-    squareSize: 30, boardSize: 240, boardLeft: -22, boardTop: 20, castling: {wK:true,wQ:true,bK:true,bQ:true}, legalCache:{},
+    squareSize: 30, boardSize: 240, boardLeft: -22, boardTop: 36, castling: {wK:true,wQ:true,bK:true,bQ:true}, legalCache:{},
     menuVisible: false, settingsVisible: false, resultVisible: false, gameOver: false, paused: false, restoring: false,
     showHints: true, autoCenter: true, confirmBeforeResign: true, unlimited:false, initialMinutes:10, whiteSeconds:600, blackSeconds:600, whiteClock:'10:00', blackClock:'10:00', timerId:null, lastTick:0, halfmoveClock:0, positionCounts:{},
     resultTitle: '', hintText: 'Tap a piece to move', touchX: 0, touchY: 0, pendingTouchX: 0, pendingTouchY: 0, dragging: false, touchQueued: false,

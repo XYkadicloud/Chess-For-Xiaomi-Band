@@ -13,6 +13,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 NODE="C:/Users/HP/.workbuddy-ai/binaries/node/versions/22.22.2-3/node.exe"
+PYTHON="C:/Users/HP/.workbuddy-ai/binaries/python/envs/default/Scripts/python.exe"
 
 echo "== 0. piece sprites (bitmap, SVG is not renderable on the band) =="
 # Regenerate only when the source SVGs or the generator are newer than the
@@ -28,6 +29,17 @@ if [ -x "$PIECES_PY" ] && [ -d "tools/_icons/$PIECES_SET" ]; then
 else
   echo "   (rasteriser venv or tools/_icons/$PIECES_SET missing - keeping installed sprites)"
 fi
+
+# Higher-fidelity cburnett set extracted from the user's pieces-assets-1.0
+# zip. If the source dir exists, this overrides whatever step 0 just produced.
+# CC-BY-SA-3.0 (Colin M.L. Burnett), so the manifest must keep attribution.
+if [ -d "_pieces_src" ] && ls _pieces_src/*.png >/dev/null 2>&1; then
+  echo "== 0b. install high-fidelity cburnett sprites from _pieces_src/ =="
+  "$NODE" tools/install_pieces_from_assets.js | tail -1
+fi
+
+echo "== 0c. icon: shrink artwork to ~60% canvas so the launcher slot reads even =="
+"$PYTHON" tools/fix_icon_padding.py | tail -1
 
 echo "== 1. sync shared engine =="
 for d in devices/xiaomi-band-9 devices/xiaomi-band-9-pro devices/xiaomi-band-10; do
@@ -46,6 +58,9 @@ echo "== 3. generate setup.ux (two-screen wizard) =="
 
 echo "== 3b. game menu: drop 'new game', add 'end game' =="
 "$NODE" tools/add_end_game_menu.js | tail -1
+
+echo "== 3c. clock layout: bigger time on Band 9 / Band 10 (skip Band 9 Pro) =="
+"$NODE" tools/fix_band9_band10_clock.js | tail -1
 
 echo "== 4. refresh user-facing copy =="
 "$NODE" tools/update_copy_ai.js

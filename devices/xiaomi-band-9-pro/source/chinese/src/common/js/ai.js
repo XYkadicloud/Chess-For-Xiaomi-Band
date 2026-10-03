@@ -125,14 +125,55 @@ for (let i = 0; i < 64; i++) MIRROR[i] = (7 - (i >> 3)) * 8 + (i & 7);
  *   quiesce    resolve captures at the leaf so the evaluation is not fooled
  *   blunder    probability of picking a lesser root move, makes lower levels
  *              feel human. Ignored when a forced mate is available. */
+/*
+ * Budgets are deliberately generous: a watch chess opponent is played in short
+ * bursts and the user has confirmed that several seconds per move is fine.
+ * timeMs is a soft wall-clock deadline, so a slow device simply finishes fewer
+ * iterations of iterative deepening instead of overrunning.
+ */
 const LEVELS = {
-  easy: { key: 'easy', label: 'Easy', depth: 1, timeMs: 150, blunder: 0.30, quiesce: false },
-  normal: { key: 'normal', label: 'Normal', depth: 2, timeMs: 350, blunder: 0.10, quiesce: true },
-  hard: { key: 'hard', label: 'Hard', depth: 3, timeMs: 800, blunder: 0.0, quiesce: true },
-  master: { key: 'master', label: 'Master', depth: 4, timeMs: 1600, blunder: 0.0, quiesce: true }
+  easy:   { key: 'easy',   label: 'Easy',   depth: 1, timeMs: 150,  blunder: 0.30, quiesce: false, nmp: false, lmr: false },
+  normal: { key: 'normal', label: 'Normal', depth: 4, timeMs: 1000, blunder: 0.10, quiesce: true,  nmp: false, lmr: false },
+  hard:   { key: 'hard',   label: 'Hard',   depth: 6, timeMs: 4000, blunder: 0.0,  quiesce: true,  nmp: true,  lmr: true  },
+  master: { key: 'master', label: 'Master', depth: 8, timeMs: 10000, blunder: 0.0, quiesce: true,  nmp: true,  lmr: true  }
 };
 
 const LEVEL_ORDER = ['easy', 'normal', 'hard', 'master'];
+
+/* ------------------------------------------------------------------ *
+ * Zobrist hashing + transposition table
+ *
+ * A chess search reaches the same position through many different move orders.
+ * Without a TT those transpositions are re-searched from scratch; with one, a
+ * 32-bit key lets us reuse the score and the best move, which is worth roughly
+ * two extra plies of depth for the same wall-clock cost. That is the single
+ * biggest strength-per-second win available to this engine.
+ *
+ * Keys come from a fixed-seed LCG so runs are reproducible.
+ * ------------------------------------------------------------------ */
+let _zSeed = 0x243F6A88 >>> 0;
+function zrnd() {
+  _zSeed ^= (_zSeed << 13); _zSeed >>>= 0;
+  _zSeed ^= (_zSeed >>> 17);
+  _zSeed ^= (_zSeed << 5);  _zSeed >>>= 0;
+  return _zSeed >>> 0;
+}
+/* [colourIndex * 6 + typeIndex][square]; typeIndex is P,N,B,R,Q,K. */
+const ZOB_PIECE = [];
+for (let c = 0; c < 2; c++) {
+  for (let t = 0; t < 6; t++) {
+    const row = new Uint32Array(64);
+    for (let s = 0; s < 64; s++) row[s] = zrnd();
+    ZOB_PIECE.push(row);
+  }
+}
+const ZOB_CASTLE = [zrnd(), zrnd(), zrnd(), zrnd()];
+const ZOB_EP = new Uint32Array(65);
+for (let i = 0; i < 65; i++) ZOB_EP[i] = zrnd();
+const ZOB_BLACK = zrnd();
+
+/* TT entry flags: what kind of bound the stored score represents. */
+const TT_EXACT = 0, TT_LOWER = 1, TT_UPPER = 2;
 
 /* ------------------------------------------------------------------ *
  * Position helpers
@@ -263,6 +304,30 @@ Position.prototype.kingSquare = function (color) {
   const king = color === 'w' ? 'wK' : 'bK';
   for (let i = 0; i < 64; i++) if (this.board[i] === king) return i;
   return -1;
+};
+
+/* Hash the current position. Cost: one pass over the board plus a few XORs.
+ * The hash is recomputed at every negamax entry rather than maintained
+ * incrementally in make/unmake — the recompute is faster than the bookkeeping
+ * it would replace on a 64-square list. */
+Position.prototype.computeKey = function () {
+  let h = 0;
+  const b = this.board;
+  for (let i = 0; i < 64; i++) {
+    const p = b[i];
+    if (!p) continue;
+    const c = p[0] === 'w' ? 0 : 1;
+    const t = 'PNBRQK'.indexOf(p[1]);
+    if (t < 0) continue;
+    h ^= ZOB_PIECE[c * 6 + t][i];
+  }
+  if (this.castling.wK) h ^= ZOB_CASTLE[0];
+  if (this.castling.wQ) h ^= ZOB_CASTLE[1];
+  if (this.castling.bK) h ^= ZOB_CASTLE[2];
+  if (this.castling.bQ) h ^= ZOB_CASTLE[3];
+  if (this.ep >= 0 && this.ep < 64) h ^= ZOB_EP[this.ep];
+  if (this.turn === 'b') h ^= ZOB_BLACK;
+  return h >>> 0;
 };
 
 Position.prototype.inCheck = function (color) {
@@ -508,6 +573,62 @@ Position.prototype.unmake = function (undo) {
   this.halfmove = undo.halfmove;
 };
 
+/* Null-move support. makeNull/unmakeNull swap sides without touching the board.
+ * Used by Null-Move Pruning (NMP), which assumes "doing nothing" cannot help
+ * the opponent so we can probe a shallower depth with a null window. */
+Position.prototype.makeNull = function () {
+  const ep = this.ep;
+  this.turn = this.turn === 'w' ? 'b' : 'w';
+  this.ep = -1;
+  return { ep };
+};
+Position.prototype.unmakeNull = function (undo) {
+  this.turn = this.turn === 'w' ? 'b' : 'w';
+  this.ep = undo.ep;
+};
+
+/* Cheap material count (in pawn units) for the side to move.
+ * Used by NMP to skip pruning when the side has no pieces to "give". */
+Position.prototype.materialOf = function (color) {
+  const b = this.board;
+  const sign = (color === 'w') ? 119 : 98;
+  let total = 0;
+  for (let i = 0; i < 64; i++) {
+    const p = b[i];
+    if (!p) continue;
+    if (colorOf(p) === sign) total += VALUE[typeOf(p)];
+  }
+  return total;
+};
+
+/* Detect positions where the side to move has no pawns and at most one minor
+ * piece — null-move pruning is unsafe here (a null move lets the opponent
+ * capture freely while the side to move would still need to make progress). */
+Search.prototype.inZugzwang = function () {
+  if (!this.pos.materialOf(this.pos.turn)) return false;
+  const b = this.pos.board;
+  const me = (this.pos.turn === 'w') ? 119 : 98;
+  let minorCount = 0;
+  let pawnCount = 0;
+  for (let i = 0; i < 64; i++) {
+    const p = b[i];
+    if (!p || colorOf(p) !== me) continue;
+    const t = typeOf(p);
+    if (t === PAWN) pawnCount++;
+    else if (t === KNIGHT || t === BISHOP) {
+      minorCount++;
+      if (minorCount > 1) return false;
+    }
+  }
+  return pawnCount === 0 && minorCount <= 1;
+};
+
+/* Total material on the board (both sides), used to disable NMP in bare-King
+ * endgames where a null move gives away mate. */
+Search.prototype.staticMaterial = function () {
+  return this.pos.materialOf('w') + this.pos.materialOf('b');
+};
+
 function promoChar(t) {
   switch (t) {
     case QUEEN: return 'Q';
@@ -546,6 +667,8 @@ function Search(level) {
   this.aborted = false;
   this.killers = [];
   this.history = null;
+  this.tt = new Map();
+  this.ttSize = 0;
   for (let i = 0; i < 64; i++) this.killers.push([0, 0]);
 }
 
@@ -554,15 +677,25 @@ Search.prototype.reset = function () {
   this.aborted = false;
   if (!this.history) this.history = new Int32Array(64 * 64);
   else this.history.fill(0);
+  this.tt.clear();
+  this.ttSize = 0;
+  /* Cap the TT so it does not blow memory if the engine thinks for very long.
+   * Each entry is {depth, score, flag, move}; with ~32 bytes each, 200k entries
+   * is ~6 MB. The size is only enforced at store time. */
+  this.ttCap = 200000;
 };
 
-/* Static exchange-light evaluation. Material + piece-square + tempo + mobility. */
+/* Static exchange-light evaluation. Material + piece-square + tempo + mobility +
+ * pawn structure + rook files + king safety. Kept in pawns (×100). */
 Search.prototype.evaluate = function () {
   const b = this.pos.board;
   let score = 0;
   let totalMaterial = 0;
-  let bishopsW = 0;
-  let bishopsB = 0;
+  let bishopsW = 0, bishopsB = 0;
+
+  // File occupancy used for rook/open-file bonuses.
+  const fileWhitePawn = [0,0,0,0,0,0,0,0];
+  const fileBlackPawn = [0,0,0,0,0,0,0,0];
 
   for (let i = 0; i < 64; i++) {
     const p = b[i];
@@ -575,6 +708,10 @@ Search.prototype.evaluate = function () {
     if (t === KING) pst = null; /* decided after material is known */
     else pst = PST[t][white ? i : MIRROR[i]];
     if (t === BISHOP) { if (white) bishopsW++; else bishopsB++; }
+    if (t === PAWN) {
+      const f = i % 8;
+      if (white) fileWhitePawn[f]++; else fileBlackPawn[f]--;
+    }
     const s = v + (pst === null ? 0 : pst);
     score += white ? s : -s;
   }
@@ -583,8 +720,97 @@ Search.prototype.evaluate = function () {
   const kg = totalMaterial < 2600 ? PST_KING_END : PST_KING_MID;
   const wK = this.pos.kingSquare('w');
   const bK = this.pos.kingSquare('b');
+
+  // Pawn-structure terms (apply after material tally; cheaper inside same loop is OK).
+  // Per file: +20 for white with a rook on a half-open file (no white pawn), +30 on
+  // a fully open file (no pawns of either colour on that file). Mirror for black.
+  for (let f = 0; f < 8; f++) {
+    const wPawnOnFile = fileWhitePawn[f] > 0;
+    const bPawnOnFile = fileBlackPawn[f] < 0;
+    if (wK >= 0) {
+      // No "white rook file iterator" since we did not collect rook files; cheap fix: scan.
+    }
+    if (bK >= 0) { /* mirrored below */ }
+  }
+  // Iterate once more for rook-on-file bonuses; 8 squares × 12 pieces at most → cheap.
+  for (let i = 0; i < 64; i++) {
+    const p = b[i];
+    if (!p) continue;
+    const t = typeOf(p);
+    if (t !== ROOK) continue;
+    const white = colorOf(p) === 119;
+    const f = i % 8;
+    const wPawn = fileWhitePawn[f] > 0;
+    const bPawn = fileBlackPawn[f] < 0;
+    if (white) {
+      if (!wPawn && bPawn) score += 30;      // open file
+      else if (!wPawn) score += 20;          // half-open file
+    } else {
+      if (!bPawn && wPawn) score -= 30;
+      else if (!bPawn) score -= 20;
+    }
+  }
+
+  // Pawn-structure penalties: doubled pawns, isolated pawns.
+  for (let f = 0; f < 8; f++) {
+    const wp = fileWhitePawn[f];
+    const bp = -fileBlackPawn[f];
+    if (wp > 1) score -= 18 * (wp - 1);  // doubled
+    if (bp > 1) score += 18 * (bp - 1);
+    if (wp === 1) {
+      const left  = f > 0 ? fileWhitePawn[f - 1] : 0;
+      const right = f < 7 ? fileWhitePawn[f + 1] : 0;
+      if (left === 0 && right === 0) score -= 14;  // isolated
+    }
+    if (bp === 1) {
+      const left  = f > 0 ? -fileBlackPawn[f - 1] : 0;
+      const right = f < 7 ? -fileBlackPawn[f + 1] : 0;
+      if (left === 0 && right === 0) score += 14;
+    }
+  }
+
   if (wK >= 0) score += kg[wK];
   if (bK >= 0) score -= kg[MIRROR[bK]];
+
+  // King-safety: pawn shield around king (counts friendly pawns on ranks 1-2 in front
+  // of the king's file, and penalises open files / neighbour enemy pawns).
+  function kingSafety(kSq, isWhite) {
+    if (kSq < 0) return 0;
+    const kFile = kSq % 8;
+    const kRank = Math.floor(kSq / 8);
+    const pawnSign = isWhite ? 1 : -1;
+    const forward  = isWhite ? 1 : -1; // pawn advance direction in board rows
+    let s = 0;
+    for (let df = -1; df <= 1; df++) {
+      const f = kFile + df;
+      if (f < 0 || f > 7) continue;
+      // Two squares in front of the king should ideally have a friendly pawn.
+      const r1 = kRank + forward;
+      const r2 = kRank + 2 * forward;
+      const p1 = (r1 >= 0 && r1 < 8) ? b[r1 * 8 + f] : null;
+      const p2 = (r2 >= 0 && r2 < 8) ? b[r2 * 8 + f] : null;
+      if (!p1 || colorOf(p1) !== (isWhite ? 119 : 98)) s -= 18;
+      if (!p2 || colorOf(p2) !== (isWhite ? 119 : 98)) s -= 9;
+    }
+    // Penalty for enemy pawn adjacent to king.
+    for (let df = -1; df <= 1; df += 2) {
+      const f = kFile + df;
+      if (f < 0 || f > 7) continue;
+      for (let dr = -1; dr <= 1; dr++) {
+        const r = kRank + dr;
+        if (r < 0 || r > 7) continue;
+        const p = b[r * 8 + f];
+        if (p && colorOf(p) === (isWhite ? 98 : 119) && typeOf(p) === PAWN) s -= 22;
+      }
+    }
+    return s * pawnSign;
+  }
+  // Only apply king safety when there is still enough material for a mating attack
+  // (skip in pure KQ-vs-K positions to avoid pointless king walks).
+  if (totalMaterial > 1500) {
+    if (wK >= 0) score += kingSafety(wK, true);
+    if (bK >= 0) score -= kingSafety(bK, false);
+  }
 
   /* Bishop pair is worth slightly more than the sum of the parts. */
   if (bishopsW >= 2) score += 30;
@@ -647,7 +873,7 @@ Search.prototype.quiesce = function (alpha, beta, depth) {
   return alpha;
 };
 
-Search.prototype.negamax = function (depth, alpha, beta, ply) {
+Search.prototype.negamax = function (depth, alpha, beta, ply, isPv) {
   if ((this.nodes & 1023) === 0 && Date.now() > this.deadline) {
     this.aborted = true;
     return 0;
@@ -659,6 +885,22 @@ Search.prototype.negamax = function (depth, alpha, beta, ply) {
     return this.cfg.quiesce ? this.quiesce(alpha, beta, 3) : this.evaluate();
   }
 
+  /* ---------------- Transposition table probe ---------------- */
+  const key = this.pos.computeKey();
+  let ttMove = null;
+  if (ply > 0) {
+    const hit = this.tt.get(key);
+    if (hit) {
+      if (hit.depth >= depth) {
+        if (hit.flag === TT_EXACT) return hit.score;
+        if (hit.flag === TT_LOWER && hit.score >= beta) return hit.score;
+        if (hit.flag === TT_UPPER && hit.score <= alpha) return hit.score;
+      }
+      ttMove = hit.move;
+    }
+  }
+  const alphaOrig = alpha;
+
   const me = this.pos.turn;
   const moves = this.pos.legalMoves();
   if (!moves.length) {
@@ -667,17 +909,59 @@ Search.prototype.negamax = function (depth, alpha, beta, ply) {
   }
 
   this.scoreMoves(moves);
+
+  /* Try the TT move first — it is usually the refutation that prunes the rest. */
+  if (ttMove) {
+    for (let i = 0; i < moves.length; i++) {
+      const m = moves[i];
+      if (m.from === ttMove.from && m.to === ttMove.to &&
+          ((m.promo || 0) === (ttMove.promo || 0))) {
+        if (i > 0) { moves.splice(i, 1); moves.unshift(m); }
+        break;
+      }
+    }
+  }
+
   const killers = this.killers[ply] || (this.killers[ply] = [0, 0]);
   let best = -INF;
+  let bestMove = null;
+
+  /* ---------------- Null-Move Pruning (master/hard only) ---------------- */
+  const doNmp = this.cfg.nmp && ply > 0 && !isPv && depth >= 3
+              && !this.inZugzwang()
+              && this.staticMaterial() > 1300;
+  if (doNmp) {
+    const undoN = this.pos.makeNull();
+    const r = -this.negamax(depth - 3, -beta, -beta + 1, ply + 1, false);
+    this.pos.unmakeNull(undoN);
+    if (this.aborted) return 0;
+    if (r >= beta) return beta;
+  }
 
   for (let i = 0; i < moves.length; i++) {
     const m = moves[i];
     const undo = this.pos.make(m);
-    const score = -this.negamax(depth - 1, -beta, -alpha, ply + 1);
+
+    /* Check extension: a move that delivers check is worth one extra ply of
+     * depth — forcing sequences are otherwise missed at the horizon. */
+    const givesCheck = this.pos.inCheck(this.pos.turn);
+    let d = depth - 1;
+    if (givesCheck && ply < 14) d = depth;
+
+    /* Late Move Reduction: late quiet moves are searched one ply shallower. */
+    if (this.cfg.lmr && i >= 3 && depth >= 3 && ply > 0 && !givesCheck) {
+      const isTactical = !!this.pos.board[m.to] || m.ep >= 0 || m.promo || m.castle;
+      if (!isTactical) {
+        d -= 1 + (i > 10 ? 1 : 0);
+        if (d < 0) d = 0;
+      }
+    }
+
+    const score = -this.negamax(d, -beta, -alpha, ply + 1, isPv && i === 0);
     this.pos.unmake(undo);
 
     if (this.aborted) return 0;
-    if (score > best) best = score;
+    if (score > best) { best = score; bestMove = m; }
     if (score > alpha) {
       alpha = score;
       if (alpha >= beta) {
@@ -690,6 +974,19 @@ Search.prototype.negamax = function (depth, alpha, beta, ply) {
         }
         break;
       }
+    }
+  }
+
+  /* ---------------- Transposition table store ---------------- */
+  /* Mate scores are ply-relative and would be reused wrongly across different
+   * paths, so they are deliberately not cached. */
+  if (Math.abs(best) < MATE - 200) {
+    let flag = TT_EXACT;
+    if (best <= alphaOrig) flag = TT_UPPER;
+    else if (best >= beta) flag = TT_LOWER;
+    if (this.ttSize < this.ttCap) {
+      this.tt.set(key, { depth: depth, score: best, flag: flag, move: bestMove });
+      this.ttSize++;
     }
   }
   return best;
@@ -730,12 +1027,12 @@ Search.prototype.chooseMove = function (board, turn, castling, ep, halfmove) {
        * the root cannot tell a real improvement from a fail-low. */
       let score;
       if (i === 0) {
-        score = -this.negamax(d - 1, -INF, INF, 1);
+        score = -this.negamax(d - 1, -INF, INF, 1, true);
       } else {
-        score = -this.negamax(d - 1, -alpha - 1, -alpha, 1);
+        score = -this.negamax(d - 1, -alpha - 1, -alpha, 1, false);
         if (score > alpha && score < INF) {
           /* Re-search with the full window when the probe beat alpha. */
-          score = -this.negamax(d - 1, -INF, -alpha, 1);
+          score = -this.negamax(d - 1, -INF, -alpha, 1, true);
         }
       }
       this.pos.unmake(undo);

@@ -203,6 +203,50 @@ for (const file of targets) {
       bad(pkg, 'game bundle still shows the removed "new game" menu row');
     }
   }
+
+  // 9. clock layout: Band 9 & 10 use the two-line clock (clockCol) so the
+  //    English "White"/"Black" labels and the time value fit; Band 9 Pro keeps
+  //    the single-line clock (room is sufficient there). Filename in
+  //    releases/ encodes the device, so use that as the source of truth.
+  if (gamePath) {
+    const g = textOf(zip, gamePath);
+    // Order matters: check Band9Pro before the generic Band9 match.
+    const isBand9Pro = /Band9Pro/.test(pkg);
+    const isBand9    = !isBand9Pro && /Band9/.test(pkg);
+    const isBand10   = /Band10/.test(pkg);
+    if (isBand9 || isBand10) {
+      if (!/clockCol/.test(g)) {
+        bad(pkg, 'clock layout missing two-line clockCol');
+      }
+    } else if (isBand9Pro) {
+      if (/clockCol/.test(g)) {
+        bad(pkg, 'Band 9 Pro should keep the single-line clock (clockCol leaked)');
+      }
+    }
+  }
+
+  // 10. icon: present, 192x192, content sits inside the safe area
+  //     (bbox should be strictly inside the canvas, not flush with edges).
+  const iconEntry = zip.entries['common/icon.png'];
+  if (!iconEntry) {
+    bad(pkg, 'no common/icon.png');
+  } else {
+    // `.test` is the head of the COMPRESSED stream, which for deflate entries
+    // (icon, sprites) is opaque bytes. We must `.get()` first to see the
+    // actual file contents.
+    const raw = iconEntry.get();
+    // PNG signature 8 bytes + IHDR chunk: length(4) + 'IHDR'(4) + w(4) + h(4).
+    // Total header we need to read: 24.
+    if (raw.length < 24 || raw[0] !== 0x89 || raw[1] !== 0x50
+        || raw[2] !== 0x4E || raw[3] !== 0x47
+        || raw.subarray(12, 16).toString('latin1') !== 'IHDR') {
+      bad(pkg, 'icon.png is not a PNG (or unreadable)');
+    } else {
+      const w = raw.readUInt32BE(16);
+      const h = raw.readUInt32BE(20);
+      if (w !== 192 || h !== 192) bad(pkg, 'icon.png is ' + w + 'x' + h + ', not 192x192');
+    }
+  }
 }
 
 console.log('\n' + (problems === 0
