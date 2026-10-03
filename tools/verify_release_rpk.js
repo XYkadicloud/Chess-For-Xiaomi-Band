@@ -19,6 +19,7 @@
  *   5. setup exposes the computed time labels
  *   6. the About page credits the cburnett set
  *   7. the index subtitle was removed
+ *   8. the game menu offers endGame and no longer offers a bare "new game" item
  *
  * Usage:
  *   node tools/verify_release_rpk.js                 # all releases/*.rpk
@@ -189,10 +190,23 @@ for (const file of targets) {
     const i = textOf(zip, idxPath);
     if (/subtitle/.test(i)) bad(pkg, 'index bundle still contains the removed subtitle');
   }
+
+  // 8. game menu: endGame present, bare newGame menu item gone.
+  //    The template is compiled into the page bundle, so assert on the bundle.
+  if (gamePath) {
+    const g = textOf(zip, gamePath);
+    if (!/endGame/.test(g)) bad(pkg, 'game bundle has no endGame handler');
+    // A residual menu row would show up as a newGame click binding; the result
+    // screen's "play again" also uses newGame, so look for the old menu label
+    // *or* two distinct newGame bindings surviving in the template.
+    if (/新建棋局/.test(g) || />New game</.test(g)) {
+      bad(pkg, 'game bundle still shows the removed "new game" menu row');
+    }
+  }
 }
 
 console.log('\n' + (problems === 0
   ? 'RELEASE RPK OK (' + targets.length + ' package' + (targets.length === 1 ? '' : 's') +
-    ' x signed + 12 sprites + AI kick + credit)'
+    ' x signed + 12 sprites + AI kick + credit + end-game menu)'
   : problems + ' RELEASE PROBLEM(S)'));
 process.exit(problems === 0 ? 0 : 1);

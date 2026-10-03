@@ -44,6 +44,9 @@ echo "== 2. patch game.ux =="
 echo "== 3. generate setup.ux (two-screen wizard) =="
 "$NODE" tools/build_setup_page.js
 
+echo "== 3b. game menu: drop 'new game', add 'end game' =="
+"$NODE" tools/add_end_game_menu.js | tail -1
+
 echo "== 4. refresh user-facing copy =="
 "$NODE" tools/update_copy_ai.js
 
@@ -75,4 +78,5 @@ echo "-- setup layout fit --"
 if ls releases/*.rpk >/dev/null 2>&1; then
   echo "-- built package contents --"
   "$NODE" tools/verify_release_rpk.js | tail -1
+  "$NODE" tools/verify_pieces_in_rpk.js | tail -1
 fi

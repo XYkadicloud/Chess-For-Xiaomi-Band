@@ -30,6 +30,9 @@ const COPY = {
     labelLevel: 'AI 难度：',
     labelThinking: 'AI 思考中…',
     labelAiTurn: 'AI 回合，请稍候',
+    // Shown only if the engine hands back a move from the wrong side or none at
+    // all -- previously a bare "AI 无法走子" with no way to tell why.
+    labelAiStuck: 'AI 无法走子（局面异常）',
     resignAi: 'AI 认输',
     levelNames: { easy: '简单', normal: '普通', hard: '困难', master: '大师' },
     humanIsWhite: '你执白棋，AI 执黑棋',
@@ -43,6 +46,7 @@ const COPY = {
     labelLevel: 'AI level: ',
     labelThinking: 'AI is thinking…',
     labelAiTurn: 'AI to move…',
+    labelAiStuck: 'AI cannot move (bad position)',
     resignAi: 'AI resigns',
     levelNames: { easy: 'Easy', normal: 'Normal', hard: 'Hard', master: 'Master' },
     humanIsWhite: 'You are White, AI is Black',
@@ -67,8 +71,27 @@ function aiMethods(c) {
     /* Derive the en-passant target square from the recorded last move, which
      * is how this page tracks it (there is no explicit ep field). */
     "aiEpSquare(){const lm=this.lastMove;if(!lm||lm.length!==2)return -1;const d=Math.abs(lm[1]-lm[0]);if(d!==16)return -1;const p=this.board[lm[1]];if(!p||p[1]!=='P')return -1;return (lm[0]<lm[1]?lm[0]+8:lm[0]-8);},",
-    /* Run the search, then replay the chosen move through the normal rules path. */
-    "runAiMove(){let mv=null;try{ai.setLevel(this.aiLevel);mv=ai.compute(this.board,this.turn,this.castling,this.aiEpSquare(),this.halfmoveClock);}catch(e){mv=null;}this.aiThinking=false;if(mv&&this.board[mv.from]&&this.board[mv.from][0]===this.turn[0]){this.applyAiMove(mv.from,mv.to);}else{this.hintText='AI 无法走子';if(this.timerWasRunning)this.startClock();}},",
+    /* Run the search, then replay the chosen move through the normal rules path.
+     *
+     * TURN ENCODING -- this is a real trap, do not "simplify" it away.
+     * The page's state machine uses the FULL WORDS 'white' / 'black' (WHITE and
+     * BLACK constants, `mySide`, `aiColor`, every hint string), but the engine
+     * speaks SINGLE CHARS 'w' / 'b': Position.load stores turn verbatim while
+     * every internal test is `turn === 'w'`, and the make/unmake does
+     * `this.turn = this.turn === 'w' ? 'b' : 'w'`.
+     *
+     * So passing 'white' makes that ternary false -> the engine sets turn='w'
+     * no matter what, searches for WHITE, and returns a WHITE piece's move.
+     * On the AI's own turn the board holds a black-to-move position, so the
+     * move comes from the wrong army and the validity check below rejects it:
+     * the AI reports "cannot move" and the game stalls. This is why the bug
+     * only appeared when the AI played white.
+     *
+     * Translate at this boundary (char for the engine, word for the page) and
+     * keep the result's square indices as-is -- the engine uses the same flat
+     * 0..63 indexing the page does.
+     */
+    "runAiMove(){let mv=null;try{ai.setLevel(this.aiLevel);mv=ai.compute(this.board,this.turn==='white'?'w':'b',this.castling,this.aiEpSquare(),this.halfmoveClock);}catch(e){mv=null;}this.aiThinking=false;if(mv&&this.board[mv.from]&&this.board[mv.from][0]===this.turn[0]){this.applyAiMove(mv.from,mv.to);}else{this.hintText=" + JSON.stringify(c.labelAiStuck) + ";if(this.timerWasRunning)this.startClock();}},",
     /* Apply the engine move using the exact same rules pipeline as a human tap. */
     "applyAiMove(from,to){this.selected=from;this.legalMoves=[to];this.move(from,to);if(!this.unlimited&&!this.gameOver&&!this.resultVisible&&!this.aiThinking)this.startClock();},",
     /* AI-aware undo wrapper: in AI mode one undo rewinds the full round. */

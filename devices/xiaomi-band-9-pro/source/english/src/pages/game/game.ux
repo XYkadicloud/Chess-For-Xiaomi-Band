@@ -26,7 +26,7 @@
     <div class="overlay" if="{{menuVisible}}">
       <div class="menuCard">
         <text class="menuTitle">Game menu</text>
-        <text class="menuItem" @click="newGame">New game</text>
+        <text class="menuItem" @click="endGame">End game</text>
         <text class="menuItem" @click="undoMove">Undo</text>
         <text class="menuItem" @click="confirmResign">Resign</text>
         <text class="menuItem" @click="offerDraw">Draw</text>
@@ -153,7 +153,7 @@ export default {
   aiHumanBanner(){return this.aiColor==='white'?"You are Black, AI is White":"You are White, AI is Black";},
   maybeAiMove(){if(!this.isAiTurn()||this.aiThinking)return;this.aiThinking=true;this.hintText="AI to move…";this.timerWasRunning=!!this.timerId;this.stopClock();this.aiTimerId=setTimeout(()=>{this.aiTimerId=null;this.runAiMove();},60);},
   aiEpSquare(){const lm=this.lastMove;if(!lm||lm.length!==2)return -1;const d=Math.abs(lm[1]-lm[0]);if(d!==16)return -1;const p=this.board[lm[1]];if(!p||p[1]!=='P')return -1;return (lm[0]<lm[1]?lm[0]+8:lm[0]-8);},
-  runAiMove(){let mv=null;try{ai.setLevel(this.aiLevel);mv=ai.compute(this.board,this.turn,this.castling,this.aiEpSquare(),this.halfmoveClock);}catch(e){mv=null;}this.aiThinking=false;if(mv&&this.board[mv.from]&&this.board[mv.from][0]===this.turn[0]){this.applyAiMove(mv.from,mv.to);}else{this.hintText='AI 无法走子';if(this.timerWasRunning)this.startClock();}},
+  runAiMove(){let mv=null;try{ai.setLevel(this.aiLevel);mv=ai.compute(this.board,this.turn==='white'?'w':'b',this.castling,this.aiEpSquare(),this.halfmoveClock);}catch(e){mv=null;}this.aiThinking=false;if(mv&&this.board[mv.from]&&this.board[mv.from][0]===this.turn[0]){this.applyAiMove(mv.from,mv.to);}else{this.hintText="AI cannot move (bad position)";if(this.timerWasRunning)this.startClock();}},
   applyAiMove(from,to){this.selected=from;this.legalMoves=[to];this.move(from,to);if(!this.unlimited&&!this.gameOver&&!this.resultVisible&&!this.aiThinking)this.startClock();},
   undoMove(){if(this.aiEnabled&&!this.aiThinking&&this.history.length>=2){this.undoMoveBase();this.undoMoveBase();this.resultVisible=false;this.gameOver=false;this.hintText='已悔棋，请继续';return;}this.undoMoveBase();},
   /* __AI_METHODS_END__ */
@@ -184,7 +184,7 @@ export default {
   toggleMenu(){if(this.menuVisible){this.closeMenu();return;}this.menuVisible=true;this.paused=true;this.stopClock();this.saveActiveGame();}, openMenu(){this.toggleMenu();}, closeMenu(){this.menuVisible=false;if(!this.settingsVisible&&!this.resultVisible){this.paused=false;this.startClock();}},
   newGame(){this.clearActiveGame();this.paused=false;this.newPosition();this.closeMenu();this.startClock();}, offerDraw(){this.gameOver=true;this.resultTitle='Draw (agreement)';this.resultVisible=true;this.clearActiveGame();this.closeMenu();this.stopClock();}, confirmResign(){this.gameOver=true;if(this.confirmBeforeResign){this.resultTitle=(this.turn===WHITE?'Black':'White')+' wins (opponent resigned)';this.resultVisible=true;this.closeMenu();}else{this.resultTitle='Game over';this.resultVisible=true;this.closeMenu();}this.clearActiveGame();},
   openSettings(){this.menuVisible=false;this.settingsVisible=true;this.paused=true;this.stopClock();},closeSettings(){this.settingsVisible=false;this.paused=false;this.startClock();},
-  exitGame(){this.saveActiveGame();this.stopClock();require('@system.router').back();},
+  endGame(){if(this.resultVisible||this.gameOver)return;this.gameOver=true;this.resultTitle='Game over';this.hintText='Game ended';this.clearActiveGame();this.stopClock();this.closeMenu();},exitGame(){this.saveActiveGame();this.stopClock();require('@system.router').back();},
 toggleAutoCenter(){this.autoCenter=!this.autoCenter;this.saveSettings();},cycleBoardSize(){const n=this.squareSize===30?44:(this.squareSize===44?24:30);this.applyBoardSize(n);this.saveSettings();this.buildSquares();},closeResult(){this.gameOver=true;this.resultVisible=false;this.stopClock();}
 }
 </script>

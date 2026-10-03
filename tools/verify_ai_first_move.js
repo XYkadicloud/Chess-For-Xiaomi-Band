@@ -20,6 +20,24 @@
  *   3. the AI colour is derived from mySide, NOT from the current turn
  *   4. isAiTurn() compares the side to move against aiColor
  *   5. the move() hook calls maybeAiMove()
+ *   6. runAiMove() translates the page's 'white'/'black' into the engine's
+ *      'w'/'b' at the call boundary  (see the TURN ENCODING note below)
+ *
+ * TURN ENCODING -- the defect this file was extended to guard.
+ *   The page's state machine uses the FULL WORDS 'white' / 'black' (the WHITE
+ *   and BLACK constants, `mySide`, `aiColor`, every hint string). The engine
+ *   speaks SINGLE CHARS 'w' / 'b': Position.load stores turn verbatim while all
+ *   internal tests read `turn === 'w'`, and make/unmake flips with
+ *   `this.turn = this.turn === 'w' ? 'b' : 'w'`.
+ *
+ *   Passing 'white' therefore makes that ternary false, so the engine sets
+ *   turn='w' unconditionally, searches for WHITE, and returns a WHITE piece's
+ *   move. On the AI's turn (a black-to-move position) that move belongs to the
+ *   wrong army, so runAiMove's validity check rejects it and the UI shows
+ *   "AI 无法走子" — the AI appears unable to play at all. It reproduced only
+ *   when the AI played white, which is what made it confusing.
+ *
+ *   The engine is fine; the call site was wrong. Hence assertion 6.
  */
 'use strict';
 
@@ -49,6 +67,7 @@ for (const d of DEVICES) {
 
     const onInit = bodyOf(src, 'onInit', 'onShow');
     const onShow = bodyOf(src, 'onShow', 'applyBoardSize');
+    const runAi = bodyOf(src, 'runAiMove', 'applyAiMove');
 
     const checks = [];
 
@@ -68,6 +87,16 @@ for (const d of DEVICES) {
 
     // 5 — a completed move must hand over to the engine.
     checks.push(['move() hook present', src.includes('__AI_MOVEHOOK__') && /__AI_MOVEHOOK__ \*\/\s*if\(!this\.resultVisible&&!this\.gameOver\)this\.maybeAiMove\(\);/.test(src)]);
+
+    // 6 — runAiMove must hand the engine 'w'/'b', not the page's 'white'/'black'.
+    checks.push([
+      'runAiMove translates turn to w/b',
+      !!runAi && /ai\.compute\([^)]*this\.turn\s*===\s*'white'\s*\?\s*'w'\s*:\s*'b'/.test(runAi)
+    ]);
+    checks.push([
+      'runAiMove does NOT pass the raw turn word',
+      !!runAi && !/ai\.compute\(\s*this\.board\s*,\s*this\.turn\s*,/.test(runAi)
+    ]);
 
     const bad = checks.filter(([, ok]) => !ok);
     if (bad.length) {
