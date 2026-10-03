@@ -29,6 +29,10 @@
         <text class="sectionTitle">Not fully supported</text>
         <text class="bodyText">Pawn promotion currently defaults to a queen; choosing a rook, bishop, or knight is not supported. Saving game history and PGN import/export are not supported yet.</text>
       </list-item>
+      <list-item class="infoItem creditsItem" type="item">
+        <text class="sectionTitle">Piece artwork</text>
+        <text class="bodyText">Pieces use the cburnett set, the default on lichess.org. Art by Colin M.L. Burnett, used under GPLv2+.</text>
+      </list-item>
       <list-item class="supportItem" type="item" @touchend="openQr">
         <text class="sectionTitle supportTitle">Afdian page</text>
         <text class="supportText">This is my Afdian page. Donations are welcome.</text>
@@ -60,6 +64,7 @@
 .authorInfo { height:62dp; flex-direction:column; justify-content:center; }
 .authorLabel { color:rgba(255,255,255,0.6); font-size:14dp; line-height:21dp; }
 .developer { color:#FFFFFF; font-size:20dp; font-weight:bold; line-height:28dp; }
+.creditsItem { height:104dp; }
 .infoItem { height:127dp; padding:14dp 14dp 12dp 14dp; flex-direction:column; align-items:flex-start; justify-content:flex-start; }
 .rulesItem { height:128dp; }
 .sectionTitle { width:280dp; color:#FFFFFF; font-size:16dp; font-weight:bold; line-height:23dp; margin-bottom:5dp; }

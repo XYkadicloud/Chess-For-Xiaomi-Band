@@ -238,7 +238,13 @@ function patch(file, lang, device) {
       ' const _inc=parseInt(String(this.increment),10);this.incrementSeconds=(isNaN(_inc)||_inc<0)?0:_inc;' +
       ' if(this.aiEnabled){this.aiLevel=this.aiLevel||\'normal\';' +
       'this.aiColor=(String(this.mySide)===\'black\')?\'white\':\'black\';}else{this.aiColor=this.aiColor||\'black\';}' +
-      'this.resetAi();if(this.aiEnabled&&this.isAiTurn()){this.hintText=this.aiColor===\'white\'?\'AI 执白先行\':\'\';}';
+      'this.resetAi();if(this.aiEnabled&&this.isAiTurn()){this.hintText=this.aiColor===\'white\'?\'AI 执白先行\':\'\';}' +
+      // Kick the engine off on the very first frame when the AI has the move
+      // (the human chose black). `maybeAiMove()` defers the search by 60ms via
+      // setTimeout, so this is safe to call synchronously here — it does not
+      // block onInit itself. Without this the engine never opened the game and
+      // the match looked like two-player mode.
+      ' if(this.aiEnabled&&this.isAiTurn())this.maybeAiMove();';
 
     // (a) drop the legacy single-purpose block shipped in earlier commits
     const LEGACY = "this.aiEnabled=String(this.aiMode)==='true';" +
@@ -249,13 +255,23 @@ function patch(file, lang, device) {
       changes.push('legacyBlockRemoved');
     }
 
-    // (b) drop any previously injected block. The block always ends with the
-    //     substring "...执白先行':'';}" so remove marker..that close-brace.
-    const END_OF_BLOCK = "执白先行':'';}";
+    // (b) drop any previously injected block. Everything from the marker up to
+    //     (and including) the block's final statement is removed. Two tails are
+    //     possible: the current one ("...this.maybeAiMove();") and the older one
+    //     shipped before the AI-kick fix ("...执白先行':'';}").
+    const TAILS = [" if(this.aiEnabled&&this.isAiTurn())this.maybeAiMove();",
+                   "执白先行':'';}"];
     const prev = src.indexOf(MARK);
     if (prev >= 0) {
-      let stop = src.indexOf(END_OF_BLOCK, prev);
-      stop = stop >= 0 ? stop + END_OF_BLOCK.length : src.indexOf(MARK) + MARK.length;
+      let stop = -1;
+      for (const tail of TAILS) {
+        const at = src.indexOf(tail, prev);
+        if (at >= 0) { stop = at + tail.length; break; }
+      }
+      // Fallback: the marker is immediately followed by the block, which ends at
+      // the next "this.resetAi();"-terminated statement. Consume to the marker
+      // plus one statement so a malformed block can never leave debris behind.
+      if (stop < 0) stop = src.indexOf('this.resetAi();', prev) + 'this.resetAi();'.length;
       src = src.slice(0, prev) + src.slice(stop);
     }
 
@@ -328,11 +344,37 @@ function patch(file, lang, device) {
     }
   }
 
-  /* 10. onShow: if it is the AI's turn (e.g. after a resume), let it move. */
-  if (!src.includes('if(this.isAiTurn())this.maybeAiMove();')) {
-    src = src.replace(/onShow\(\)\s*\{([^}]*)\}/,
-      'onShow(){ $1 if(!this.gameOver&&!this.resultVisible&&!this.paused&&this.isAiTurn())this.maybeAiMove();}');
-    changes.push('onShowAi');
+  /* 10. onShow: if it is the AI's turn (e.g. after a resume, or when the human
+   *     chose to play black so the engine moves first), let it move.
+   *
+   *     BUG HISTORY: this used to guard on
+   *         if (!src.includes('if(this.isAiTurn())this.maybeAiMove();'))
+   *     That substring also appears inside toggleAiMode(), so the guard was
+   *     satisfied by an unrelated line and the onShow injection was silently
+   *     skipped -> the engine never made its opening move when the human played
+   *     black, and the game behaved like two-player mode. Anchor on onShow's own
+   *     body (its unique `this.lastTick=Date.now();` opening) instead, and assert
+   *     the result. */
+  {
+    const NEEDLE = 'this.lastTick=Date.now();';
+    const onShowRe = /onShow\(\)\s*\{\s*this\.lastTick=Date\.now\(\);\s*([^}]*)\}/;
+    const m = src.match(onShowRe);
+    if (!m) {
+      throw new Error('injection failed: onShow body not found (expected "onShow(){ this.lastTick=Date.now();")');
+    }
+    const body = m[1];
+    const kick = ' if(!this.gameOver&&!this.resultVisible&&!this.paused&&this.isAiTurn())this.maybeAiMove();';
+    if (!body.includes('this.maybeAiMove();')) {
+      src = src.replace(onShowRe, (full, inner) => full.replace(inner, inner + kick));
+      changes.push('onShowAi');
+    }
+    // ASSERT: the kick must now be inside the onShow body (not merely somewhere
+    // in the file — toggleAiMode() also contains that call).
+    const after = src.match(onShowRe);
+    if (!after || !after[0].includes('this.maybeAiMove();')) {
+      throw new Error('injection failed: onShowAi (kick not present in onShow body)');
+    }
+    if (!src.includes(NEEDLE)) throw new Error('injection failed: onShow anchor lost');
   }
 
   /* 11. Performance: incremental square updates. The board UI is a flat list of

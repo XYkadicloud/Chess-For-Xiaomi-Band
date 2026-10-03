@@ -237,6 +237,11 @@ import router from '@system.router';
 import storage from '@system.storage';
 export default {
   data: { step:1, mode:'two', mySide:'white', aiLevel:'normal', minutes:10, increment:0, boardSize:'${boardDefault}' },
+  computed: {
+    unlimited(){ return this.minutes === 0; },
+    minutesLabel(){ return this.minutes === 0 ? '${c.minutesInf}' : this.minutes + ' ${c.minutesUnit}'; },
+    incrementLabel(){ return this.increment + ' ${c.incrementUnit}'; }
+  },
   onInit(){ this.loadSettings(); },
   onShow(){ this.loadSettings(); },
   loadBoardSize(){
@@ -249,9 +254,6 @@ export default {
     },fail:()=>{ this.boardSize='${boardDefault}'; }});
   },
   loadSettings(){ this.loadBoardSize(); },
-  get unlimited(){ return this.minutes === 0; },
-  get minutesLabel(){ return this.unlimited ? '${c.minutesInf}' : this.minutes + ' ${c.minutesUnit}'; },
-  get incrementLabel(){ return this.increment + ' ${c.incrementUnit}'; },
   goBack(){ if(this.step===2){ this.step=1; } else { router.back(); } },
   pickMode(m){ this.mode = m; },
   pickSide(s){ this.mySide = s; },
@@ -313,6 +315,23 @@ for (const d of DEVICES) {
       if (!m) throw new Error(d + '/' + l + ': missing style block .' + cls);
       if (!/height\s*:/.test(m[1]) || !/line-height\s*:/.test(m[1])) {
         throw new Error(d + '/' + l + ': .' + cls + ' needs both height and line-height');
+      }
+    }
+
+    // 5) REGRESSION GUARD: derived values MUST live in `computed`.
+    //    Bare ES `get foo(){}` accessors on the page object are NOT collected by
+    //    Vela's view model, so {{minutesLabel}} rendered as empty text on device
+    //    (the "time value is invisible" bug). computed: { ... } is the supported
+    //    mechanism (game.ux already uses it).
+    if (!/computed\s*:/.test(src)) {
+      throw new Error(d + '/' + l + ': derived values must be declared in computed:{...}');
+    }
+    if (/^\s*get\s+[a-zA-Z_$][\w$]*\s*\(/m.test(src)) {
+      throw new Error(d + '/' + l + ': bare `get` accessor found — move it into computed:{...}');
+    }
+    for (const v of ['minutesLabel', 'incrementLabel', 'unlimited']) {
+      if (!new RegExp('computed\\s*:\\s*\\{[\\s\\S]*?' + v + '\\s*\\(').test(src)) {
+        throw new Error(d + '/' + l + ': computed is missing ' + v);
       }
     }
 

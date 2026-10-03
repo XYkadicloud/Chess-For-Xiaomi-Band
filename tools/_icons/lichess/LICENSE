@@ -1,0 +1,40 @@
+cburnett chess pieces
+=====================
+
+These 12 SVG files (wk, wq, wr, wb, wn, wp, bk, bq, br, bb, bn, bp) are the
+"cburnett" chess piece set, the default piece set of the lichess.org board.
+
+  Author:  Colin M.L. Burnett
+           https://en.wikipedia.org/wiki/User:Cburnett
+  Source:  https://github.com/lichess-org/lila
+           directory: public/piece/cburnett/
+  Licence: GPLv2+  (GNU General Public License, version 2 or later)
+
+Attribution as recorded upstream
+--------------------------------
+The upstream repository states, in its COPYING.md:
+
+    public/piece/cburnett | Colin M.L. Burnett | GPLv2+
+
+This mirrors the licence listed for the cburnett set on Wikimedia Commons,
+where the original piece images are released under GPLv2+.
+
+Licence text
+------------
+The full text of the GNU General Public License version 2 is available at:
+
+    https://www.gnu.org/licenses/gpl-2.0.txt
+
+GPLv2+ means the licence text above, with the option to use any later version
+of the GNU GPL. Redistribution of these files (or of rasterised derivative
+works such as the PNG sprites this project generates from them) must keep this
+attribution intact and pass on the same licence.
+
+Notes for this project
+----------------------
+The files here are byte-for-byte copies of the upstream SVGs, except that the
+file names have been lower-cased (wK.svg -> wk.svg). No artwork was modified.
+
+The PNG sprites under devices/*/source/*/src/common/pieces/ are rasterised
+derivatives of these files, produced by tools/build_piece_png.py. Being
+derivative works, they carry the same GPLv2+ licence.

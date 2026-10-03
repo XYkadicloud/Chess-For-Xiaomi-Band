@@ -145,6 +145,17 @@ for (const dev of ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10']) {
           });
         }
       }
+
+      // (c) no bare ES `get` accessor in the page object. Vela's view model does
+      //     not collect them, so `{{derivedValue}}` renders as empty text.
+      //     Use the supported `computed: { ... }` block instead.
+      const getM = script.match(/^\s*get\s+([a-zA-Z_$][\w$]*)\s*\(/m);
+      if (getM) {
+        badRender.push({
+          rel: path.relative(ROOT, f).replace(/\\/g, '/'),
+          why: 'bare `get ' + getM[1] + '()` is not reactive in Vela — move it into computed:{...}'
+        });
+      }
     }
   }
 }

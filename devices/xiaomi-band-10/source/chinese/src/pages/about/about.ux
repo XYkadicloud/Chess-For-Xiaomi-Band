@@ -29,6 +29,10 @@
         <text class="sectionTitle">尚未完整支持</text>
         <text class="bodyText">兵升变目前自动升为后，暂不支持选择升变为车、象或马；暂不支持棋局历史保存与 PGN 导入导出。</text>
       </list-item>
+      <list-item class="infoItem creditsItem" type="item">
+        <text class="sectionTitle">棋子素材</text>
+        <text class="bodyText">棋子外观来自 lichess 默认棋子集 cburnett，作者 Colin M.L. Burnett，以 GPLv2+ 许可使用。</text>
+      </list-item>
       <list-item class="supportItem" type="item" @touchend="openQr">
         <text class="sectionTitle supportTitle">爱发电主页</text>
         <text class="supportText">这是我的爱发电主页，希望能够捐赠支持一下。</text>
@@ -60,6 +64,7 @@
 .authorInfo { height:62dp; flex-direction:column; justify-content:center; }
 .authorLabel { color:rgba(255,255,255,0.6); font-size:14dp; line-height:21dp; }
 .developer { color:#FFFFFF; font-size:20dp; font-weight:bold; line-height:28dp; }
+.creditsItem { height:104dp; }
 .infoItem { height:146dp; padding:14dp 14dp 12dp 14dp; flex-direction:column; align-items:flex-start; justify-content:flex-start; }
 .rulesItem { height:157dp; }
 .sectionTitle { width:160dp; color:#FFFFFF; font-size:16dp; font-weight:bold; line-height:23dp; margin-bottom:5dp; }

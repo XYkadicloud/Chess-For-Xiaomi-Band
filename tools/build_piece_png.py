@@ -1,32 +1,66 @@
 #!/usr/bin/env python3
 """
-build_piece_png.py — rasterise the CC0 "Meridian" chess piece SVGs into the
+build_piece_png.py — rasterise the LICHESS "cburnett" chess piece SVGs into the
 64x64 RGBA PNG sprites the Vela app ships.
 
 Why this exists
 ---------------
-Vela on the Xiaomi band cannot render SVG in an <image>, so the pieces must be
-bitmaps. The PNGs that shipped before were rasterised with a hard-coded
-`fill:#ffffff`, which made the white pieces all but disappear on light squares
-(white fill + 3px outline only). This script re-renders every piece twice with
-an explicit palette:
-
-    white pieces -> white body, near-black outline
-    black pieces -> near-black body, light outline
-
-so both colours stay legible on the light (#B8B8B8) and dark (#3A3A3A) squares.
+Vela on the Xiaomi band cannot render SVG in an <image>, so pieces must be
+bitmaps. The earlier revision used the CC0 "meridian" set, which is decorative
+and does NOT look like the pieces people expect from lichess/chess.com. This
+version uses lichess's own default set.
 
 Source
 ------
-kmar/chess_svg_piece_sets (CC0 / public domain), set "meridian".
-    https://github.com/kmar/chess_svg_piece_sets
+lichess-org/lila, public/piece/cburnett  (the lichess default)
+Author: Colin M.L. Burnett
+License: GPLv2+  (see tools/_icons/lichess/LICENSE)
+Files are kept locally in tools/_icons/lichess/*.svg
 
-The SVGs are parsed with svglib (pure Python) and painted with Pillow, because
-the native cairo backend that cairosvg needs is not available on this machine.
+Rendering approach
+------------------
+svglib (pure Python) parses the SVG and already lowers elliptical arcs (`a`
+commands) into cubic Beziers, so we never need to implement arc maths. Each
+visual shape arrives as a PAIR of reportlab leaves:
+    NoStrokePath(points, fill=...)   -> the filled body
+    Path(points, stroke=...)         -> the outline (fill=None)
+which is exactly what we need to paint body and outline in different colours.
+
+Coordinate handling
+-------------------
+The drawing root carries no transform; its single Group carries
+    (0.75, 0, 0, -0.75, 0, 33.75)
+i.e. a uniform 0.75 scale plus a Y flip (SVG y-down -> reportlab y-up). We
+apply the full affine matrix ourselves so both scale and flip are honoured.
+Stroke width must be scaled by the same factor.
+
+Palette
+-------
+cburnett encodes colour in the SVG itself, and it does NOT use the
+"white body + dark rim / black body + light rim" scheme I first assumed.
+Reading the real files (verified by dumping every leaf's fill/stroke):
+
+  white pieces : fill #FFFFFF, contour stroke #000000
+  black pieces : fill #000000, contour stroke #000000  <- the rim is BLACK too
+                 plus a few detail strokes in #ECECEC (band lines, knight mane)
+
+So black pieces are solid black throughout; what makes them readable is the
+LIGHT INNER DETAIL, not a light outer rim. Painting a light rim on them (which
+the previous revision did) produces a fat pale halo and a hollow-looking piece.
+
+We therefore key the remap off the SVG's own colour, not the piece's colour:
+
+  fill  #FFFFFF / #000000        -> the body colour for that piece
+  stroke #000000 (contour)       -> w: near-black (17,17,17)
+                                    b: near-black (26,26,26), i.e. unchanged
+  stroke #ECECEC (inner detail)  -> kept light on black pieces; darkened on
+                                    white pieces so it stays visible there
+
+Both end up legible on the light (#B8B8B8) and dark (#3A3A3A) squares.
 
 Usage
 -----
-    python tools/build_piece_png.py [--size 64] [--out <dir>]
+    python tools/build_piece_png.py [--size 64] [--out <dir>] [--set lichess|meridian]
 """
 import argparse
 import math
@@ -38,45 +72,92 @@ from reportlab.graphics.shapes import _PATH_OP_ARG_COUNT  # (2, 2, 6, 0)
 from svglib.svglib import svg2rlg
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-SRC = os.path.join(HERE, "_icons", "meridian")
 
 PIECES = ["wK", "wQ", "wR", "wB", "wN", "wP",
           "bK", "bQ", "bR", "bB", "bN", "bP"]
 
-# Palettes. Keys are the *piece colour*, not the file name.
+# Palettes. The body colour is chosen by the piece's own colour; the STROKE
+# colour is chosen by what the SVG's stroke actually IS (see module docstring).
 PALETTE = {
-    "w": {"body": (255, 255, 255, 255), "line": (17, 17, 17, 255)},
-    "b": {"body": (26, 26, 26, 255),    "line": (240, 240, 240, 255)},
+    "w": {"body": (255, 255, 255, 255)},
+    "b": {"body": (26, 26, 26, 255)},
 }
 
-SS = 4  # supersampling factor: render big, downscale for clean edges
+# A stroke is treated as "inner detail" (rather than contour) when the SVG
+# paints it noticeably lighter than black. #ECECEC = 0.925.
+DETAIL_LUM = 0.5
+# Stroke colours we emit for each role, per piece colour.
+STROKE = {
+    "w": {"contour": (17, 17, 17, 255), "detail": (17, 17, 17, 255)},
+    "b": {"contour": (26, 26, 26, 255), "detail": (236, 236, 236, 255)},
+}
 
-# The source outlines are 2 units wide on a ~64-unit piece. At full weight the
-# queen — a thin, many-stroked piece — ends up reading as a dark blob rather
-# than a light piece with dark edges, and the same happens in reverse for the
-# black queen. Scaling the stroke back keeps both colours legible.
-STROKE_SCALE = 0.62
-MIN_STROKE_SS = 2  # never thinner than this many supersampled pixels
+SS = 4          # supersampling factor
+CURVE_STEPS = 24  # subdivisions per cubic Bezier
+MIN_STROKE_SS = 2
 
 
-def iter_paths(node, out):
-    """Depth-first walk of a reportlab drawing, collecting Path leaves."""
+def iter_leaves(node, out=None):
+    """Depth-first walk, collecting drawable leaves."""
+    if out is None:
+        out = []
     contents = getattr(node, "contents", None)
     if not contents:
         out.append(node)
         return out
     for child in contents:
-        iter_paths(child, out)
+        iter_leaves(child, out)
     return out
 
 
-def flatten(path):
-    """Turn a reportlab Path into a list of subpaths.
+def mul(a, b):
+    """Compose two reportlab-style affine matrices (a after b)."""
+    a0, a1, a2, a3, a4, a5 = a
+    b0, b1, b2, b3, b4, b5 = b
+    return (a0 * b0 + a2 * b1,
+            a1 * b0 + a3 * b1,
+            a0 * b2 + a2 * b3,
+            a1 * b2 + a3 * b3,
+            a0 * b4 + a2 * b5 + a4,
+            a1 * b4 + a3 * b5 + a5)
 
-    Each subpath is a list of (x, y) points; cubic curves are flattened with
-    a fixed subdivision, which is plenty at 4x supersampling.
+
+def collect_transform(node, parent=(1, 0, 0, 1, 0, 0)):
+    """Return (leaf, composed_transform) for every drawable leaf.
+
+    svglib emits reportlab (y-UP) coordinates, so its group transform carries a
+    Y flip: (s, 0, 0, -s, 0, H). PIL's raster Y axis grows DOWNWARD, exactly like
+    SVG's, so that flip has to be undone or every piece comes out mirrored
+    vertically. We cancel it here by negating the flip in each composed matrix,
+    which also keeps stroke orientation consistent.
     """
+    t = getattr(node, "transform", None)
+    if t:
+        a, b, c, d, e, f = t
+        # reportlab stores the flip as a negative y scale; remove it (and the
+        # compensating translation) so the result is in SVG's y-down space.
+        if d < 0:
+            d = -d
+            f = 0.0
+        cur = mul(parent, (a, b, c, d, e, f))
+    else:
+        cur = parent
+    contents = getattr(node, "contents", None)
+    if not contents:
+        return [(node, cur)]
+    out = []
+    for child in contents:
+        out.extend(collect_transform(child, cur))
+    return out
+
+
+def apply_pt(m, x, y):
+    a0, a1, a2, a3, a4, a5 = m
+    return (a0 * x + a2 * y + a4, a1 * x + a3 * y + a5)
+
+
+def flatten(path, m):
+    """Turn a reportlab Path into subpaths of device-space (x, y) points."""
     pts = path.points
     ops = path.operators
     subpaths = []
@@ -84,7 +165,6 @@ def flatten(path):
     i = 0
     x = y = 0.0
     start = (0.0, 0.0)
-    CURVE_STEPS = 24
 
     for op in ops:
         n = _PATH_OP_ARG_COUNT[op]
@@ -93,33 +173,28 @@ def flatten(path):
                 subpaths.append(cur)
             x, y = pts[i], pts[i + 1]
             start = (x, y)
-            cur = [(x, y)]
+            cur = [apply_pt(m, x, y)]
         elif op == 1:          # lineTo
             x, y = pts[i], pts[i + 1]
-            cur.append((x, y))
-        elif op == 2:          # curveTo (c1x c1y c2x c2y x y)
+            cur.append(apply_pt(m, x, y))
+        elif op == 2:          # curveTo
             c1x, c1y, c2x, c2y, ex, ey = pts[i:i + 6]
             for s in range(1, CURVE_STEPS + 1):
                 t = s / CURVE_STEPS
                 mt = 1 - t
                 bx = (mt ** 3) * x + 3 * (mt ** 2) * t * c1x + 3 * mt * (t ** 2) * c2x + (t ** 3) * ex
                 by = (mt ** 3) * y + 3 * (mt ** 2) * t * c1y + 3 * mt * (t ** 2) * c2y + (t ** 3) * ey
-                cur.append((bx, by))
+                cur.append(apply_pt(m, bx, by))
             x, y = ex, ey
         elif op == 3:          # closePath
             if len(cur) > 1:
                 subpaths.append(cur)
-            cur = [start]
+            cur = [apply_pt(m, start[0], start[1])]
         i += n
 
     if len(cur) > 1:
         subpaths.append(cur)
     return subpaths
-
-
-def stroke_width(path, scale):
-    sw = getattr(path, "strokeWidth", None) or 0
-    return max(1.0, sw * scale)
 
 
 def rgba(color, opacity):
@@ -132,110 +207,90 @@ def rgba(color, opacity):
     return (r, g, b, a)
 
 
-def ellipse_points(el, steps=72):
-    """Approximate a reportlab Ellipse as a polygon."""
-    cx, cy = el.cx, el.cy
-    rx, ry = el.rx, el.ry
-    return [((cx + rx * math.cos(2 * math.pi * i / steps)),
-             (cy + ry * math.sin(2 * math.pi * i / steps))) for i in range(steps)]
+def scale_of(m):
+    """Uniform scale factor implied by the matrix (magnitude of the x basis)."""
+    return math.hypot(m[0], m[1]) or 1.0
 
 
-def rect_points(rc):
-    x, y, w, h = rc.x, rc.y, rc.width, rc.height
-    return [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
-
-
-def shape_subpaths(node):
-    """Return (subpaths, fillColor, strokeColor, strokeWidth, fillOpacity, strokeOpacity)
-    for any reportlab shape we know how to draw, or None if unsupported."""
-    cls = type(node).__name__
-    if cls == "Path":
-        return (flatten(node),
-                getattr(node, "fillColor", None), getattr(node, "strokeColor", None),
-                getattr(node, "strokeWidth", None),
-                getattr(node, "fillOpacity", None), getattr(node, "strokeOpacity", None))
-    if cls == "Ellipse":
-        return ([ellipse_points(node)],
-                getattr(node, "fillColor", None), getattr(node, "strokeColor", None),
-                getattr(node, "strokeWidth", None),
-                getattr(node, "fillOpacity", None), getattr(node, "strokeOpacity", None))
-    if cls == "Rect":
-        return ([rect_points(node)],
-                getattr(node, "fillColor", None), getattr(node, "strokeColor", None),
-                getattr(node, "strokeWidth", None),
-                getattr(node, "fillOpacity", None), getattr(node, "strokeOpacity", None))
-    return None
-
-
-def bounds_of(shapes):
-    """Overall (minx, miny, maxx, maxy) across every subpath point."""
-    mnx = mny = float("inf")
-    mxx = mxy = float("-inf")
-    for subs, *_ in shapes:
-        for sp in subs:
-            for x, y in sp:
-                mnx = min(mnx, x); mxx = max(mxx, x)
-                mny = min(mny, y); mxy = max(mxy, y)
-    if mnx == float("inf"):
-        return None
-    return mnx, mny, mxx, mxy
-
-
-def render(svg_path, out_path, size, palette):
+def render(svg_path, out_path, size, colour):
     drawing = svg2rlg(svg_path)
     if drawing is None:
         raise RuntimeError("svglib could not parse " + svg_path)
+    palette = PALETTE[colour]
 
-    # Collect every drawable shape once, together with its paints.
-    shapes = []
-    for node in iter_paths(drawing, []):
-        info = shape_subpaths(node)
-        if info and info[0]:
-            shapes.append(info)
+    shapes = []   # (subpaths, fill_rgba|None, is_detail|None, stroke_w_px)
+    for leaf, m in collect_transform(drawing):
+        cls = type(leaf).__name__
+        if cls not in ("Path", "NoStrokePath"):
+            continue
+        subs = flatten(leaf, m)
+        if not subs:
+            continue
+        fill = rgba(getattr(leaf, "fillColor", None), getattr(leaf, "fillOpacity", None))
+        line = rgba(getattr(leaf, "strokeColor", None), getattr(leaf, "strokeOpacity", None))
+        sw = getattr(leaf, "strokeWidth", None) or 0
+        # Classify the stroke by the SVG's own colour: anything clearly lighter
+        # than black is "inner detail" and must stay light on black pieces.
+        is_detail = None
+        if line is not None:
+            is_detail = (0.299 * line[0] + 0.587 * line[1] + 0.114 * line[2]) / 255.0 > DETAIL_LUM
+        shapes.append((subs, fill, is_detail, sw * scale_of(m)))
+
     if not shapes:
         raise RuntimeError("no drawable geometry in " + svg_path)
 
-    # Fit the *real* geometry bounds into the sprite, leaving a small margin so
-    # the outline is never clipped. svglib's reported width/height is wrong for
-    # these files (it says 48x48 while the coordinates span 0..64).
-    b = bounds_of(shapes)
-    mnx, mny, mxx, mxy = b
-    gw, gh = (mxx - mnx), (mxy - mny)
-    margin = 0.045 * max(gw, gh)
-    mnx -= margin; mxx += margin
-    mny -= margin; mxy += margin
-    gw, gh = (mxx - mnx), (mxy - mny)
+    # Map the SVG's own user space onto the sprite. Do NOT fit the geometry
+    # bounds: cburnett pieces are drawn inside a 45-unit viewBox but their ink
+    # only spans ~24 units (deliberate padding). Fitting the ink would inflate
+    # the scale by ~2.6x and, with it, the 1.5-unit outline — turning every
+    # piece into a chunky blob with a heavy black border.
+    #
+    # svglib bakes the viewBox scale into the group transform (45 -> 33.75), so
+    # the coordinate space we receive is already scaled; drawing.width/height
+    # reports exactly that box.
+    box = drawing.width or 45.0
+    vx = vy = 0.0
+    vw = vh = box
+
+    # A little optical enlargement: cburnett's padding is generous, so shrink
+    # the box slightly about its centre so the piece fills more of the square
+    # (important on a ~24dp board square). Stroke scales with it.
+    ZOOM = 1.14
+    cxc, cyc = vx + vw / 2.0, vy + vh / 2.0
+    vw /= ZOOM
+    vh /= ZOOM
+    vx = cxc - vw / 2.0
+    vy = cyc - vh / 2.0
 
     work = size * SS
-    k = work / max(gw, gh)          # uniform scale, keep aspect ratio
-    offx = (work - gw * k) / 2.0 - mnx * k
-    offy = (work - gh * k) / 2.0 - mny * k
+    k = work / max(vw, vh)
+    offx = (work - vw * k) / 2.0 - vx * k
+    offy = (work - vh * k) / 2.0 - vy * k
 
     img = Image.new("RGBA", (work, work), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    def tx(x, y):
-        # SVG y grows downward, same as PIL, so no flip is needed.
+    def tx(p):
+        x, y = p
         return (x * k + offx, y * k + offy)
 
-    for subs, fill_col, line_col, sw, fill_op, stroke_op in shapes:
-        f = rgba(fill_col, fill_op)
-        l = rgba(line_col, stroke_op)
-        width = max(MIN_STROKE_SS, (sw or 0) * k * STROKE_SCALE)
-
+    for subs, fill, is_detail, sw in shapes:
         closed = [sp for sp in subs if len(sp) >= 3]
-        if f is not None and f[3] > 0 and closed:
-            body = palette["body"]
+        # Body first (so the outline sits on top). Both #FFF and #000 fills
+        # resolve to the same piece body colour: cburnett paints the shape and
+        # then draws the contour, so we only need "there is a fill" as a signal.
+        if fill is not None and fill[3] > 0 and closed:
             for sp in closed:
-                draw.polygon([tx(x, y) for x, y in sp], fill=body)
-
-        if l is not None and l[3] > 0 and width > 0:
+                draw.polygon([tx(p) for p in sp], fill=palette["body"])
+        # Stroke: contour vs inner detail.
+        if is_detail is not None:
+            stroke = STROKE[colour]["detail" if is_detail else "contour"]
+            width = max(MIN_STROKE_SS, sw * k)
             for sp in subs:
-                pts = [tx(x, y) for x, y in sp]
+                pts = [tx(p) for p in sp]
                 if len(pts) < 2:
                     continue
-                draw.line(pts, fill=palette["line"],
-                          width=int(round(width)), joint="curve")
+                draw.line(pts, fill=stroke, width=int(round(width)), joint="curve")
 
     img = img.resize((size, size), Image.LANCZOS)
     img.save(out_path, "PNG", optimize=True)
@@ -246,25 +301,27 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--size", type=int, default=64)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--set", dest="set_name", default="lichess",
+                    choices=["lichess", "meridian"])
     args = ap.parse_args()
 
-    if not os.path.isdir(SRC):
-        sys.exit("missing SVG source dir: " + SRC)
+    src_dir = os.path.join(HERE, "_icons", args.set_name)
+    if not os.path.isdir(src_dir):
+        sys.exit("missing SVG source dir: " + src_dir)
 
     out_dir = args.out or os.path.join(HERE, "_pieces_out")
     os.makedirs(out_dir, exist_ok=True)
 
     for name in PIECES:
-        key = name.lower()  # e.g. wK -> wk
-        src = os.path.join(SRC, key + ".svg")
+        src = os.path.join(src_dir, name.lower() + ".svg")
         if not os.path.isfile(src):
             sys.exit("missing source svg: " + src)
-        palette = PALETTE[name[0]]
+        colour = name[0]
         dst = os.path.join(out_dir, name + ".png")
-        render(src, dst, args.size, palette)
+        render(src, dst, args.size, colour)
         print("  %-4s -> %s  (%d bytes)" % (name, os.path.basename(dst), os.path.getsize(dst)))
 
-    print("\n%d piece sprites written to %s" % (len(PIECES), out_dir))
+    print("\n%d piece sprites (%s) written to %s" % (len(PIECES), args.set_name, out_dir))
 
 
 if __name__ == "__main__":

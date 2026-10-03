@@ -99,6 +99,11 @@ import router from '@system.router';
 import storage from '@system.storage';
 export default {
   data: { step:1, mode:'two', mySide:'white', aiLevel:'normal', minutes:10, increment:0, boardSize:'标准' },
+  computed: {
+    unlimited(){ return this.minutes === 0; },
+    minutesLabel(){ return this.minutes === 0 ? '无限制' : this.minutes + ' 分钟'; },
+    incrementLabel(){ return this.increment + ' 秒'; }
+  },
   onInit(){ this.loadSettings(); },
   onShow(){ this.loadSettings(); },
   loadBoardSize(){
@@ -111,9 +116,6 @@ export default {
     },fail:()=>{ this.boardSize='标准'; }});
   },
   loadSettings(){ this.loadBoardSize(); },
-  get unlimited(){ return this.minutes === 0; },
-  get minutesLabel(){ return this.unlimited ? '无限制' : this.minutes + ' 分钟'; },
-  get incrementLabel(){ return this.increment + ' 秒'; },
   goBack(){ if(this.step===2){ this.step=1; } else { router.back(); } },
   pickMode(m){ this.mode = m; },
   pickSide(s){ this.mySide = s; },

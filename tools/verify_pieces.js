@@ -11,8 +11,34 @@
  *   1. all 12 sprites exist
  *   2. each is a real PNG, >= 64x64, RGBA
  *   3. each actually contains visible pixels (a blank sprite is useless)
- *   4. white pieces are white-dominant, black pieces dark-dominant
- *      (this is what makes both colours legible on light and dark squares)
+ *   4. COLOUR IDENTITY: the piece reads as its own colour.
+ *
+ *      A naive "count light vs dark pixels" test does not work for the lichess
+ *      cburnett set, and neither does the "white body + light rim / black body
+ *      + light rim" model I first reached for. The real set is:
+ *
+ *        white pieces : white body, BLACK contour, no light detail
+ *        black pieces : black body, BLACK contour, plus a LIGHT inner detail
+ *                       (queen's band lines, bishop's slit, knight's mane)
+ *
+ *      Measured tone census of a correct sprite (opaque pixels only):
+ *
+ *        wK 57%L  wQ 38%L  wR 52%L  wB 44%L  wN 66%L  wP 66%L
+ *        bK 68%D  bQ 77%D  bR 86%D  bB 89%D  bN 98%D  bP 100%D
+ *
+ *      So the robust, direction-correct assertions are:
+ *        (a) a white piece is LIGHT-dominant overall, a black piece DARK-
+ *            dominant overall (a blank or mis-coloured sprite fails this);
+ *        (b) both carry a BLACK contour where the silhouette meets transparency
+ *            (this is what stays visible on the light square);
+ *        (c) a black piece additionally shows the amount of light inner detail
+ *            its source art actually has (BLACK_DETAIL_MIN) -- bK/bQ/bR/bB/bN
+ *            carry #ECECEC line-work, bP is a deliberate pure silhouette. If
+ *            that detail vanishes the piece becomes an unreadable blob on the
+ *            dark square, which is a silent failure on the device.
+ *
+ *      We therefore measure the whole-sprite census plus the silhouette rim.
+ *
  *   5. game.ux references /common/pieces/<name>.png
  *   6. no leftover .svg sprites in the source tree
  */
@@ -28,6 +54,19 @@ const LANGS = ['chinese', 'english'];
 const WHITE = ['wK', 'wQ', 'wR', 'wB', 'wN', 'wP'];
 const BLACK = ['bK', 'bQ', 'bR', 'bB', 'bN', 'bP'];
 const ALL = WHITE.concat(BLACK);
+
+// cburnett gives SOME black pieces light line-work (#ECECEC) -- the queen's
+// band lines, the bishop's slit, the knight's mane/eye, the rook's collar --
+// and those are what keep them readable on the dark square. The remaining
+// black pieces are deliberate solid silhouettes and have none at all:
+//   bP is a pure silhouette (0 light strokes in bp.svg).
+//   bN's mane/eye strokes are hairlines, so it lands around 1.8%.
+// These floors encode the measured minimum for each piece; the guard's job is
+// to catch a REGRESSION (detail silently painted over in the body colour),
+// not to demand a number the source art never had.
+const BLACK_DETAIL_MIN = {
+  bK: 0.08, bQ: 0.05, bR: 0.03, bB: 0.03, bN: 0.010, bP: 0.0
+};
 
 let problems = 0;
 function bad(msg) { problems++; console.log('FAIL ' + msg); }
@@ -105,26 +144,65 @@ for (const d of DEVICES) {
       if (png.colorType !== 6) bad(tag + ' ' + n + '.png colorType ' + png.colorType + ' (want 6=RGBA)');
 
       const px = unfilter(png.raw, png.w, png.h);
+      const at = (x, y) => {
+        const i3 = (y * png.w + x) * 4;
+        return { r: px[i3], g: px[i3 + 1], b: px[i3 + 2], a: px[i3 + 3] };
+      };
       let opaque = 0, light = 0, dark = 0;
-      for (let i2 = 0; i2 < px.length; i2 += 4) {
-        const r = px[i2], g = px[i2 + 1], b = px[i2 + 2], a = px[i2 + 3];
-        if (a < 40) continue;
-        opaque++;
-        if (r > 200 && g > 200 && b > 200) light++;
-        else if (r < 80 && g < 80 && b < 80) dark++;
+      let edgeN = 0, edgeDark = 0;
+      for (let y = 0; y < png.h; y++) {
+        for (let x = 0; x < png.w; x++) {
+          const p = at(x, y);
+          if (p.a < 40) continue;
+          opaque++;
+          const lum = 0.299 * p.r + 0.587 * p.g + 0.114 * p.b;
+          if (lum > 140) light++;
+          else if (lum <= 80) dark++;
+          // Edge = opaque here, but a 4-neighbour is transparent => silhouette.
+          const nbrs = [
+            x > 0 ? at(x - 1, y) : { a: 0 },
+            x < png.w - 1 ? at(x + 1, y) : { a: 0 },
+            y > 0 ? at(x, y - 1) : { a: 0 },
+            y < png.h - 1 ? at(x, y + 1) : { a: 0 }
+          ];
+          if (nbrs.some((k) => k.a < 40)) {
+            edgeN++;
+            if (lum < 110) edgeDark++;
+          }
+        }
       }
       if (opaque < 100) bad(tag + ' ' + n + '.png is effectively blank (' + opaque + ' opaque px)');
-      stats[n] = { light, dark };
+      stats[n] = {
+        opaque,
+        lightRatio: opaque ? light / opaque : 0,
+        darkRatio: opaque ? dark / opaque : 0,
+        rimDarkRatio: edgeN ? edgeDark / edgeN : 0
+      };
     }
 
-    // 4. contrast sanity per colour
-    for (const [set, name, key] of [[WHITE, 'white', 'light'], [BLACK, 'black', 'dark']]) {
+    // 4. colour identity (see the header comment for the measured basis):
+    //    white piece -> light-dominant; black piece -> dark-dominant.
+    //    Both carry a black contour along the silhouette.
+    //    A black piece must also show some light inner detail, or it is an
+    //    unreadable blob on the dark square.
+    for (const [set, wantLight] of [[WHITE, true], [BLACK, false]]) {
       for (const n of set) {
         const s = stats[n];
         if (!s) continue;
-        const other = key === 'light' ? 'dark' : 'light';
-        if (s[key] <= s[other]) {
-          bad(tag + ' ' + n + ' is not ' + name + '-dominant (light=' + s.light + ' dark=' + s.dark + ')');
+        if (wantLight && s.lightRatio < 0.30) {
+          bad(tag + ' ' + n + ' is not light-dominant (light ' + (s.lightRatio * 100).toFixed(0) + '%)');
+        }
+        if (!wantLight && s.darkRatio < 0.55) {
+          bad(tag + ' ' + n + ' is not dark-dominant (dark ' + (s.darkRatio * 100).toFixed(0) + '%)');
+        }
+        if (s.rimDarkRatio < 0.40) {
+          bad(tag + ' ' + n + ' silhouette has no dark contour (dark rim ' +
+              (s.rimDarkRatio * 100).toFixed(0) + '%)');
+        }
+        if (!wantLight && s.lightRatio < BLACK_DETAIL_MIN[n]) {
+          bad(tag + ' ' + n + ' black piece lost its light inner detail (light ' +
+              (s.lightRatio * 100).toFixed(1) + '%, want >= ' +
+              (BLACK_DETAIL_MIN[n] * 100).toFixed(1) + '%)');
         }
       }
     }

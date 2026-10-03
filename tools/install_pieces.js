@@ -5,7 +5,8 @@
  * render SVG in an <image>, so shipping them just bloats the RPK).
  *
  * Source of truth: tools/_pieces_out/*.png (built by tools/build_piece_png.py
- * from the CC0 "meridian" set in tools/_icons/meridian).
+ * from the lichess "cburnett" set in tools/_icons/lichess; that is the set
+ * lichess itself ships as its default, GPLv2+).
  *
  * Idempotent: re-running over already-installed trees is a no-op copy.
  */
