@@ -73,6 +73,127 @@ const GEO = {
  * re-evaluate when a dependency changes. `langTick` is the explicit dependency
  * that bumps on every language switch.
  */
+/* ------------------------------------------------------------------ *
+ * Revert the custom tr() language machinery back to the platform's own
+ * $t() lookup.
+ *
+ * Why: $t() is resolved by the Vela runtime against src/i18n/*.json and
+ * follows the DEVICE language. The hand-rolled tr() path added an in-app
+ * override, a langTick dependency and an async storage read, which produced
+ * a zh->en first-frame flash and left some pages pinned to one language
+ * (About rendered nothing at all because its computeds were lost). We now
+ * use $t() everywhere: no language state, nothing to keep in sync.
+ *
+ * The conversions below are applied to every page at the end of the pass, so
+ * a tree that still carries the old machinery converges in one run.
+ * ------------------------------------------------------------------ */
+
+/* Remove a member `name(...){ ... }` (plus a trailing comma) with balanced
+ * brace matching, so a body containing nested braces is handled safely. */
+function removeMember(src, name) {
+  const re = new RegExp('(^|[\\s,{])' + name + '\\s*\\([^)]*\\)\\s*\\{', 'g');
+  let m;
+  while ((m = re.exec(src))) {
+    const start = m.index + m[1].length;
+    let depth = 1;
+    let i = m.index + m[0].length;      /* just past the opening '{' */
+    while (i < src.length && depth > 0) {
+      const ch = src[i];
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+      i++;
+    }
+    if (depth !== 0) return src;        /* unbalanced — refuse to guess */
+    let end = i;
+    if (src[end] === ',') end++;
+    return removeMember(src.slice(0, start) + src.slice(end), name);
+  }
+  return src;
+}
+
+/* The i18n groups, used to split `tt_<group>_<key>` back into a key path. */
+const I18N_GROUPS = ['app', 'setup', 'settings', 'game', 'about', 'support', 'purchase'];
+
+/* Make sure every `{{tt_<group>_<key>}}` the template uses has a computed.
+ * This is what repairs the About page, whose computeds had been dropped. */
+function ensureComputeds(src) {
+  const tplEnd = src.indexOf('</template>');
+  if (tplEnd < 0) return src;
+  const names = new Set();
+  for (const m of src.slice(0, tplEnd).matchAll(/\{\{\s*(tt_[A-Za-z0-9_]+)\s*\}\}/g)) names.add(m[1]);
+  const add = [];
+  for (const n of names) {
+    if (new RegExp('\\b' + n + '\\s*\\(').test(src)) continue;   /* already defined */
+    const rest = n.slice(3);
+    const gi = rest.indexOf('_');
+    if (gi < 0) continue;
+    const group = rest.slice(0, gi);
+    const key = rest.slice(gi + 1);
+    if (!I18N_GROUPS.includes(group)) continue;
+    add.push("    " + n + "(){ return this.$t('" + group + "." + key + "'); },");
+  }
+  if (!add.length) return src;
+  if (/computed\s*:\s*\{/.test(src)) {
+    return src.replace(/(computed\s*:\s*\{)/, '$1\n' + add.join('\n'));
+  }
+  return src.replace(/(export default\s*\{)/, '$1\n  computed:{\n' + add.join('\n') + '\n  },');
+}
+
+/* The home page's four labels are not plain key lookups (the primary label
+ * depends on whether a game is in progress), so they are not covered by
+ * ensureComputeds(). The 9 Pro / Band 10 trees never got them — their home
+ * screen rendered four EMPTY buttons — because indexRules() only matched the
+ * Band 9 script shape. Add them here for every tree. */
+const INDEX_COMPUTED = [
+  ['primaryLabel', "this.hasActiveGame ? this.$t('app.continueGame') : this.$t('app.startGame')"],
+  ['settingsLabel', "this.$t('app.settings')"],
+  ['aboutLabel', "this.$t('app.about')"],
+  ['exitLabel', "this.$t('app.exitApp')"],
+];
+function ensureIndexComputeds(src) {
+  const add = [];
+  for (const [name, body] of INDEX_COMPUTED) {
+    if (new RegExp('\\b' + name + '\\s*\\(').test(src)) continue;
+    add.push('    ' + name + '(){ return ' + body + '; },');
+  }
+  if (!add.length) return src;
+  if (/computed\s*:\s*\{/.test(src)) {
+    return src.replace(/(computed\s*:\s*\{)/, '$1\n' + add.join('\n'));
+  }
+  return src.replace(/(export default\s*\{)/, '$1\n  computed:{\n' + add.join('\n') + '\n  },');
+}
+
+/* Convert one page source to the $t()-only language path. Idempotent. */
+function toSystemLang(src) {
+  let out = src;
+  /* 1. Drop the retired helpers / bootstrap methods. */
+  out = removeMember(out, 'tr');
+  out = removeMember(out, 'applyLang');
+  out = removeMember(out, 'applySystemLang');
+  out = removeMember(out, 'onConfigurationChanged');
+  /* 2. Drop leftover calls and language state. Consume the surrounding
+   *    horizontal whitespace too, so removing `this.applyLang();` from
+   *    `onInit(){ this.applyLang(); x(); }` leaves `onInit(){ x(); }` and not
+   *    a widening run of spaces on each pass. */
+  out = out.replace(/[ \t]*this\.applyLang\(\)[ \t]*;?/g, '');
+  out = out.replace(/[ \t]*this\.applySystemLang\(\)[ \t]*;?/g, '');
+  out = out.replace(/[ \t]*this\.langTick\s*=\s*\(this\.langTick\s*\|\|\s*0\)\s*\+\s*1[ \t]*;?/g, '');
+  out = out.replace(/[ \t]*this\.langTick[ \t]*;?/g, '');
+  out = out.replace(/\blangTick\s*:\s*0\s*,?/g, '');
+  /* 3. Drop the strings.js import and an now-unused configuration import. */
+  out = out.replace(/^[ \t]*import\s*\{[^}]*\}\s*from\s*'[^']*common\/js\/strings\.js';[ \t]*\r?\n/gm, '');
+  if (!/\bconfiguration\s*\./.test(out)) {
+    out = out.replace(/^[ \t]*import\s+configuration\s+from\s+'@system\.configuration';[ \t]*\r?\n/gm, '');
+  }
+  /* 4. tr('x') -> this.$t('x'). `\b` keeps `str(`/`attr(` from matching. */
+  out = out.replace(/\btr\s*\(/g, 'this.$t(');
+  /* 5. Tidy the commas/braces left behind by the removals. */
+  out = out.replace(/,\s*,/g, ',').replace(/\{\s*,/g, '{').replace(/,\s*\}/g, '}');
+  /* 6. Restore any computed the template needs but the script lacks. */
+  out = ensureComputeds(out);
+  return out;
+}
+
 function settingsPage(geo, dev) {
   const W = geo.w;
   const H = geo.h;
@@ -96,11 +217,6 @@ function settingsPage(geo, dev) {
       <text class="settingValue">{{boardLabel}}</text>
     </div>
 
-    <div class="setting" @click="cycleLanguage">
-      <text class="settingName">{{langTitle}}</text>
-      <text class="settingValue">{{langLabel}}</text>
-    </div>
-
     <text class="footer" @click="back">{{doneLabel}}</text>
   </div>
 </template>
@@ -117,54 +233,28 @@ function settingsPage(geo, dev) {
 <script>
 import router from '@system.router';
 import storage from '@system.storage';
-import configuration from '@system.configuration';
-import { tr, initLang, setLang, setSystemLang } from '../../common/js/strings.js';
 
-/* Language modes, in the order the row cycles through them. */
-const LANG_MODES = ['system', 'zh', 'en'];
-
+/* Text follows the DEVICE language. $t() is resolved by the Vela runtime
+ * against src/i18n/*.json, so there is no in-app language switch and no
+ * per-page language state to keep in sync (that machinery caused a zh->en
+ * first-frame flash and left some pages stuck in one language). */
 export default {
-  data:{ autoCenter:true, boardSize:'standard', langMode:'system', langTick:0 },
+  data:{ autoCenter:true, boardSize:'standard' },
   computed:{
-    title(){ this.langTick; return tr('settings.title'); },
-    autoLabel(){ this.langTick; return tr('settings.autoCenter'); },
-    autoValue(){ this.langTick; return this.autoCenter ? tr('settings.on') : tr('settings.off'); },
-    boardTitle(){ this.langTick; return tr('settings.boardSize'); },
-    langTitle(){ this.langTick; return tr('settings.language'); },
-    doneLabel(){ this.langTick; return tr('app.done'); },
+    title(){ return this.$t('settings.title'); },
+    autoLabel(){ return this.$t('settings.autoCenter'); },
+    autoValue(){ return this.autoCenter ? this.$t('settings.on') : this.$t('settings.off'); },
+    boardTitle(){ return this.$t('settings.boardSize'); },
+    doneLabel(){ return this.$t('app.done'); },
     /* boardSize is stored as a stable key ('standard'|'large'|'compact') and
-     * only localised for display, so switching language never corrupts it. */
+     * only localised for display. */
     boardLabel(){
-      this.langTick;
       const m = { standard:'settings.boardStandard', large:'settings.boardLarge', compact:'settings.boardCompact' };
-      return tr(m[this.boardSize] || 'settings.boardStandard');
-    },
-    langLabel(){
-      this.langTick;
-      const m = { system:'settings.langSystem', zh:'settings.langChinese', en:'settings.langEnglish' };
-      return tr(m[this.langMode] || 'settings.langSystem');
+      return this.$t(m[this.boardSize] || 'settings.boardStandard');
     }
   },
-  onInit(){ this.load(); this.applySystemLang(); },
-  onShow(){ this.load(); this.applySystemLang(); },
-  /* React to the user changing the band's own language. When the preference is
-   * 'system' the whole UI must follow, so we recompute and re-render. */
-  onConfigurationChanged(event){
-    if (event && event.type === 'locale') { this.applySystemLang(); this.langTick++; }
-  },
-  applySystemLang(){
-    /* initLang() settles the device language synchronously and is what keeps
-     * the first painted frame correct; then the stored preference is applied
-     * on top. Keeping this shape identical to the other pages means there is
-     * exactly one language path in the app. */
-    let devLang = 'en';
-    try {
-      const loc = configuration.getLocale();
-      devLang = (loc && loc.language === 'zh') ? 'zh' : 'en';
-    } catch(e){ devLang = 'en'; }
-    initLang({ language: devLang });
-    setLang(this.langMode);
-  },
+  onInit(){ this.load(); },
+  onShow(){ this.load(); },
   load(){
     storage.get({key:'CHESS_SETTINGS',success:(data)=>{
       try{
@@ -173,24 +263,14 @@ export default {
         const v=typeof raw==='string'?JSON.parse(raw):raw;
         this.autoCenter=v.autoCenter!==false;
         this.boardSize=v.boardSize||'standard';
-        this.langMode=v.langMode||'system';
-        this.applySystemLang();
-        this.langTick++;
       }catch(e){}
     },fail:()=>{}});
   },
-  save(){storage.set({key:'CHESS_SETTINGS',value:JSON.stringify({autoCenter:this.autoCenter,boardSize:this.boardSize,langMode:this.langMode})});},
+  save(){storage.set({key:'CHESS_SETTINGS',value:JSON.stringify({autoCenter:this.autoCenter,boardSize:this.boardSize})});},
   back(){this.save();router.back();},
   toggleAuto(){this.autoCenter=!this.autoCenter;this.save();},
   cycleBoard(){
     this.boardSize = this.boardSize==='large' ? 'compact' : (this.boardSize==='compact' ? 'standard' : 'large');
-    this.save();
-  },
-  cycleLanguage(){
-    const i = LANG_MODES.indexOf(this.langMode);
-    this.langMode = LANG_MODES[(i + 1) % LANG_MODES.length];
-    setLang(this.langMode);
-    this.langTick++;
     this.save();
   }
 }
@@ -457,6 +537,18 @@ function supportRules() {
  * ------------------------------------------------------------------ */
 function gameRules() {
   return [
+    /* ---- piece sizing ----
+     *
+     * The pieces are 128x128 bitmaps but a square is only 24/30/44dp. A
+     * percentage width on <image> is not dependable here — every OTHER image
+     * in the app sizes in dp — and when it is ignored the bitmap renders at
+     * its native size, far larger than the square, overflowing the board and
+     * looking un-centered. Bind an explicit dp box derived from the current
+     * square size instead, so a piece always fits and stays centered. */
+    [/<image class="pieceImage" if="\{\{\$item\.pieceSrc\}\}" src="\{\{\$item\.pieceSrc\}\}"><\/image>/,
+     '<image class="pieceImage" if="{{$item.pieceSrc}}" src="{{$item.pieceSrc}}" style="width:{{pieceBox}}dp;height:{{pieceBox}}dp;"></image>', true],
+    [/\.pieceImage \{[^}]*\}/,
+     '.pieceImage { object-fit:contain; z-index:3; }', true],
     /* ---- AI "thinking" feedback ----
      *
      * The engine can run for up to 10s at master level. Without feedback the
@@ -569,7 +661,13 @@ function gameRules() {
      "<text class=\"menuItem\" @click=\"closeResult\">{{viewGameLabel}}</text>", true],
 
     /* ---- script: static literals ---- */
-    ["hintText: '点击棋子开始走子'", "hintText: tr('game.hintTap')", true],
+    ["hintText: '点击棋子开始走子'", "hintText: ''", true],
+    /* Repair: an earlier rule rewrote this to tr()/this.$t() INSIDE the `data`
+     * object literal. There `this` is not the component yet, so evaluating it
+     * threw "this.$t is not a function" (and broke the page's whole data
+     * block). The hint text is set in onInit anyway, so '' is correct. */
+    [/hintText: this\.\$t\('game\.hintTap'\)/, "hintText: ''", true],
+    [/hintText: tr\('game\.hintTap'\)/, "hintText: ''", true],
     ["resultTitle: ''", "resultTitle: ''", true],
 
     /* statusText / boardSizeLabel become tr()-backed computeds */
@@ -747,8 +845,8 @@ function gameScript(src, dev) {
   /* Computed property bodies. NOTE the trailing commas: the block we splice
    * into already has its own members, and Vela (like any JS parser) needs
    * every property separated by a comma. */
-  const COMPUTED = LBL.map(([k, v]) => '    ' + k + '(){ this.langTick; return ' + v + '; },').join('\n') +
-    '\n    aiLevelName(){ this.langTick; const L=this.aiLevel; return L===\'easy\'?tr(\'game.levelEasy\'):(L===\'hard\'?tr(\'game.levelHard\'):(L===\'master\'?tr(\'game.levelMaster\'):tr(\'game.levelNormal\'))); },' +
+  const COMPUTED = LBL.map(([k, v]) => '    ' + k + '(){ return ' + v + '; },').join('\n') +
+    '\n    aiLevelName(){ const L=this.aiLevel; return L===\'easy\'?this.$t(\'game.levelEasy\'):(L===\'hard\'?this.$t(\'game.levelHard\'):(L===\'master\'?this.$t(\'game.levelMaster\'):this.$t(\'game.levelNormal\'))); },' +
     /* Animated ellipsis beside the hint while the engine runs. Purely visual:
      * it cycles ·  ··  ··· so a long master-level search does not look hung. */
     '\n    thinkingDots(){ const n=(this.dotTick||0)%4; return n===0?\'\':(n===1?\'·\':(n===2?\'··\':\'···\')); },';
@@ -768,24 +866,22 @@ function gameScript(src, dev) {
     }
   }
 
-  /* Each bootstrap concern is guarded on its OWN marker, so a re-run that
-   * finds the import already present still applies the parts that are missing.
-   * (Using one `strings.js` test for everything meant a tree converted before
-   * the onInit rule existed never got it.) */
-  if (!/strings\.js/.test(out)) {
-    out = injectTrHelper(out, dev, 'game');
-  }
-  if (!/thinkingDots/.test(out)) {
+  /* The label computeds are added once. Language is handled by $t() in
+   * toSystemLang() below, so there is no import / onInit / onShow bootstrap
+   * here any more — that re-added-then-removed machinery is exactly what used
+   * to drift (extra whitespace) on every pass.
+   *
+   * Guard on the DEFINITION (`thinkingDots(){`), not the bare name: the
+   * template already says `{{thinkingDots}}`, so a name-only test was always
+   * true and the block was never inserted — the animated dots were dead. */
+  if (!/thinkingDots\s*\(\s*\)\s*\{/.test(out)) {
     out = out.replace(/(computed\s*:\s*\{)/, '$1\n' + COMPUTED);
   }
-  if (!/langTick\s*:\s*0/.test(out)) {
-    out = out.replace(/(\bresultTitle: ''\s*,)/, "$1 langTick: 0,");
+  /* The piece image needs an explicit dp box (see gameRules). Kept separate
+   * from COMPUTED so it is also added to trees that already carry the labels. */
+  if (!/pieceBox\s*\(\)/.test(out)) {
+    out = out.replace(/(computed\s*:\s*\{)/, '$1\n    pieceBox(){ return Math.round(this.squareSize * 0.9); },');
   }
-  if (!/onShow\([^)]*\)\s*\{[^}]*this\.applyLang\(\)/.test(out)) {
-    out = out.replace(/(\n\s*)(onShow\s*\([^)]*\)\s*\{)/, "$1$2 this.applyLang(); ");
-  }
-  /* Language must also be settled in onInit, before the first paint. */
-  out = seedOnInit(out, 'export default {');
 
   /* ---- AI responsiveness ----
    *
@@ -1154,26 +1250,24 @@ for (const d of DEVICES) {
   if (fs.existsSync(path.dirname(setFile))) {
     const out = settingsPage(GEO[d], d);
     /* assertions before write */
-    for (const need of ['cycleLanguage', 'langLabel', 'onConfigurationChanged', 'langTitle',
-                        'boardTitle', 'autoLabel', 'autoValue', 'doneLabel', 'configuration.getLocale']) {
+    for (const need of ['boardTitle', 'autoLabel', 'autoValue', 'doneLabel', 'this.$t(']) {
       if (!out.includes(need)) throw new Error(d + ': settings page missing ' + need);
     }
     if (/class="\{\{[^}]*\?/.test(out)) throw new Error(d + ': settings page has a ternary inside class');
-    /* Every localised label must sit behind a computed property, otherwise the
-     * page will not re-render when the language changes. */
-    if (/\{\{\s*tr\(/.test(out)) {
-      throw new Error(d + ': settings template calls tr() directly — it must go through a computed property to stay reactive');
+    /* No in-app language switch any more: the row must be gone and the page
+     * must not import the retired strings/tr machinery. */
+    for (const gone of ['cycleLanguage', 'langTitle', 'langMode', 'applySystemLang',
+                        'strings.js', 'onConfigurationChanged', 'langTick']) {
+      if (out.includes(gone)) throw new Error(d + ': settings page still carries ' + gone);
     }
     fs.writeFileSync(setFile, out, 'utf8');
-    console.log('  OK   ' + d + '/settings (language row added)');
+    console.log('  OK   ' + d + '/settings (language row removed)');
   }
 
   /* ---- 2. index ---- */
   const idxFile = path.join(main, 'src', 'pages', 'index', 'index.ux');
   if (fs.existsSync(idxFile)) {
-    /* Inject the helpers FIRST: the template rules below assume the script
-     * already carries the tr()/applyLang() members and the langTick state. */
-    let out = injectTrHelper(fs.readFileSync(idxFile, 'utf8'), d, 'index');
+    let out = fs.readFileSync(idxFile, 'utf8');
     /* The computed block can only be added once; on a re-run it is already
      * there and re-applying the rule would duplicate it. */
     const alreadyHasComputed = /computed\s*:\s*\{[\s\S]*primaryLabel/.test(out);
@@ -1182,6 +1276,8 @@ for (const d of DEVICES) {
       : indexRules(d);
     const rew = rewritePages(idxFile, rules, out);
     if (rew !== null) out = rew;
+    out = toSystemLang(out);
+    out = ensureIndexComputeds(out);
     fs.writeFileSync(idxFile, out, 'utf8');
     console.log('  OK   ' + d + '/index');
   }
@@ -1191,13 +1287,20 @@ for (const d of DEVICES) {
   if (fs.existsSync(aboutFile)) {
     const aboutSrc = fs.readFileSync(aboutFile, 'utf8');
     let out = rewritePages(aboutFile, aboutRules(aboutSrc), aboutSrc);
-    /* Unify onto tr() so the page honours the Settings language override
-     * instead of being pinned to the system locale by $t(). */
-    out = unifyToTr(out === null ? aboutSrc : out, d, 'about');
+    /* Language follows the device via $t(). Strip any leftover tr machinery
+     * and restore every computed the template binds (the About page had lost
+     * them, which is why it rendered completely empty). */
+    out = toSystemLang(out === null ? aboutSrc : out);
     if (out !== aboutSrc) fs.writeFileSync(aboutFile, out, 'utf8');
     const fin = fs.readFileSync(aboutFile, 'utf8');
     if (!/versionText\s*\(\s*\)/.test(fin)) throw new Error(d + ': about.ux lost its versionText computed');
-    if (/\{\{\s*\$t\(/.test(fin)) throw new Error(d + '/about: template still binds through $t()');
+    if (/\btr\s*\(/.test(fin)) throw new Error(d + '/about: about.ux still calls tr()');
+    const tplA = fin.slice(0, fin.indexOf('</template>'));
+    for (const m of tplA.matchAll(/\{\{\s*(tt_[A-Za-z0-9_]+)\s*\}\}/g)) {
+      if (!new RegExp('\\b' + m[1] + '\\s*\\(').test(fin)) {
+        throw new Error(d + '/about: template binds {{' + m[1] + '}} but no computed defines it');
+      }
+    }
     if (/\bopenPurchase\b/.test(fin) && !/openPurchase\s*\(\s*\)\s*\{/.test(fin)) {
       throw new Error(d + ': about.ux template calls openPurchase but the script does not define it');
     }
@@ -1209,10 +1312,10 @@ for (const d of DEVICES) {
   if (fs.existsSync(supFile)) {
     const supSrc = fs.readFileSync(supFile, 'utf8');
     let out = rewritePages(supFile, supportRules(), supSrc);
-    out = unifyToTr(out === null ? supSrc : out, d, 'support');
+    out = toSystemLang(out === null ? supSrc : out);
     if (out !== supSrc) fs.writeFileSync(supFile, out, 'utf8');
-    if (/\{\{\s*\$t\(/.test(fs.readFileSync(supFile, 'utf8'))) {
-      throw new Error(d + '/support: template still binds through $t()');
+    if (/\btr\s*\(/.test(fs.readFileSync(supFile, 'utf8'))) {
+      throw new Error(d + '/support: support.ux still calls tr()');
     }
     console.log('  OK   ' + d + '/support');
   }
@@ -1226,14 +1329,17 @@ for (const d of DEVICES) {
      * board cannot be panned to its last row. */
     out = rewritePages(gameFile, boardBoundsRules(d), out) || out;
     out = gameScript(out, d);
+    /* Language follows the device via $t(); strip any leftover tr machinery
+     * and restore every computed the template binds. */
+    out = toSystemLang(out);
     /* assertions: the page is the most failure-prone one, so verify the
      * pieces the device actually needs. */
-    for (const need of ['langTick', 'applyLang', 'sideName', 'aiLevelName',
+    for (const need of ['this.$t(', 'sideName', 'aiLevelName',
                         'statusText', 'autoCenterLabel', 'boardSizeRow', 'aiModeRow', 'aiLevelRow']) {
       if (!out.includes(need)) throw new Error(d + '/game: converted page missing ' + need);
     }
-    if (/\{\{\s*tr\s*\(/.test(out)) {
-      throw new Error(d + '/game: template calls tr() directly — wrap it in a computed');
+    if (/\btr\s*\(/.test(out)) {
+      throw new Error(d + '/game: game.ux still calls tr()');
     }
     /* The vertical clamp must equal the viewport height, not a stale 280. */
     const vh = GEO[d].viewportH;
@@ -1257,10 +1363,10 @@ for (const d of DEVICES) {
   if (fs.existsSync(purFile)) {
     const purSrc = fs.readFileSync(purFile, 'utf8');
     let out = rewritePages(purFile, purchaseRules(), purSrc);
-    out = unifyToTr(out === null ? purSrc : out, d, 'purchase');
+    out = toSystemLang(out === null ? purSrc : out);
     if (out !== purSrc) fs.writeFileSync(purFile, out, 'utf8');
-    if (/\{\{\s*\$t\(/.test(fs.readFileSync(purFile, 'utf8'))) {
-      throw new Error(d + '/purchase: template still binds through $t()');
+    if (/\btr\s*\(/.test(fs.readFileSync(purFile, 'utf8'))) {
+      throw new Error(d + '/purchase: purchase.ux still calls tr()');
     }
     console.log('  OK   ' + d + '/purchase');
   }

@@ -215,47 +215,32 @@ function tpl(geo) {
 </style>
 <script>
 import router from '@system.router';
-import storage from '@system.storage';
-import configuration from '@system.configuration';
-import { tr, initLang, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 export default {
-  tr(k){ return tr(k); },
-  applyLang(){
-    try{ const loc = configuration.getLocale(); initLang({ language: (loc && loc.language === 'zh') ? 'zh' : 'en' }); }catch(e){ setSystemLang('en'); }
-    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
-      try{
-        const raw=data&&data.data!==undefined?data.data:data;
-        const v=(raw===undefined||raw===null||raw==='')?null:(typeof raw==='string'?JSON.parse(raw):raw);
-        setLang(resolveLang(v&&v.langMode, configuration.getLocale().language==='zh'?'zh':'en'));
-      }catch(e){ setLang('system'); }
-      this.langTick=(this.langTick||0)+1;
-    },fail:()=>{ setLang('system'); this.langTick=(this.langTick||0)+1; }});
-  },
-  data: { step:1, mode:'two', mySide:'white', aiLevel:'normal', minutes:10, increment:0, langTick:0 },
+  data: { step:1, mode:'two', mySide:'white', aiLevel:'normal', minutes:10, increment:0 },
   computed: {
-    stepTitle(){ this.langTick; return this.step===1 ? tr('setup.step1Title') : tr('setup.step2Title'); },
-    modeTwoLabel(){ this.langTick; return tr('setup.modeTwo'); },
-    modeTwoDesc(){ this.langTick; return tr('setup.modeTwoDesc'); },
-    modeAiLabel(){ this.langTick; return tr('setup.modeAi'); },
-    modeAiDesc(){ this.langTick; return tr('setup.modeAiDesc'); },
-    sideLabel(){ this.langTick; return tr('setup.sideLabel'); },
-    sideWhiteLabel(){ this.langTick; return tr('setup.sideWhite'); },
-    sideBlackLabel(){ this.langTick; return tr('setup.sideBlack'); },
-    minutesLabel0(){ this.langTick; return tr('setup.minutesLabel'); },
-    incrementLabel0(){ this.langTick; return tr('setup.incrementLabel'); },
-    levelLabel(){ this.langTick; return tr('setup.levelLabel'); },
-    lvEasyShort(){ this.langTick; return tr('setup.levelEasyShort'); },
-    lvNormalShort(){ this.langTick; return tr('setup.levelNormalShort'); },
-    lvHardShort(){ this.langTick; return tr('setup.levelHardShort'); },
-    lvMasterShort(){ this.langTick; return tr('setup.levelMasterShort'); },
-    nextLabel(){ this.langTick; return tr('setup.next'); },
-    startLabel(){ this.langTick; return tr('setup.start'); },
+    stepTitle(){ return this.step===1 ? this.$t('setup.step1Title') : this.$t('setup.step2Title'); },
+    modeTwoLabel(){ return this.$t('setup.modeTwo'); },
+    modeTwoDesc(){ return this.$t('setup.modeTwoDesc'); },
+    modeAiLabel(){ return this.$t('setup.modeAi'); },
+    modeAiDesc(){ return this.$t('setup.modeAiDesc'); },
+    sideLabel(){ return this.$t('setup.sideLabel'); },
+    sideWhiteLabel(){ return this.$t('setup.sideWhite'); },
+    sideBlackLabel(){ return this.$t('setup.sideBlack'); },
+    minutesLabel0(){ return this.$t('setup.minutesLabel'); },
+    incrementLabel0(){ return this.$t('setup.incrementLabel'); },
+    levelLabel(){ return this.$t('setup.levelLabel'); },
+    lvEasyShort(){ return this.$t('setup.levelEasyShort'); },
+    lvNormalShort(){ return this.$t('setup.levelNormalShort'); },
+    lvHardShort(){ return this.$t('setup.levelHardShort'); },
+    lvMasterShort(){ return this.$t('setup.levelMasterShort'); },
+    nextLabel(){ return this.$t('setup.next'); },
+    startLabel(){ return this.$t('setup.start'); },
     unlimited(){ return this.minutes === 0; },
-    minutesLabel(){ this.langTick; return this.minutes === 0 ? tr('setup.minutesInf') : this.minutes + ' ' + tr('setup.minutesUnit'); },
-    incrementLabel(){ this.langTick; return this.increment + ' ' + tr('setup.incrementUnit'); }
+    minutesLabel(){ return this.minutes === 0 ? this.$t('setup.minutesInf') : this.minutes + ' ' + this.$t('setup.minutesUnit'); },
+    incrementLabel(){ return this.increment + ' ' + this.$t('setup.incrementUnit'); }
   },
-  onInit(){ this.applyLang(); this.loadSettings(); },
-  onShow(){ this.applyLang(); this.loadSettings(); },
+  onInit(){ this.loadSettings(); },
+  onShow(){ this.loadSettings(); },
   loadSettings(){ /* board size now lives on the Settings page */ },
   goBack(){ if(this.step===2){ this.step=1; } else { router.back(); } },
   pickMode(m){ this.mode = m; },
@@ -343,18 +328,17 @@ for (const d of DEVICES) {
       }
     }
 
-    // 5b) i18n: every visible label must be a computed wrapping tr(); a bare
-    //     {{tr('x')}} would render once and never update on a language switch.
-    if (!/strings\.js/.test(src)) throw new Error(d + '/' + l + ': setup page does not import strings.js');
-    if (!/\bapplyLang\s*\(/.test(src)) throw new Error(d + '/' + l + ': setup page has no applyLang()');
-    // The device language must be settled SYNCHRONOUSLY (initLang) before the
-    // first paint; setSystemLang alone leaves one frame in the module default.
-    if (!/initLang\(/.test(src)) throw new Error(d + '/' + l + ': setup page never calls initLang() (startup may flash)');
-    if (!/configuration\.getLocale/.test(src)) throw new Error(d + '/' + l + ': setup page does not read the device locale');
+    // 5b) i18n: text follows the DEVICE language through $t(), resolved by the
+    //     runtime against src/i18n/*.json. There is no in-app language switch,
+    //     so no tr()/langTick/applyLang machinery may be present.
+    if (!/this\.\$t\(/.test(src)) throw new Error(d + '/' + l + ': setup page does not use $t()');
+    if (/\btr\s*\(/.test(src)) throw new Error(d + '/' + l + ': setup page still calls tr()');
+    for (const gone of ['strings.js', 'langTick', 'applyLang', 'initLang', 'configuration']) {
+      if (src.includes(gone)) throw new Error(d + '/' + l + ': setup page still carries ' + gone);
+    }
     if (/\{\{\s*tr\s*\(/.test(src)) {
       throw new Error(d + '/' + l + ': template calls tr() directly — wrap it in a computed instead');
     }
-    if (!/langTick/.test(src)) throw new Error(d + '/' + l + ': no langTick dependency (labels would not re-render)');
 
     // 5) selection must be applied via inline style for every option group
     for (const expr of ["mode==='two'", "mode==='ai'", "minutesLabel", "aiLevel==="]) {

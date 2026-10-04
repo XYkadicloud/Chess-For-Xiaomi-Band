@@ -15,11 +15,6 @@
       <text class="settingValue">{{boardLabel}}</text>
     </div>
 
-    <div class="setting" @click="cycleLanguage">
-      <text class="settingName">{{langTitle}}</text>
-      <text class="settingValue">{{langLabel}}</text>
-    </div>
-
     <text class="footer" @click="back">{{doneLabel}}</text>
   </div>
 </template>
@@ -36,54 +31,28 @@
 <script>
 import router from '@system.router';
 import storage from '@system.storage';
-import configuration from '@system.configuration';
-import { tr, initLang, setLang, setSystemLang } from '../../common/js/strings.js';
 
-/* Language modes, in the order the row cycles through them. */
-const LANG_MODES = ['system', 'zh', 'en'];
-
+/* Text follows the DEVICE language. $t() is resolved by the Vela runtime
+ * against src/i18n/*.json, so there is no in-app language switch and no
+ * per-page language state to keep in sync (that machinery caused a zh->en
+ * first-frame flash and left some pages stuck in one language). */
 export default {
-  data:{ autoCenter:true, boardSize:'standard', langMode:'system', langTick:0 },
+  data:{ autoCenter:true, boardSize:'standard' },
   computed:{
-    title(){ this.langTick; return tr('settings.title'); },
-    autoLabel(){ this.langTick; return tr('settings.autoCenter'); },
-    autoValue(){ this.langTick; return this.autoCenter ? tr('settings.on') : tr('settings.off'); },
-    boardTitle(){ this.langTick; return tr('settings.boardSize'); },
-    langTitle(){ this.langTick; return tr('settings.language'); },
-    doneLabel(){ this.langTick; return tr('app.done'); },
+    title(){ return this.$t('settings.title'); },
+    autoLabel(){ return this.$t('settings.autoCenter'); },
+    autoValue(){ return this.autoCenter ? this.$t('settings.on') : this.$t('settings.off'); },
+    boardTitle(){ return this.$t('settings.boardSize'); },
+    doneLabel(){ return this.$t('app.done'); },
     /* boardSize is stored as a stable key ('standard'|'large'|'compact') and
-     * only localised for display, so switching language never corrupts it. */
+     * only localised for display. */
     boardLabel(){
-      this.langTick;
       const m = { standard:'settings.boardStandard', large:'settings.boardLarge', compact:'settings.boardCompact' };
-      return tr(m[this.boardSize] || 'settings.boardStandard');
-    },
-    langLabel(){
-      this.langTick;
-      const m = { system:'settings.langSystem', zh:'settings.langChinese', en:'settings.langEnglish' };
-      return tr(m[this.langMode] || 'settings.langSystem');
+      return this.$t(m[this.boardSize] || 'settings.boardStandard');
     }
   },
-  onInit(){ this.load(); this.applySystemLang(); },
-  onShow(){ this.load(); this.applySystemLang(); },
-  /* React to the user changing the band's own language. When the preference is
-   * 'system' the whole UI must follow, so we recompute and re-render. */
-  onConfigurationChanged(event){
-    if (event && event.type === 'locale') { this.applySystemLang(); this.langTick++; }
-  },
-  applySystemLang(){
-    /* initLang() settles the device language synchronously and is what keeps
-     * the first painted frame correct; then the stored preference is applied
-     * on top. Keeping this shape identical to the other pages means there is
-     * exactly one language path in the app. */
-    let devLang = 'en';
-    try {
-      const loc = configuration.getLocale();
-      devLang = (loc && loc.language === 'zh') ? 'zh' : 'en';
-    } catch(e){ devLang = 'en'; }
-    initLang({ language: devLang });
-    setLang(this.langMode);
-  },
+  onInit(){ this.load(); },
+  onShow(){ this.load(); },
   load(){
     storage.get({key:'CHESS_SETTINGS',success:(data)=>{
       try{
@@ -92,24 +61,14 @@ export default {
         const v=typeof raw==='string'?JSON.parse(raw):raw;
         this.autoCenter=v.autoCenter!==false;
         this.boardSize=v.boardSize||'standard';
-        this.langMode=v.langMode||'system';
-        this.applySystemLang();
-        this.langTick++;
       }catch(e){}
     },fail:()=>{}});
   },
-  save(){storage.set({key:'CHESS_SETTINGS',value:JSON.stringify({autoCenter:this.autoCenter,boardSize:this.boardSize,langMode:this.langMode})});},
+  save(){storage.set({key:'CHESS_SETTINGS',value:JSON.stringify({autoCenter:this.autoCenter,boardSize:this.boardSize})});},
   back(){this.save();router.back();},
   toggleAuto(){this.autoCenter=!this.autoCenter;this.save();},
   cycleBoard(){
     this.boardSize = this.boardSize==='large' ? 'compact' : (this.boardSize==='compact' ? 'standard' : 'large');
-    this.save();
-  },
-  cycleLanguage(){
-    const i = LANG_MODES.indexOf(this.langMode);
-    this.langMode = LANG_MODES[(i + 1) % LANG_MODES.length];
-    setLang(this.langMode);
-    this.langTick++;
     this.save();
   }
 }

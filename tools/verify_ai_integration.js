@@ -98,6 +98,11 @@ function loadPage(device, lang) {
   vm.createContext(sandbox);
   vm.runInContext(body + '\n__page = __def;', sandbox);
 
+  /* The page resolves every label through the platform's $t() (device
+   * language). Return the key so the assertions do not depend on which
+   * language happens to be active. Injected before makeComponent so it also
+   * lands on the prototype and is visible to every computed. */
+  sandbox.__page.$t = (k) => k;
   const comp = makeComponent(sandbox.__page);
   // execute any pending setTimeout (AI move scheduling) synchronously
   comp.__drain = function () {

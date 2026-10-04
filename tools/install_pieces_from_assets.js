@@ -98,12 +98,10 @@ TARGET = ${TARGET}
 src_name = '${file}'
 src_path = os.path.join(SRC, src_name)
 im = Image.open(src_path).convert('RGBA')
-bbox = im.split()[3].getbbox()
-if bbox:
-    pad = 4
-    l = max(0, bbox[0] - pad); t = max(0, bbox[1] - pad)
-    r = min(im.size[0], bbox[2] + pad); b = min(im.size[1], bbox[3] + pad)
-    im = im.crop((l, t, r, b))
+# Scale the WHOLE canvas down. Do NOT crop to the alpha bbox: cropping throws
+# away the artist's margins, which made every piece fill ~98% of the image and
+# look oversized / edge-to-edge inside a square. Keeping the original framing
+# preserves the intended proportions (king ~86%, pawn ~61% of the canvas).
 w, h = im.size
 s = min(TARGET / w, TARGET / h, 1.0)
 nw = max(1, int(round(w * s))); nh = max(1, int(round(h * s)))
@@ -138,4 +136,4 @@ if (problems.length) {
   for (const p of problems) console.log('  ' + p);
   process.exit(1);
 }
-console.log('INSTALL-PIECES OK (6 trees x 12 pieces from pieces-assets-1.0)');
+console.log('INSTALL-PIECES OK (' + TREES.length + ' trees x 12 pieces from pieces-assets-1.0)');

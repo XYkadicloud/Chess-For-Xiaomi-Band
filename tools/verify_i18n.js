@@ -235,21 +235,37 @@ for (const d of DEVICES) {
 ok('all referenced keys resolve (' + checked + ' refs)', unresolved === 0, unresolved + ' unresolved');
 
 /* ------------------------------------------------------------------ *
- * 6. The Settings page exposes the language switcher and reacts to the
- *    device locale.
+ * 6. Language follows the DEVICE: the in-app switcher is gone and every
+ *    page resolves its text through $t() against src/i18n/*.json.
  * ------------------------------------------------------------------ */
-console.log('\n[6] settings language switcher');
+console.log('\n[6] language = device language ($t() only)');
+const PAGES = ['index', 'setup', 'game', 'settings', 'about', 'support', 'purchase'];
 for (const d of DEVICES) {
-  const f = path.join(ROOT, 'devices', d, 'source', 'chinese', 'src', 'pages', 'settings', 'settings.ux');
-  if (!fs.existsSync(f)) { ok(d + ' settings exists', false); continue; }
-  const s = fs.readFileSync(f, 'utf8');
-  ok(d + ' has a language row', /cycleLanguage/.test(s) && /langTitle/.test(s));
-  ok(d + ' cycles system/zh/en', /'system'/.test(s) && /'zh'/.test(s) && /'en'/.test(s));
-  ok(d + ' reacts to configuration changes', /onConfigurationChanged/.test(s) && /'locale'/.test(s));
-  ok(d + ' reads the device locale', /configuration\.getLocale/.test(s));
-  ok(d + ' persists langMode', /langMode/.test(s) && /CHESS_SETTINGS/.test(s));
-  /* Every visible label must be a computed (reactive) property. */
-  ok(d + ' labels go through computed', /computed\s*:\s*\{[\s\S]*langTitle\s*\(/.test(s));
+  const base = path.join(ROOT, 'devices', d, 'source', 'chinese', 'src');
+  const sf = path.join(base, 'pages', 'settings', 'settings.ux');
+  if (!fs.existsSync(sf)) { ok(d + ' settings exists', false); continue; }
+  const s = fs.readFileSync(sf, 'utf8');
+
+  /* The in-app switcher must be gone, but the other rows must remain. */
+  ok(d + ' has no language row', !/cycleLanguage|langTitle|langMode/.test(s));
+  ok(d + ' settings keeps its other rows', /cycleBoard/.test(s) && /toggleAuto/.test(s));
+
+  /* No page may still carry the retired tr() machinery. */
+  const stragglers = [];
+  for (const pg of PAGES) {
+    const f = path.join(base, 'pages', pg, pg + '.ux');
+    if (!fs.existsSync(f)) continue;
+    const src = fs.readFileSync(f, 'utf8');
+    if (/\btr\s*\(/.test(src) || /langTick|applyLang|initLang|strings\.js/.test(src)) stragglers.push(pg);
+  }
+  ok(d + ' no page uses the retired tr() machinery', stragglers.length === 0, stragglers.join(','));
+
+  /* Every page must resolve its text through $t(). */
+  const noT = PAGES.filter((pg) => {
+    const f = path.join(base, 'pages', pg, pg + '.ux');
+    return fs.existsSync(f) && !/this\.\$t\(/.test(fs.readFileSync(f, 'utf8'));
+  });
+  ok(d + ' every page uses $t()', noT.length === 0, noT.join(','));
 }
 
 console.log('\n' + (fail === 0 ? 'ALL I18N CHECKS PASS' : 'FAILED: ' + fail) + '  (' + pass + ' passed, ' + fail + ' failed)');

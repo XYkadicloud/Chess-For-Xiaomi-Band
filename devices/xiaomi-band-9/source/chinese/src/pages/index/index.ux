@@ -19,27 +19,15 @@
 </style>
 <script>
 import router from '@system.router';
-import configuration from '@system.configuration';
-import { tr, initLang, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 import app from '@system.app';
 import storage from '@system.storage';
 export default {
-  tr(k){ return tr(k); },
-  applyLang(){
-    try{ const loc = configuration.getLocale(); initLang({ language: (loc && loc.language === 'zh') ? 'zh' : 'en' }); }catch(e){ setSystemLang('en'); }
-    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
-      try{
-        const raw=data&&data.data!==undefined?data.data:data;
-        const v=(raw===undefined||raw===null||raw==='')?null:(typeof raw==='string'?JSON.parse(raw):raw);
-        setLang(resolveLang(v&&v.langMode, configuration.getLocale().language==='zh'?'zh':'en'));
-      }catch(e){ setLang('system'); }
-      this.langTick=(this.langTick||0)+1;
-    },fail:()=>{ setLang('system'); this.langTick=(this.langTick||0)+1; }});
-  }, data:{hasActiveGame:false}, langTick:0,
+  
+   data:{hasActiveGame:false}, 
   computed:{
-    primaryLabel(){ this.langTick; return this.hasActiveGame ? tr('app.continueGame') : tr('app.startGame'); },
-    settingsLabel(){ this.langTick; return tr('app.settings'); },
-    aboutLabel(){ this.langTick; return tr('app.about'); },
-    exitLabel(){ this.langTick; return tr('app.exitApp'); }
-  }, onInit(){ this.applyLang(); this.checkActiveGame();}, onShow(){this.applyLang();this.checkActiveGame();}, checkActiveGame(){storage.get({key:'CHESS_ACTIVE_GAME',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;this.hasActiveGame=!!(v&&v.board&&v.board.length===64&&!v.gameOver);}catch(e){this.hasActiveGame=false;}},fail:()=>{this.hasActiveGame=false;}});}, startGame(){router.push(this.hasActiveGame?{uri:'/pages/game',params:{resume:'true'}}:{uri:'/pages/setup'});}, openSettings(){router.push({uri:'/pages/settings'});}, openAbout(){router.push({uri:'/pages/about'});}, exitApp(){app.terminate({});} }
+    primaryLabel(){  return this.hasActiveGame ? this.$t('app.continueGame') : this.$t('app.startGame'); },
+    settingsLabel(){  return this.$t('app.settings'); },
+    aboutLabel(){  return this.$t('app.about'); },
+    exitLabel(){  return this.$t('app.exitApp'); }
+  }, onInit(){  this.checkActiveGame();}, onShow(){this.checkActiveGame();}, checkActiveGame(){storage.get({key:'CHESS_ACTIVE_GAME',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;this.hasActiveGame=!!(v&&v.board&&v.board.length===64&&!v.gameOver);}catch(e){this.hasActiveGame=false;}},fail:()=>{this.hasActiveGame=false;}});}, startGame(){router.push(this.hasActiveGame?{uri:'/pages/game',params:{resume:'true'}}:{uri:'/pages/setup'});}, openSettings(){router.push({uri:'/pages/settings'});}, openAbout(){router.push({uri:'/pages/about'});}, exitApp(){app.terminate({});} }
 </script>

@@ -121,49 +121,86 @@ for (const [dev, geo] of Object.entries(DEVICES)) {
     const hideBody = hideAt < 0 ? '' : g.slice(hideAt, hideAt + 500);
     if (!/clearInterval\(this\.dotTimerId\)/.test(hideBody)) bad(dev + '/game: onHide does not stop the dots');
     else ok();
+
+    /* ---------------- B2. piece sizing ----------------
+     * The pieces are 128px bitmaps in a 24/30/44dp square. A percentage width
+     * on <image> is unreliable here (every other image in the app sizes in dp)
+     * and when ignored the bitmap renders at native size and overflows. */
+    if (/\.pieceImage \{[^}]*%/.test(g)) bad(dev + '/game: .pieceImage still sizes in %');
+    else ok();
+    if (!/class="pieceImage"[^>]*style="width:\{\{pieceBox\}\}dp;height:\{\{pieceBox\}\}dp;"/.test(g)) {
+      bad(dev + '/game: piece image has no explicit dp box (pieceBox)');
+    } else ok();
+    if (!/pieceBox\(\)\{[^}]*squareSize/.test(g)) bad(dev + '/game: pieceBox() does not derive from squareSize');
+    else ok();
+    if (!/pieceBox\(\)\{[^}]*\* 0\.9/.test(g)) bad(dev + '/game: pieceBox() should be ~90% of the square');
+    else ok();
   }
 
-  /* ---------------- C. one language path ---------------- */
+  /* ---------------- C. one language path: $t() only ---------------- */
+  /* Text follows the DEVICE language through the platform's $t(), resolved by
+   * the runtime against src/i18n/*.json. Load the table so a page that asks
+   * for a key that does not exist can be caught here. */
+  const i18nFile = path.join(dir, '..', 'i18n', 'en-US.json');
+  let i18nKeys = null;
+  if (fs.existsSync(i18nFile)) {
+    const flat = {};
+    (function walk(o, p) {
+      for (const [k, v] of Object.entries(o)) {
+        const key = p ? p + '.' + k : k;
+        if (v && typeof v === 'object') walk(v, key); else flat[key] = true;
+      }
+    })(JSON.parse(fs.readFileSync(i18nFile, 'utf8')), '');
+    i18nKeys = flat;
+  } else {
+    bad(dev + ': missing src/i18n/en-US.json (every $t() lookup would fail)');
+  }
+
   for (const pg of PAGES) {
     const f = path.join(dir, pg, pg + '.ux');
     if (!fs.existsSync(f)) continue;               /* purchase is 9 Pro / 10 only */
     const s = fs.readFileSync(f, 'utf8');
 
-    /* No $t() anywhere: template or script. */
-    if (/\$t\(/.test(s)) bad(dev + '/' + pg + ': still binds text through $t()');
+    if (!/this\.\$t\(/.test(s)) bad(dev + '/' + pg + ': does not use $t()');
     else ok();
 
-    /* Every page that shows text must import the strings module... */
-    if (!/common\/js\/strings\.js/.test(s)) bad(dev + '/' + pg + ': does not import strings.js');
-    else ok();
-
-    /* ...and settle the language synchronously in onInit — before the first
-     * paint — rather than only after an async storage read, which caused the
-     * zh -> en flash. Settings uses its own applySystemLang(), which does the
-     * same job, so accept either. */
-    const initM = s.match(/onInit\s*\([^)]*\)\s*\{/);
-    if (!initM) {
-      bad(dev + '/' + pg + ': no onInit() at all');
-    } else {
-      const body = s.slice(s.indexOf(initM[0]));
-      const end = body.indexOf('},');
-      const scope = end < 0 ? body.slice(0, 800) : body.slice(0, end);
-      if (!/applyLang\(\)|applySystemLang\(\)/.test(scope)) {
-        bad(dev + '/' + pg + ': onInit does not settle the language before the first paint');
-      } else ok();
-      if (!/initLang\(/.test(s)) {
-        bad(dev + '/' + pg + ': never calls initLang() (startup may flash the wrong language)');
-      } else ok();
+    /* The retired custom tr() machinery must be gone entirely: it added an
+     * in-app override plus a langTick dependency, which produced a zh->en
+     * first-frame flash and left some pages stuck in a single language. */
+    for (const gone of ['strings.js', 'langTick', 'applyLang', 'applySystemLang',
+                        'initLang', 'setSystemLang', 'cycleLanguage', 'langMode']) {
+      if (s.includes(gone)) bad(dev + '/' + pg + ': still carries ' + gone);
+      else ok();
     }
 
-    /* Exactly one onInit: a duplicate key would silently shadow. */
-    const initCount = (s.match(/onInit\s*\([^)]*\)\s*\{/g) || []).length;
-    if (initCount !== 1) bad(dev + '/' + pg + ': ' + initCount + ' onInit definitions (want exactly 1)');
+    /* No in-app language switch anywhere. */
+    if (/langTitle|cycleLanguage/.test(s)) bad(dev + '/' + pg + ': language switch still present');
     else ok();
 
-    /* Reactive labels: any tr() must sit behind a computed reading langTick. */
-    if (/\{\{\s*tr\s*\(/.test(s)) bad(dev + '/' + pg + ': template calls tr() directly (not reactive)');
+    if (/\{\{\s*tr\s*\(/.test(s)) bad(dev + '/' + pg + ': template calls tr() directly');
     else ok();
+
+    /* Every $t() key must exist, otherwise the page shows the raw key or
+     * nothing at all. */
+    if (i18nKeys) {
+      for (const m of s.matchAll(/this\.\$t\(\s*'([A-Za-z0-9_.]+)'\s*\)/g)) {
+        if (!i18nKeys[m[1]]) bad(dev + '/' + pg + ': unknown i18n key ' + m[1]);
+        else ok();
+      }
+    }
+
+    /* Every bare {{binding}} the template uses must be defined in the script.
+     * The About page rendered completely EMPTY because its computeds had been
+     * dropped — this is the guard against that recurring. */
+    const tplEnd = s.indexOf('</template>');
+    const tpl = tplEnd < 0 ? '' : s.slice(0, tplEnd);
+    const script = tplEnd < 0 ? s : s.slice(tplEnd);
+    for (const m of tpl.matchAll(/\{\{\s*([A-Za-z_$][\w$]*)\s*\}\}/g)) {
+      const name = m[1];
+      if (name.startsWith('$')) continue;                 /* $item / $idx */
+      if (new RegExp('\\b' + name + '\\s*[(:]').test(script)) ok();
+      else bad(dev + '/' + pg + ': template binds {{' + name + '}} but the script never defines it');
+    }
 
     /* Template must be a SINGLE well-formed tree. An injection that appended a
      * stray `</div>` (the thinking-ring rule once did) leaves the <template>

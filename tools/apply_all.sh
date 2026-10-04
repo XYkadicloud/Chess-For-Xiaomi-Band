@@ -43,7 +43,7 @@ echo "== 0c. icon: shrink artwork to ~60% canvas so the launcher slot reads even
 
 echo "== 1. sync shared engine =="
 # ONE tree per device now. The English build was folded into the Chinese tree
-# and the language is chosen at runtime (device locale + a Settings override),
+# and the language follows the DEVICE at runtime ($t() + src/i18n/*.json),
 # so there is no longer a per-language copy to keep in sync.
 for d in devices/xiaomi-band-9 devices/xiaomi-band-9-pro devices/xiaomi-band-10; do
   mkdir -p "$d/source/chinese/src/common/js"
@@ -102,6 +102,13 @@ echo "== verification =="
 "$NODE" tools/verify_handlers.js
 "$NODE" tools/verify_i18n.js | tail -1
 "$NODE" tools/verify_ai_engine.js | tail -3
+# Perft pins the move generator against the published node counts; the engine
+# verifier only checks specific positions, so a rare castling/en-passant bug
+# could pass it and still lose games on the device.
+"$NODE" tools/verify_engine_perft.js | tail -3
+# The book and the built-in endgame terms fail *silently* when they break (no
+# book reply just looks like a normal search), so they get their own checks.
+"$NODE" tools/verify_ai_book_endgame.js | tail -3
 "$NODE" tools/verify_ai_integration.js | tail -3
 "$NODE" tools/verify_ai_first_move.js | tail -1
 "$NODE" tools/verify_time_side.js | tail -1

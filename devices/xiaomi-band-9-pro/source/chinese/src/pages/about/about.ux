@@ -81,32 +81,28 @@
 </style>
 <script>
 import router from '@system.router';
-import configuration from '@system.configuration';
-import { tr, initLang, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 import storage from '@system.storage';
 export default {
-  tr(k){ return tr(k); },
-  applyLang(){
-    let devLang = 'en';
-    try{
-      const loc = configuration.getLocale();
-      devLang = (loc && loc.language === 'zh') ? 'zh' : 'en';
-    }catch(e){ devLang = 'en'; }
-    initLang({ language: devLang });
-    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
-      try{
-        const raw=data&&data.data!==undefined?data.data:data;
-        const v=(raw===undefined||raw===null||raw==='')?null:(typeof raw==='string'?JSON.parse(raw):raw);
-        setLang(resolveLang(v&&v.langMode, devLang));
-      }catch(e){ setLang('system'); }
-      this.langTick=(this.langTick||0)+1;
-    },fail:()=>{ setLang('system'); this.langTick=(this.langTick||0)+1; }});
-  },
   computed:{
-    versionText(){ return tr('about.version'); }
+    tt_about_title(){ return this.$t('about.title'); },
+    tt_about_developer(){ return this.$t('about.developer'); },
+    tt_about_aboutApp(){ return this.$t('about.aboutApp'); },
+    tt_about_aboutAppBody(){ return this.$t('about.aboutAppBody'); },
+    tt_about_supportedRules(){ return this.$t('about.supportedRules'); },
+    tt_about_supportedRulesBody(){ return this.$t('about.supportedRulesBody'); },
+    tt_about_notSupported(){ return this.$t('about.notSupported'); },
+    tt_about_notSupportedBody(){ return this.$t('about.notSupportedBody'); },
+    tt_about_pieces(){ return this.$t('about.pieces'); },
+    tt_about_piecesBody(){ return this.$t('about.piecesBody'); },
+    tt_about_afdian(){ return this.$t('about.afdian'); },
+    tt_about_afdianBody(){ return this.$t('about.afdianBody'); },
+    tt_about_afdianButton(){ return this.$t('about.afdianButton'); },
+    tt_about_goPay(){ return this.$t('about.goPay'); },
+    tt_about_thanks(){ return this.$t('about.thanks'); },
+    versionText(){ return this.$t('about.version'); }
   },
   data:{purchaseConfirmed:false},
-  onInit(){ this.applyLang(); this.loadPurchase();},
+  onInit(){this.loadPurchase();},
   onShow(){this.loadPurchase();},
   loadPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';},fail:()=>{this.purchaseConfirmed=false;}});},
   back(){router.back();},

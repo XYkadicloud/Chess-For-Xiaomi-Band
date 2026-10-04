@@ -27,35 +27,17 @@
 </style>
 <script>
 import router from '@system.router';
-import configuration from '@system.configuration';
 import storage from '@system.storage';
-import { tr, initLang, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 export default {
-  onInit(){ this.applyLang(); },
-  onShow(){ this.applyLang(); },
-  data:{ langTick:0 },
+  onInit(){  },
+  onShow(){  },
+  data:{ },
   computed:{
-    tt_support_title(){ this.langTick; return tr('support.title'); },
-    tt_support_hint(){ this.langTick; return tr('support.hint'); },
-    tt_support_caption(){ this.langTick; return tr('support.caption'); },
-    tt_support_body(){ this.langTick; return tr('support.body'); },
-    tt_support_backToAbout(){ this.langTick; return tr('support.backToAbout'); },
-  },
-  tr(k){ return tr(k); },
-  applyLang(){
-    let devLang = 'en';
-    try{
-      const loc = configuration.getLocale();
-      devLang = (loc && loc.language === 'zh') ? 'zh' : 'en';
-    }catch(e){ devLang = 'en'; }
-    initLang({ language: devLang });
-    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
-      try{
-        const raw=data&&data.data!==undefined?data.data:data;
-        const v=(raw===undefined||raw===null||raw==='')?null:(typeof raw==='string'?JSON.parse(raw):raw);
-        setLang(resolveLang(v&&v.langMode, devLang));
-      }catch(e){ setLang('system'); }
-      this.langTick=(this.langTick||0)+1;
-    },fail:()=>{ setLang('system'); this.langTick=(this.langTick||0)+1; }});
-  }, back(){router.back();} }
+    tt_support_title(){  return this.$t('support.title'); },
+    tt_support_hint(){  return this.$t('support.hint'); },
+    tt_support_caption(){  return this.$t('support.caption'); },
+    tt_support_body(){  return this.$t('support.body'); },
+    tt_support_backToAbout(){  return this.$t('support.backToAbout'); }},
+  
+   back(){router.back();} }
 </script>

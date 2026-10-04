@@ -19,25 +19,18 @@
 </style>
 <script>
 import router from '@system.router';
-import configuration from '@system.configuration';
-import { tr, initLang, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 import app from '@system.app';
 import storage from '@system.storage';
 export default {
-  tr(k){ return tr(k); },
-  applyLang(){
-    try{ const loc = configuration.getLocale(); initLang({ language: (loc && loc.language === 'zh') ? 'zh' : 'en' }); }catch(e){ setSystemLang('en'); }
-    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
-      try{
-        const raw=data&&data.data!==undefined?data.data:data;
-        const v=(raw===undefined||raw===null||raw==='')?null:(typeof raw==='string'?JSON.parse(raw):raw);
-        setLang(resolveLang(v&&v.langMode, configuration.getLocale().language==='zh'?'zh':'en'));
-      }catch(e){ setLang('system'); }
-      this.langTick=(this.langTick||0)+1;
-    },fail:()=>{ setLang('system'); this.langTick=(this.langTick||0)+1; }});
-  },
+  computed:{
+    primaryLabel(){ return this.hasActiveGame ? this.$t('app.continueGame') : this.$t('app.startGame'); },
+    settingsLabel(){ return this.$t('app.settings'); },
+    aboutLabel(){ return this.$t('app.about'); },
+    exitLabel(){ return this.$t('app.exitApp'); }},
+  
+  
   data:{hasActiveGame:false, purchaseChecked:false, purchaseConfirmed:false},
-  onInit(){ this.applyLang(); this.checkPurchase();this.checkActiveGame();},
+  onInit(){  this.checkPurchase();this.checkActiveGame();},
   onShow(){if(this.purchaseChecked)this.checkActiveGame();},
   checkPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';this.purchaseChecked=true;if(!this.purchaseConfirmed)router.push({uri:'/pages/purchase',params:{firstLaunch:'true',___PARAM_LAUNCH_FLAG___:'clearTask'}});},fail:()=>{this.purchaseChecked=true;this.purchaseConfirmed=false;router.push({uri:'/pages/purchase',params:{firstLaunch:'true',___PARAM_LAUNCH_FLAG___:'clearTask'}});}});},
   checkActiveGame(){storage.get({key:'CHESS_ACTIVE_GAME',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;this.hasActiveGame=!!(v&&v.board&&v.board.length===64&&!v.gameOver);}catch(e){this.hasActiveGame=false;}},fail:()=>{this.hasActiveGame=false;}});},

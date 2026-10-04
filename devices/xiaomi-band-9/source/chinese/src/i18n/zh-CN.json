@@ -116,7 +116,7 @@
   },
   "about": {
     "title": "关于",
-    "version": "1.2",
+    "version": "1.1",
     "developer": "开发者",
     "aboutApp": "应用说明",
     "aboutAppBody": "Chess 是一款运行在 Xiaomi Band Vela 上的离线西洋棋快应用，不需要网络或手机伴侣。内置 AI 引擎，可在没有第二位玩家时与电脑对弈。",
