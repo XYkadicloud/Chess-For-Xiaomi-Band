@@ -96,12 +96,28 @@ if [ "$DO_PUSH" -eq 1 ] && [ "$fail" -eq 0 ]; then
 fi
 
 # --- 3. full history as a single file --------------------------------------
-BUNDLE="$BACKUP_DIR/git/chess-$STAMP.bundle"
-if git bundle create "$BUNDLE" --all >/dev/null 2>&1; then
-  say "   history bundle: git/$(basename "$BUNDLE")  ($(du -h "$BUNDLE" | cut -f1))"
-else
-  bad "git bundle failed"
+# A bundle holds the WHOLE history and is ~11 MB. If HEAD has not moved since
+# the last run, the existing bundle already contains exactly this history, so
+# reuse it rather than piling up identical copies.
+HEAD_NOW="$(git rev-parse HEAD)"
+BUNDLE=""
+if [ -f "$BACKUP_DIR/LATEST.txt" ]; then
+  prev_rel="$(sed -n 's/^bundle:   //p' "$BACKUP_DIR/LATEST.txt" | head -1)"
+  prev_sha="$(sed -n 's/^commit:   //p' "$BACKUP_DIR/LATEST.txt" | head -1)"
+  if [ "$prev_sha" = "$HEAD_NOW" ] && [ -n "$prev_rel" ] && [ -f "$BACKUP_DIR/$prev_rel" ]; then
+    BUNDLE="$BACKUP_DIR/$prev_rel"
+    say "   history unchanged (${HEAD_NOW:0:8}) — reusing $(basename "$BUNDLE")"
+  fi
 fi
+if [ -z "$BUNDLE" ]; then
+  BUNDLE="$BACKUP_DIR/git/chess-$STAMP.bundle"
+  if git bundle create "$BUNDLE" --all >/dev/null 2>&1; then
+    say "   history bundle: git/$(basename "$BUNDLE")  ($(du -h "$BUNDLE" | cut -f1))"
+  else
+    bad "git bundle failed"
+  fi
+fi
+BUNDLE_REL="${BUNDLE#"$BACKUP_DIR"/}"
 
 # --- 4. the files git does not track --------------------------------------
 SNAP="$BACKUP_DIR/local"
@@ -139,7 +155,7 @@ fi
   echo "commit:   $(git rev-parse HEAD)"
   echo "branch:   $(git rev-parse --abbrev-ref HEAD)"
   echo "dirty:    $(git status --porcelain | wc -l | tr -d ' ') file(s) uncommitted"
-  echo "bundle:   git/$(basename "$BUNDLE")"
+  echo "bundle:   $BUNDLE_REL"
   [ -f "$ARCHIVE" ] && echo "archive:  local/$(basename "$ARCHIVE")"
   echo
   echo "Restore the whole history offline:"
