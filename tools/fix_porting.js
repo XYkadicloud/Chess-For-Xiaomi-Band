@@ -22,7 +22,7 @@ const DEVICES = {
   'xiaomi-band-9-pro': { w: 336, viewH: 280 },
   'xiaomi-band-10': { w: 212, viewH: 280 }
 };
-const LANGS = ['chinese', 'english'];
+const LANGS = ['chinese'];
 
 function fix(file, geo) {
   let src = fs.readFileSync(file, 'utf8');

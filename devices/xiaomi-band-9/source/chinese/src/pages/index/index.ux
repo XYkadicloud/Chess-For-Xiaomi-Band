@@ -2,10 +2,10 @@
   <div class="home">
     <div class="homeMark"><image class="homeIcon" src="/common/icon.png"></image></div>
     <text class="title">Chess</text>
-    <text class="primary" @click="startGame">{{hasActiveGame?'继续对局':'开始游戏'}}</text>
-    <text class="secondary" @click="openSettings">下棋设置</text>
-    <text class="secondary" @click="openAbout">关于</text>
-    <text class="secondary" @click="exitApp">退出应用</text>
+    <text class="primary" @click="startGame">{{primaryLabel}}</text>
+    <text class="secondary" @click="openSettings">{{settingsLabel}}</text>
+    <text class="secondary" @click="openAbout">{{aboutLabel}}</text>
+    <text class="secondary" @click="exitApp">{{exitLabel}}</text>
   </div>
 </template>
 <style>
@@ -19,7 +19,30 @@
 </style>
 <script>
 import router from '@system.router';
+import configuration from '@system.configuration';
+import { tr, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 import app from '@system.app';
 import storage from '@system.storage';
-export default { data:{hasActiveGame:false}, onInit(){this.checkActiveGame();}, onShow(){this.checkActiveGame();}, checkActiveGame(){storage.get({key:'CHESS_ACTIVE_GAME',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;this.hasActiveGame=!!(v&&v.board&&v.board.length===64&&!v.gameOver);}catch(e){this.hasActiveGame=false;}},fail:()=>{this.hasActiveGame=false;}});}, startGame(){router.push(this.hasActiveGame?{uri:'/pages/game',params:{resume:'true'}}:{uri:'/pages/setup'});}, openSettings(){router.push({uri:'/pages/settings'});}, openAbout(){router.push({uri:'/pages/about'});}, exitApp(){app.terminate({});} }
+export default {
+  tr(k){ return tr(k); },
+  applyLang(){
+    try{
+      const loc = configuration.getLocale();
+      setSystemLang(loc && loc.language === 'zh' ? 'zh' : 'en');
+    }catch(e){ setSystemLang('en'); }
+    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
+      try{
+        const raw=data&&data.data!==undefined?data.data:data;
+        const v=(raw===undefined||raw===null||raw==='')?null:(typeof raw==='string'?JSON.parse(raw):raw);
+        setLang(resolveLang(v&&v.langMode, configuration.getLocale().language==='zh'?'zh':'en'));
+      }catch(e){ setLang('system'); }
+      this.langTick=(this.langTick||0)+1;
+    },fail:()=>{ setLang('system'); this.langTick=(this.langTick||0)+1; }});
+  }, data:{hasActiveGame:false}, langTick:0,
+  computed:{
+    primaryLabel(){ this.langTick; return this.hasActiveGame ? tr('app.continueGame') : tr('app.startGame'); },
+    settingsLabel(){ this.langTick; return tr('app.settings'); },
+    aboutLabel(){ this.langTick; return tr('app.about'); },
+    exitLabel(){ this.langTick; return tr('app.exitApp'); }
+  }, onInit(){this.checkActiveGame();}, onShow(){this.applyLang();this.checkActiveGame();}, checkActiveGame(){storage.get({key:'CHESS_ACTIVE_GAME',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;this.hasActiveGame=!!(v&&v.board&&v.board.length===64&&!v.gameOver);}catch(e){this.hasActiveGame=false;}},fail:()=>{this.hasActiveGame=false;}});}, startGame(){router.push(this.hasActiveGame?{uri:'/pages/game',params:{resume:'true'}}:{uri:'/pages/setup'});}, openSettings(){router.push({uri:'/pages/settings'});}, openAbout(){router.push({uri:'/pages/about'});}, exitApp(){app.terminate({});} }
 </script>

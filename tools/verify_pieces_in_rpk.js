@@ -22,18 +22,16 @@ const crypto = require('crypto');
 const ROOT = path.resolve(__dirname, '..');
 const RELEASES = path.join(ROOT, 'releases');
 
-// 设备/语言 -> 源码目录。The release filename embeds the marketing version
-// (Chess_Band9_中文_v1.1.0_release.rpk), which changes every release, so we
-// DISCOVER the newest matching package instead of hardcoding a version — a
-// hardcoded v1.0.0 silently made this checker report "rpk not found" after the
-// version bump, which looks like a real failure but is just a stale path.
+// 设备 -> 源码目录 / 包名前缀。One package per device now: the language is
+// chosen at runtime, so the filename no longer carries 中文/英文. The release
+// filename embeds the marketing version (Chess_Band9_v1.1.0_release.rpk),
+// which changes every release, so we DISCOVER the newest matching package
+// instead of hardcoding a version — a hardcoded v1.0.0 silently made this
+// checker report "rpk not found" after the version bump.
 const TARGETS = [
-  { dev: 'xiaomi-band-9',      lang: 'chinese', prefix: 'Chess_Band9_中文_v' },
-  { dev: 'xiaomi-band-9',      lang: 'english', prefix: 'Chess_Band9_英文_v' },
-  { dev: 'xiaomi-band-9-pro',  lang: 'chinese', prefix: 'Chess_Band9Pro_中文_v' },
-  { dev: 'xiaomi-band-9-pro',  lang: 'english', prefix: 'Chess_Band9Pro_英文_v' },
-  { dev: 'xiaomi-band-10',     lang: 'chinese', prefix: 'Chess_Band10_中文_v' },
-  { dev: 'xiaomi-band-10',     lang: 'english', prefix: 'Chess_Band10_英文_v' },
+  { dev: 'xiaomi-band-9',      lang: 'chinese', prefix: 'Chess_Band9_v' },
+  { dev: 'xiaomi-band-9-pro',  lang: 'chinese', prefix: 'Chess_Band9Pro_v' },
+  { dev: 'xiaomi-band-10',     lang: 'chinese', prefix: 'Chess_Band10_v' },
 ];
 
 /** Pick the newest `releases/<prefix>*_release.rpk`, or null. */

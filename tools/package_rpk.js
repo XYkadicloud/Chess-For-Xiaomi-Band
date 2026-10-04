@@ -28,9 +28,10 @@ const DEVICES = [
   { dir: 'xiaomi-band-9-pro', label: 'Band9Pro' },
   { dir: 'xiaomi-band-10', label: 'Band10' }
 ];
+// One tree per device: Chinese and English now live in the same package and are
+// selected at runtime, so the language is no longer part of the file name.
 const LANGS = [
-  { dir: 'chinese', label: '中文' },
-  { dir: 'english', label: '英文' }
+  { dir: 'chinese', label: '' }
 ];
 
 function readJson(p) {
@@ -59,7 +60,7 @@ for (const d of DEVICES) {
     // ".debug." in the toolkit's own name marks a debug-signed build
     const mode = /\.debug\./.test(rpk) ? 'debug' : (/release/i.test(rpk) ? 'release' : 'signed');
 
-    const target = `Chess_${d.label}_${l.label}_v${version}_${mode}.rpk`;
+    const target = `Chess_${d.label}_v${version}_${mode}.rpk`;
     const dest = path.join(OUT, target);
     fs.copyFileSync(path.join(distDir, rpk), dest);
     const kb = (fs.statSync(dest).size / 1024).toFixed(1);
@@ -71,20 +72,21 @@ for (const d of DEVICES) {
 const lines = [
   '# 安装包目录（releases/）',
   '',
-  '文件名格式：`Chess_<设备>_<语言>_v<版本>_<签名>.rpk`',
+  '文件名格式：`Chess_<设备>_v<版本>_<签名>.rpk`',
   '',
-  '| 文件 | 设备 | 语言 | 大小 |',
-  '|---|---|---|---|'
+  '| 文件 | 设备 | 大小 |',
+  '|---|---|---|'
 ];
 for (const m of made) {
   const dev = m.target.split('_')[1];
-  const lang = m.target.split('_')[2];
-  lines.push(`| ${m.target} | ${dev} | ${lang} | ${m.kb} KB |`);
+  lines.push(`| ${m.target} | ${dev} | ${m.kb} KB |`);
 }
 lines.push('');
 lines.push('说明：');
 lines.push('');
 lines.push('- 本目录由 `tools/package_rpk.js` 生成，重新构建后再次运行即刷新。');
+lines.push('- **每个设备只有一个包**，中英文已合并：首次启动跟随设备语言，');
+lines.push('  用户也可以在「设置 → 语言」里手动切换（跟随系统 / 中文 / English）。');
 lines.push('- 所有构建共用同一个包名 `com.xykadi.chess`，只有**文件名**不同；');
 lines.push('  这是有意为之——改 manifest 的 `package` 会让手环把新包当成另一个应用，');
 lines.push('  无法覆盖升级，也会影响签名与调试。');
@@ -99,4 +101,4 @@ if (missing.length) {
   for (const m of missing) console.log('  ' + m);
 }
 console.log(`\n共 ${made.length} 个安装包 -> ${OUT}`);
-process.exit(made.length === 6 ? 0 : 1);
+process.exit(made.length === DEVICES.length ? 0 : 1);

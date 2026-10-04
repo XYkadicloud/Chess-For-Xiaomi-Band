@@ -2,48 +2,48 @@
   <div class="page">
     <div class="header">
       <text class="back" @touchend="back">‹</text>
-      <text class="headerTitle">关于</text>
+      <text class="headerTitle">{{$t('about.title')}}</text>
     </div>
     <list class="aboutList">
       <list-item class="appItem" type="item">
         <image class="appIcon" src="/common/icon.png"></image>
         <text class="appName">Chess</text>
-        <text class="version">版本 1.1</text>
+        <text class="version">{{versionText}}</text>
       </list-item>
       <list-item class="authorItem" type="item">
         <image class="avatar" src="/common/avatar.jpg"></image>
         <div class="authorInfo">
-          <text class="authorLabel">开发者</text>
+          <text class="authorLabel">{{$t('about.developer')}}</text>
           <text class="developer">XYKadi</text>
         </div>
       </list-item>
       <list-item class="infoItem" type="item">
-        <text class="sectionTitle">应用说明</text>
-        <text class="bodyText">Chess 是一款运行在 Xiaomi Band 9 Pro Vela 上的离线双人西洋棋快应用，不需要网络或手机伴侣。 内置 AI 引擎，可在没有第二位玩家时与电脑对弈。</text>
+        <text class="sectionTitle">{{$t('about.aboutApp')}}</text>
+        <text class="bodyText">{{$t('about.aboutAppBody')}}</text>
       </list-item>
       <list-item class="infoItem rulesItem" type="item">
-        <text class="sectionTitle">已支持的规则</text>
-        <text class="bodyText">棋子基本走法与吃子、将军、将死、逼和、王车易位、吃过路兵、兵升变、三次重复和棋、五十回合和棋。</text>
+        <text class="sectionTitle">{{$t('about.supportedRules')}}</text>
+        <text class="bodyText">{{$t('about.supportedRulesBody')}}</text>
       </list-item>
       <list-item class="infoItem rulesItem" type="item">
-        <text class="sectionTitle">尚未完整支持</text>
-        <text class="bodyText">兵升变目前自动升为后，暂不支持选择升变为车、象或马；暂不支持棋局历史保存与 PGN 导入导出。</text>
+        <text class="sectionTitle">{{$t('about.notSupported')}}</text>
+        <text class="bodyText">{{$t('about.notSupportedBody')}}</text>
       </list-item>
       <list-item class="infoItem creditsItem" type="item">
-        <text class="sectionTitle">棋子素材</text>
-        <text class="bodyText">棋子外观来自 lichess 默认棋子集 cburnett，作者 Colin M.L. Burnett，以 GPLv2+ 许可使用。</text>
+        <text class="sectionTitle">{{$t('about.pieces')}}</text>
+        <text class="bodyText">{{$t('about.piecesBody')}}</text>
       </list-item>
       <list-item class="supportItem" type="item" @touchend="openQr">
-        <text class="sectionTitle supportTitle">爱发电主页</text>
-        <text class="supportText">这是我的爱发电主页，希望能够捐赠支持一下。</text>
+        <text class="sectionTitle supportTitle">{{$t('about.afdian')}}</text>
+        <text class="supportText">{{$t('about.afdianBody')}}</text>
         <image class="qrPreview" src="/common/aifadian_qr.jpg"></image>
-        <text class="qrButton">点击查看大图二维码</text>
+        <text class="qrButton">{{$t('about.afdianButton')}}</text>
       </list-item>
       <list-item class="purchaseEntryItem" type="item" @touchend="openPurchase">
-        <text class="purchaseEntry">前往付款</text>
+        <text class="purchaseEntry">{{$t('about.goPay')}}</text>
       </list-item>
       <list-item class="thanksItem" type="item">
-        <text class="thanks">感谢你的支持</text>
+        <text class="thanks">{{$t('about.thanks')}}</text>
       </list-item>
     </list>
   </div>
@@ -83,6 +83,9 @@
 import router from '@system.router';
 import storage from '@system.storage';
 export default {
+  computed:{
+    versionText(){ return this.$t('about.version'); }
+  },
   data:{purchaseConfirmed:false},
   onInit(){this.loadPurchase();},
   onShow(){this.loadPurchase();},

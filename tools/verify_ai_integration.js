@@ -14,7 +14,7 @@ const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const D = ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10'];
-const L = ['chinese', 'english'];
+const L = ['chinese'];
 
 let pass = 0, fail = 0;
 function ok(name, cond) {
@@ -75,6 +75,11 @@ function loadPage(device, lang) {
     set(o) { this._s[o.key] = o.value; if (o.success) o.success(); }
   };
   const router = { back() {}, push() {} };
+  /* stub for the i18n layer: the page calls tr() to build its status and
+   * result strings. Returning the key keeps the assertions independent of
+   * whatever language happens to be active. */
+  const tr = (k) => k;
+  const configuration = { getLocale: () => ({ language: 'zh', countryOrRegion: 'CN' }) };
 
   body = body
     .replace(/^\s*import .*?;\s*$/gm, '')
@@ -82,7 +87,7 @@ function loadPage(device, lang) {
 
   const timers = [];
   const sandbox = {
-    storage, router,
+    storage, router, tr, configuration,
     ai: engine.ai,
     console,
     setTimeout: (fn, ms) => { const id = timers.length + 1; timers.push({ id, fn, ms }); return id; },

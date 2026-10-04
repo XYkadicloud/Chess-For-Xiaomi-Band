@@ -43,7 +43,10 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const DEVICES = ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10'];
-const LANGS = ['chinese', 'english'];
+// One tree per device now: the English build was folded into the Chinese tree
+// and language is chosen at runtime (device locale + a Settings override), so
+// the generator no longer needs a per-language COPY table.
+const LANGS = ['chinese'];
 
 // Per-device geometry. The root is 12dp padding on each side, so the usable
 // content width is screenW - 24. The root height is the device screen height.
@@ -69,13 +72,6 @@ const COPY = {
     minutesInf: '无限制',
     incrementLabel: '每步加秒',
     incrementUnit: '秒',
-    boardLabel: '棋盘大小',
-    boardNormal: '标准',
-    boardLarge: '放大',
-    boardCompact: '紧凑',
-    boardNormalShort: '标准',
-    boardLargeShort: '放大',
-    boardCompactShort: '紧凑',
     levelLabel: 'AI 难度',
     levels: { easy: '简单', normal: '普通', hard: '困难', master: '大师' },
     levelsShort: { easy: '简单', normal: '普通', hard: '困难', master: '大师' },
@@ -97,13 +93,6 @@ const COPY = {
     minutesInf: 'No limit',
     incrementLabel: 'Incr.',
     incrementUnit: 'sec',
-    boardLabel: 'Board',
-    boardNormal: 'Standard',
-    boardLarge: 'Large',
-    boardCompact: 'Compact',
-    boardNormalShort: 'Std',
-    boardLargeShort: 'Big',
-    boardCompactShort: 'Mini',
     levelLabel: 'Level',
     levels: { easy: 'Easy', normal: 'Normal', hard: 'Hard', master: 'Master' },
     levelsShort: { easy: 'Easy', normal: 'Norm', hard: 'Hard', master: 'Pro' },
@@ -122,11 +111,7 @@ function chipStyle(expr, extra) {
   return `background-color:{{${expr}?'${SEL_BG}':'${IDLE_BG}'}};color:{{${expr}?'${SEL_FG}':'${IDLE_FG}'}};${extra || ''}`;
 }
 
-function tpl(c, isChinese, geo) {
-  const boardDefault = isChinese ? '标准' : 'Standard';
-  const boardLarge = c.boardLarge;
-  const boardCompact = c.boardCompact;
-  const boardNormal = c.boardNormal;
+function tpl(geo) {
   const W = geo.w;
   const H = geo.h;
   const CW = W - 24;
@@ -136,35 +121,40 @@ function tpl(c, isChinese, geo) {
   const stepBtnW = stacked ? 52 : Math.min(48, Math.max(38, Math.floor((ctrlW - 18) / 2)));
   const sideW = stacked ? Math.floor((CW - 6) / 2) : Math.floor((ctrlW - 6) / 2);
 
+  /* Every user-visible string is a computed property wrapping tr(), never a
+   * bare {{tr('x')}}: an imported function is invisible to the ViewModel's
+   * dependency tracking, so the label would render once and then never
+   * update when the language changes. `this.langTick;` inside each computed
+   * is the dependency that makes the whole page re-render. */
   return `<template>
   <div class="setup">
     <div class="head">
       <text class="back" @click="goBack">\u2039</text>
-      <text class="title">{{step===1 ? '${c.step1Title}' : '${c.step2Title}'}}</text>
+      <text class="title">{{stepTitle}}</text>
     </div>
 
     <div class="pane" if="{{step===1}}">
       <div class="card" style="${chipStyle("mode==='two'")}" @touchend="pickMode('two')">
-        <text class="cardTitle">${c.modeTwo}</text>
-        <text class="cardDesc">${c.modeTwoDesc}</text>
+        <text class="cardTitle">{{modeTwoLabel}}</text>
+        <text class="cardDesc">{{modeTwoDesc}}</text>
       </div>
       <div class="card" style="${chipStyle("mode==='ai'")}" @touchend="pickMode('ai')">
-        <text class="cardTitle">${c.modeAi}</text>
-        <text class="cardDesc">${c.modeAiDesc}</text>
+        <text class="cardTitle">{{modeAiLabel}}</text>
+        <text class="cardDesc">{{modeAiDesc}}</text>
       </div>
     </div>
 
     <div class="pane" if="{{step===2}}">
       <div class="row" if="{{mode==='ai'}}">
-        <text class="rowLabel">${c.sideLabel}</text>
+        <text class="rowLabel">{{sideLabel}}</text>
         <div class="sideRow">
-          <text class="side" style="${chipStyle("mySide==='white'")}" @touchend="pickSide('white')">${c.sideWhite}</text>
-          <text class="side" style="${chipStyle("mySide==='black'")}" @touchend="pickSide('black')">${c.sideBlack}</text>
+          <text class="side" style="${chipStyle("mySide==='white'")}" @touchend="pickSide('white')">{{sideWhiteLabel}}</text>
+          <text class="side" style="${chipStyle("mySide==='black'")}" @touchend="pickSide('black')">{{sideBlackLabel}}</text>
         </div>
       </div>
 
       <div class="row">
-        <text class="rowLabel">${c.minutesLabel}</text>
+        <text class="rowLabel">{{minutesLabel0}}</text>
         <div class="stepper">
           <text class="stepBtn" @touchend="decMinutes">\u2212</text>
           <text class="stepVal" style="${chipStyle('!unlimited')}" @touchend="toggleUnlimited">{{minutesLabel}}</text>
@@ -173,7 +163,7 @@ function tpl(c, isChinese, geo) {
       </div>
 
       <div class="row" if="{{!unlimited}}">
-        <text class="rowLabel">${c.incrementLabel}</text>
+        <text class="rowLabel">{{incrementLabel0}}</text>
         <div class="stepper">
           <text class="stepBtn" @touchend="decIncrement">\u2212</text>
           <text class="stepVal">{{incrementLabel}}</text>
@@ -181,28 +171,19 @@ function tpl(c, isChinese, geo) {
         </div>
       </div>
 
-      <div class="row">
-        <text class="rowLabel">${c.boardLabel}</text>
-        <div class="segRow">
-          <text class="seg" style="${chipStyle(`boardSize==='${boardLarge}'`)}" @touchend="pickBoard('${boardLarge}')">${c.boardLargeShort}</text>
-          <text class="seg" style="${chipStyle(`boardSize==='${boardNormal}'`)}" @touchend="pickBoard('${boardNormal}')">${c.boardNormalShort}</text>
-          <text class="seg" style="${chipStyle(`boardSize==='${boardCompact}'`)}" @touchend="pickBoard('${boardCompact}')">${c.boardCompactShort}</text>
-        </div>
-      </div>
-
       <div class="row" if="{{mode==='ai'}}">
-        <text class="rowLabel">${c.levelLabel}</text>
+        <text class="rowLabel">{{levelLabel}}</text>
         <div class="segRow">
-          <text class="seg lv" style="${chipStyle("aiLevel==='easy'")}" @touchend="pickLevel('easy')">${c.levelsShort.easy}</text>
-          <text class="seg lv" style="${chipStyle("aiLevel==='normal'")}" @touchend="pickLevel('normal')">${c.levelsShort.normal}</text>
-          <text class="seg lv" style="${chipStyle("aiLevel==='hard'")}" @touchend="pickLevel('hard')">${c.levelsShort.hard}</text>
-          <text class="seg lv" style="${chipStyle("aiLevel==='master'")}" @touchend="pickLevel('master')">${c.levelsShort.master}</text>
+          <text class="seg lv" style="${chipStyle("aiLevel==='easy'")}" @touchend="pickLevel('easy')">{{lvEasyShort}}</text>
+          <text class="seg lv" style="${chipStyle("aiLevel==='normal'")}" @touchend="pickLevel('normal')">{{lvNormalShort}}</text>
+          <text class="seg lv" style="${chipStyle("aiLevel==='hard'")}" @touchend="pickLevel('hard')">{{lvHardShort}}</text>
+          <text class="seg lv" style="${chipStyle("aiLevel==='master'")}" @touchend="pickLevel('master')">{{lvMasterShort}}</text>
         </div>
       </div>
     </div>
 
-    <text class="start" if="{{step===1}}" @touchend="goStep2">${c.next}</text>
-    <text class="start" if="{{step===2}}" @touchend="start">${c.start}</text>
+    <text class="start" if="{{step===1}}" @touchend="goStep2">{{nextLabel}}</text>
+    <text class="start" if="{{step===2}}" @touchend="start">{{startLabel}}</text>
   </div>
 </template>
 <style>
@@ -235,30 +216,51 @@ function tpl(c, isChinese, geo) {
 <script>
 import router from '@system.router';
 import storage from '@system.storage';
+import configuration from '@system.configuration';
+import { tr, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 export default {
-  data: { step:1, mode:'two', mySide:'white', aiLevel:'normal', minutes:10, increment:0, boardSize:'${boardDefault}' },
-  computed: {
-    unlimited(){ return this.minutes === 0; },
-    minutesLabel(){ return this.minutes === 0 ? '${c.minutesInf}' : this.minutes + ' ${c.minutesUnit}'; },
-    incrementLabel(){ return this.increment + ' ${c.incrementUnit}'; }
-  },
-  onInit(){ this.loadSettings(); },
-  onShow(){ this.loadSettings(); },
-  loadBoardSize(){
-    storage.get({key:'CHESS_SETTINGS',success:(r)=>{
+  tr(k){ return tr(k); },
+  applyLang(){
+    try{ const loc = configuration.getLocale(); setSystemLang(loc && loc.language === 'zh' ? 'zh' : 'en'); }catch(e){ setSystemLang('en'); }
+    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
       try{
-        const raw=r&&r.data!==undefined?r.data:r;
-        const v=typeof raw==='string'?JSON.parse(raw):raw;
-        this.boardSize = v&&v.boardSize ? v.boardSize : '${boardDefault}';
-      }catch(e){ this.boardSize='${boardDefault}'; }
-    },fail:()=>{ this.boardSize='${boardDefault}'; }});
+        const raw=data&&data.data!==undefined?data.data:data;
+        const v=(raw===undefined||raw===null||raw==='')?null:(typeof raw==='string'?JSON.parse(raw):raw);
+        setLang(resolveLang(v&&v.langMode, configuration.getLocale().language==='zh'?'zh':'en'));
+      }catch(e){ setLang('system'); }
+      this.langTick=(this.langTick||0)+1;
+    },fail:()=>{ setLang('system'); this.langTick=(this.langTick||0)+1; }});
   },
-  loadSettings(){ this.loadBoardSize(); },
+  data: { step:1, mode:'two', mySide:'white', aiLevel:'normal', minutes:10, increment:0, langTick:0 },
+  computed: {
+    stepTitle(){ this.langTick; return this.step===1 ? tr('setup.step1Title') : tr('setup.step2Title'); },
+    modeTwoLabel(){ this.langTick; return tr('setup.modeTwo'); },
+    modeTwoDesc(){ this.langTick; return tr('setup.modeTwoDesc'); },
+    modeAiLabel(){ this.langTick; return tr('setup.modeAi'); },
+    modeAiDesc(){ this.langTick; return tr('setup.modeAiDesc'); },
+    sideLabel(){ this.langTick; return tr('setup.sideLabel'); },
+    sideWhiteLabel(){ this.langTick; return tr('setup.sideWhite'); },
+    sideBlackLabel(){ this.langTick; return tr('setup.sideBlack'); },
+    minutesLabel0(){ this.langTick; return tr('setup.minutesLabel'); },
+    incrementLabel0(){ this.langTick; return tr('setup.incrementLabel'); },
+    levelLabel(){ this.langTick; return tr('setup.levelLabel'); },
+    lvEasyShort(){ this.langTick; return tr('setup.levelEasyShort'); },
+    lvNormalShort(){ this.langTick; return tr('setup.levelNormalShort'); },
+    lvHardShort(){ this.langTick; return tr('setup.levelHardShort'); },
+    lvMasterShort(){ this.langTick; return tr('setup.levelMasterShort'); },
+    nextLabel(){ this.langTick; return tr('setup.next'); },
+    startLabel(){ this.langTick; return tr('setup.start'); },
+    unlimited(){ return this.minutes === 0; },
+    minutesLabel(){ this.langTick; return this.minutes === 0 ? tr('setup.minutesInf') : this.minutes + ' ' + tr('setup.minutesUnit'); },
+    incrementLabel(){ this.langTick; return this.increment + ' ' + tr('setup.incrementUnit'); }
+  },
+  onInit(){ this.applyLang(); this.loadSettings(); },
+  onShow(){ this.applyLang(); this.loadSettings(); },
+  loadSettings(){ /* board size now lives on the Settings page */ },
   goBack(){ if(this.step===2){ this.step=1; } else { router.back(); } },
   pickMode(m){ this.mode = m; },
   pickSide(s){ this.mySide = s; },
   pickLevel(l){ this.aiLevel = l; },
-  pickBoard(b){ this.boardSize = b; },
   incMinutes(){ if(this.minutes===0){ this.minutes=1; } else if(this.minutes<10){ this.minutes+=1; } else if(this.minutes<60){ this.minutes+=5; } },
   decMinutes(){ if(this.minutes<=1){ this.minutes=0; } else if(this.minutes<=10){ this.minutes-=1; } else { this.minutes-=5; } },
   toggleUnlimited(){ this.minutes = this.minutes === 0 ? 10 : 0; },
@@ -267,12 +269,10 @@ export default {
   goStep2(){ this.step=2; },
   start(){
     const unlimited = this.minutes === 0;
-    const size = this.boardSize==='${boardLarge}' ? '44' : (this.boardSize==='${boardCompact}' ? '24' : '30');
     router.push({uri:'/pages/game',params:{
       minutes: String(unlimited ? 0 : this.minutes),
       increment: String(unlimited ? 0 : this.increment),
       unlimited: unlimited ? 'true' : 'false',
-      boardSize: size,
       resume: 'false',
       aiMode: this.mode==='ai' ? 'true' : 'false',
       aiLevel: this.aiLevel,
@@ -289,13 +289,20 @@ for (const d of DEVICES) {
   for (const l of LANGS) {
     const f = path.join(ROOT, 'devices', d, 'source', l, 'src', 'pages', 'setup', 'setup.ux');
     if (!fs.existsSync(path.dirname(f))) { console.log('  SKIP ' + d + '/' + l); continue; }
-    const src = tpl(COPY[l], l === 'chinese', GEO[d]);
+    const src = tpl(GEO[d]);
 
     // 1) every handler the template calls must exist in the script
-    const handlers = ['goBack', 'pickMode', 'pickSide', 'pickLevel', 'pickBoard',
+    const handlers = ['goBack', 'pickMode', 'pickSide', 'pickLevel',
       'incMinutes', 'decMinutes', 'toggleUnlimited', 'incIncrement', 'decIncrement', 'goStep2', 'start'];
     const missing = handlers.filter((h) => !new RegExp(h + '\\s*\\(').test(src));
     if (missing.length) throw new Error(d + '/' + l + ': generated page missing handlers: ' + missing.join(', '));
+
+    // 1b) REGRESSION GUARD: the board-size chooser now lives on the Settings
+    //     page. If it creeps back into the wizard the layout budget for the
+    //     time rows on Band 9/10 is blown again.
+    if (/pickBoard|boardSize/.test(src)) {
+      throw new Error(d + '/' + l + ': board size must not appear on the setup page (it lives in Settings)');
+    }
 
     // 2) params must survive into the script
     if (!src.includes('mySide') || !src.includes('increment')) {
@@ -330,11 +337,21 @@ for (const d of DEVICES) {
     if (/^\s*get\s+[a-zA-Z_$][\w$]*\s*\(/m.test(src)) {
       throw new Error(d + '/' + l + ': bare `get` accessor found — move it into computed:{...}');
     }
-    for (const v of ['minutesLabel', 'incrementLabel', 'unlimited']) {
+    for (const v of ['minutesLabel', 'incrementLabel', 'unlimited', 'stepTitle', 'nextLabel', 'startLabel']) {
       if (!new RegExp('computed\\s*:\\s*\\{[\\s\\S]*?' + v + '\\s*\\(').test(src)) {
         throw new Error(d + '/' + l + ': computed is missing ' + v);
       }
     }
+
+    // 5b) i18n: every visible label must be a computed wrapping tr(); a bare
+    //     {{tr('x')}} would render once and never update on a language switch.
+    if (!/strings\.js/.test(src)) throw new Error(d + '/' + l + ': setup page does not import strings.js');
+    if (!/\bapplyLang\s*\(/.test(src)) throw new Error(d + '/' + l + ': setup page has no applyLang()');
+    if (!/configuration\.getLocale/.test(src)) throw new Error(d + '/' + l + ': setup page does not read the device locale');
+    if (/\{\{\s*tr\s*\(/.test(src)) {
+      throw new Error(d + '/' + l + ': template calls tr() directly — wrap it in a computed instead');
+    }
+    if (!/langTick/.test(src)) throw new Error(d + '/' + l + ': no langTick dependency (labels would not re-render)');
 
     // 5) selection must be applied via inline style for every option group
     for (const expr of ["mode==='two'", "mode==='ai'", "minutesLabel", "aiLevel==="]) {
@@ -348,7 +365,7 @@ for (const d of DEVICES) {
 
     fs.writeFileSync(f, src, 'utf8');
     n++;
-    console.log('  OK   ' + d + '/' + l);
+    console.log('  OK   ' + d);
   }
 }
 console.log('\ndone, ' + n + ' setup pages generated');

@@ -103,7 +103,7 @@ const report = [];
 const badRender = [];
 
 for (const dev of ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10']) {
-  for (const lang of ['chinese', 'english']) {
+  for (const lang of ['chinese']) {
     const base = path.join(ROOT, 'devices', dev, 'source', lang, 'src', 'pages');
     if (!fs.existsSync(base)) continue;
     for (const f of walk(base)) {

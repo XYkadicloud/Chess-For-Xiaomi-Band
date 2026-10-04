@@ -176,11 +176,30 @@ for (const file of targets) {
   }
 
   // 6. about credits
+  //
+  // After the i18n merge the About prose does NOT live in about.ux any more:
+  // it is externalised into src/i18n/*.json and pulled in via $t('about.*').
+  // So the correct assertion is two-part — (a) the About page still asks for
+  // the credit key, and (b) the shipped resource files still carry the text.
   const aboutPath = n.find((x) => x === 'pages/about/about.js');
   if (aboutPath) {
     const a = textOf(zip, aboutPath);
-    if (!/cburnett/i.test(a) || !/Colin/.test(a)) {
-      bad(pkg, 'about page is missing the cburnett/GPLv2+ piece credit');
+    if (!/about\.pieces/.test(a)) {
+      bad(pkg, 'about page no longer references the about.pieces credit key');
+    }
+  }
+  const localePaths = n.filter((x) => /^i18n\/[^/]+\.json$/.test(x));
+  if (localePaths.length === 0) {
+    bad(pkg, 'package ships no i18n/*.json resources');
+  } else {
+    let credited = false;
+    for (const lp of localePaths) {
+      const txt = textOf(zip, lp);
+      // The credit must name the artist and the set in every locale that has it.
+      if (/cburnett/i.test(txt) && /Colin/.test(txt)) credited = true;
+    }
+    if (!credited) {
+      bad(pkg, 'shipped i18n resources are missing the cburnett/Colin piece credit');
     }
   }
 
@@ -221,6 +240,36 @@ for (const file of targets) {
     } else if (isBand9Pro) {
       if (/clockCol/.test(g)) {
         bad(pkg, 'Band 9 Pro should keep the single-line clock (clockCol leaked)');
+      }
+    }
+  }
+
+  // 10b. i18n: the packaged app must ship BOTH locale files. The English build
+  //      was merged into the Chinese tree, so a missing en-US.json means the
+  //      device would fall back to defaults (English) and 中文 would never
+  //      appear. Also confirm the i18n files sit before manifest.json in the
+  //      archive — the framework reads them during startup.
+  {
+    const zh = zip.entries['i18n/zh-CN.json'];
+    const en = zip.entries['i18n/en-US.json'];
+    const def = zip.entries['i18n/defaults.json'];
+    if (!zh) bad(pkg, 'i18n/zh-CN.json missing from the package');
+    if (!en) bad(pkg, 'i18n/en-US.json missing from the package');
+    if (!def) bad(pkg, 'i18n/defaults.json missing from the package');
+    if (zh) {
+      try {
+        const j = JSON.parse(zh.get().toString('utf8'));
+        if (!j.app || !j.game || !j.settings) bad(pkg, 'zh-CN.json is missing expected groups');
+      } catch (e) {
+        bad(pkg, 'i18n/zh-CN.json is not valid JSON: ' + e.message);
+      }
+    }
+    if (en) {
+      try {
+        const j = JSON.parse(en.get().toString('utf8'));
+        if (!j.app || !j.game || !j.settings) bad(pkg, 'en-US.json is missing expected groups');
+      } catch (e) {
+        bad(pkg, 'i18n/en-US.json is not valid JSON: ' + e.message);
       }
     }
   }

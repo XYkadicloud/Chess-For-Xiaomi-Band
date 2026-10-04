@@ -1,25 +1,25 @@
 <template>
   <div class="purchasePage">
-    <div class="header"><text class="headerTitle">爱发电购买</text></div>
+    <div class="header"><text class="headerTitle">{{$t('purchase.title')}}</text></div>
     <list class="purchaseList">
       <list-item class="qrItem" type="item">
         <image class="qr" src="/common/aifadian_qr.jpg"></image>
       </list-item>
       <list-item class="priceItem" type="item">
-        <text class="price">2元</text>
-        <text class="bodyText priceText">诚信付费，希望有人购买... (-_-;)</text>
+        <text class="price">{{$t('purchase.price')}}</text>
+        <text class="bodyText priceText">{{$t('purchase.priceText')}}</text>
       </list-item>
       <list-item class="infoItem" type="item">
-        <text class="bodyText leftText tokenText">消耗了我1.3亿 Token（60元左右）</text>
-        <text class="bodyText leftText gap featureText">主要是要做想做其他功能，但是做一半又放弃了。以后看一下能不能再更新出来一些其他的功能 (@_@)</text>
+        <text class="bodyText leftText tokenText">{{$t('purchase.tokenText')}}</text>
+        <text class="bodyText leftText gap featureText">{{$t('purchase.featureText')}}</text>
       </list-item>
       <list-item class="browserItem" type="item">
-        <text class="bodyText leftText projectText">也可以看一下我另一个项目</text>
-        <text class="bodyText leftText gap browserText">这个呢是一个带有 AI 功能、RSS 订阅源和浏览器的软件「腕上浏览器」，希望能看看，谢谢喵～</text>
+        <text class="bodyText leftText projectText">{{$t('purchase.projectText')}}</text>
+        <text class="bodyText leftText gap browserText">{{$t('purchase.browserText')}}</text>
       </list-item>
     </list>
     <div class="buttonArea" if="{{!purchaseConfirmed}}">
-      <text class="confirmButton" @touchend="confirmPurchase">已购买</text>
+      <text class="confirmButton" @touchend="confirmPurchase">{{$t('purchase.confirm')}}</text>
     </div>
   </div>
 </template>

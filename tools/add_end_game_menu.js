@@ -24,7 +24,7 @@ const ROOT = path.resolve(__dirname, '..');
 
 const TREES = [];
 for (const dev of ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10']) {
-  for (const lang of ['chinese', 'english']) {
+  for (const lang of ['chinese']) {
     TREES.push({ dev, lang });
   }
 }

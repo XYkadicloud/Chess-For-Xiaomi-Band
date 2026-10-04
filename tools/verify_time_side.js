@@ -16,7 +16,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const DEVICES = ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10'];
-const LANGS = ['chinese', 'english'];
+const LANGS = ['chinese'];
 
 let problems = 0;
 function check(ok, label, detail) {

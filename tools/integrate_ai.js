@@ -16,7 +16,7 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const DEVICES = ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10'];
-const LANGS = ['chinese', 'english'];
+const LANGS = ['chinese'];
 
 /* ------------------------------------------------------------------ *
  * Per-language copy bank
@@ -380,10 +380,15 @@ function patch(file, lang, device) {
    *     the result. */
   {
     const NEEDLE = 'this.lastTick=Date.now();';
-    const onShowRe = /onShow\(\)\s*\{\s*this\.lastTick=Date\.now\(\);\s*([^}]*)\}/;
+    /* Tolerate a prefix before `this.lastTick` — the i18n merge legitimately
+     * prepends `this.applyLang();` to onShow, and the two tools must be
+     * order-independent. Anchoring on the `this.lastTick=Date.now();` probe
+     * itself (rather than on it being the first statement) keeps both orders
+     * working. */
+    const onShowRe = /onShow\(\)\s*\{\s*(?:this\.applyLang\(\);\s*)?this\.lastTick=Date\.now\(\);\s*([^}]*)\}/;
     const m = src.match(onShowRe);
     if (!m) {
-      throw new Error('injection failed: onShow body not found (expected "onShow(){ this.lastTick=Date.now();")');
+      throw new Error('injection failed: onShow body not found (expected an onShow containing "this.lastTick=Date.now();")');
     }
     const body = m[1];
     const kick = ' if(!this.gameOver&&!this.resultVisible&&!this.paused&&this.isAiTurn())this.maybeAiMove();';

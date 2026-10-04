@@ -50,7 +50,7 @@ const zlib = require('zlib');
 
 const ROOT = path.join(__dirname, '..');
 const DEVICES = ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10'];
-const LANGS = ['chinese', 'english'];
+const LANGS = ['chinese'];
 const WHITE = ['wK', 'wQ', 'wR', 'wB', 'wN', 'wP'];
 const BLACK = ['bK', 'bQ', 'bR', 'bB', 'bN', 'bP'];
 const ALL = WHITE.concat(BLACK);

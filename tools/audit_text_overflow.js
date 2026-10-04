@@ -18,7 +18,7 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const D = ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10'];
-const L = ['chinese', 'english'];
+const L = ['chinese'];
 const PAGES = ['index', 'setup', 'game', 'settings', 'about', 'support', 'purchase'];
 
 /* ---- helpers ----------------------------------------------------- */

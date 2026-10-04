@@ -14,9 +14,63 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const DEVICES = ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10'];
-const LANGS = ['chinese', 'english'];
+const LANGS = ['chinese'];
 
 const CJK = /[\u3000-\u9fff\uff00-\uffef]/;
+
+/* Labels are bindings now ({{lvEasyShort}}), so the literal text no longer
+ * lives in the template. Resolve a binding name to the tr() key it wraps by
+ * reading the page's `computed` block, then look the key up in both locale
+ * files — which also turns this into a real ENGLISH layout check, something
+ * the old literal-based version could not do. */
+let I18N = { zh: {}, en: {} };
+function loadI18n() {
+  for (const [lang, file] of [['zh', 'zh-CN.json'], ['en', 'en-US.json']]) {
+    const p = path.join(ROOT, 'src', 'i18n', file);
+    if (!fs.existsSync(p)) continue;
+    const flat = (o, pre) => {
+      for (const k of Object.keys(o)) {
+        const v = o[k];
+        if (v && typeof v === 'object') flat(v, pre + k + '.');
+        else I18N[lang][pre + k] = String(v);
+      }
+    };
+    flat(JSON.parse(fs.readFileSync(p, 'utf8')), '');
+  }
+}
+loadI18n();
+
+/* Map a computed name -> the tr('...') key it returns. */
+function computedKeys(src) {
+  const out = {};
+  const block = src.match(/computed\s*:\s*\{([\s\S]*?)\n\s*\},/);
+  if (!block) return out;
+  const re = /(\w+)\s*\([^)]*\)\s*\{([^}]*)\}/g;
+  let m;
+  while ((m = re.exec(block[1]))) {
+    const k = m[2].match(/tr\(\s*'([^']+)'\s*\)/);
+    if (k) out[m[1]] = k[1];
+  }
+  return out;
+}
+
+/* Resolve a template label: either a literal, or {{name}}. */
+function resolveLabel(label, keys) {
+  const trim = label.trim();
+  const b = trim.match(/^\{\{\s*([A-Za-z_$]\w*)\s*\}\}$/);
+  if (!b) return /\{\{/.test(trim) ? null : trim;
+  const key = keys[b[1]];
+  if (!key) return null;
+  return { zh: I18N.zh[key] || '', en: I18N.en[key] || '' };
+}
+
+/* Widest measured width of a label (literal or {zh,en} pair). */
+function labelWidth(label, fs) {
+  if (label == null) return { w: 0, text: '', lang: '' };
+  if (typeof label === 'string') return { w: emWidth(label) * fs, text: label, lang: 'zh' };
+  const wz = emWidth(label.zh) * fs, we = emWidth(label.en) * fs;
+  return we > wz ? { w: we, text: label.en, lang: 'en' } : { w: wz, text: label.zh, lang: 'zh' };
+}
 
 function emWidth(s) {
   let w = 0;
@@ -54,13 +108,14 @@ for (const dev of DEVICES) {
     //   <text class="seg lv" style="background-color:{{aiLevel==='easy'?...}}" ...>简单</text>
     // The older form (ternary inside class) is still parsed for safety.
     const tpl = src.match(/<template>([\s\S]*?)<\/template>/)[1];
+    const CKEYS = computedKeys(src);
     const groups = { seg: [], lv: [] };
     const re = /<text([^>]*)>([^<]*)<\/text>/g;
     let m;
     while ((m = re.exec(tpl))) {
       const attrs = m[1];
-      const label = m[2].trim();
-      if (!label || /\{\{/.test(label)) continue;
+      const label = resolveLabel(m[2], CKEYS);
+      if (label == null || label === '') continue;
 
       // --- static class (new form) ---
       const clsM = attrs.match(/\bclass="([^"]*)"/);
@@ -91,14 +146,14 @@ for (const dev of DEVICES) {
       if (!r.labels.length) continue;
       const n = r.labels.length;
       const colW = (r.avail - segMarginX * 2 * n) / n;
-      let worst = 0, worstLabel = '';
+      let worst = 0, worstLabel = '', worstLang = '';
       for (const l of r.labels) {
-        const w = emWidth(l) * r.fs;
-        if (w > worst) { worst = w; worstLabel = l; }
+        const measured = labelWidth(l, r.fs);
+        if (measured.w > worst) { worst = measured.w; worstLabel = measured.text; worstLang = measured.lang; }
       }
       const ok = worst <= colW;
       if (!ok) problems++;
-      console.log(`${ok ? 'OK  ' : 'FAIL'} ${dev}/${lang} ${r.name.padEnd(9)} cols=${n} colW=${colW.toFixed(1)}dp  widest="${worstLabel}"=${worst.toFixed(1)}dp` +
+      console.log(`${ok ? 'OK  ' : 'FAIL'} ${dev}/${lang} ${r.name.padEnd(9)} cols=${n} colW=${colW.toFixed(1)}dp  widest[${worstLang}]="${worstLabel}"=${worst.toFixed(1)}dp` +
         (ok ? '' : `  OVER ${(worst - colW).toFixed(1)}dp`));
     }
 
@@ -114,17 +169,17 @@ for (const dev of DEVICES) {
     // (a) label column must hold its widest text
     const labelRe = /<text class="rowLabel"[^>]*>([^<]*)<\/text>/g;
     let lm;
-    let worstL = 0, worstLbl = '';
+    let worstL = 0, worstLbl = '', worstLLang = '';
     while ((lm = labelRe.exec(tpl))) {
-      const s = lm[1].trim();
-      if (!s || /\{\{/.test(s)) continue;
-      const w = emWidth(s) * fsLabel;
-      if (w > worstL) { worstL = w; worstLbl = s; }
+      const s = resolveLabel(lm[1], CKEYS);
+      if (s == null || s === '') continue;
+      const measured = labelWidth(s, fsLabel);
+      if (measured.w > worstL) { worstL = measured.w; worstLbl = measured.text; worstLLang = measured.lang; }
     }
     if (rowLabelW) {
       const ok = worstL <= rowLabelW;
       if (!ok) problems++;
-      console.log(`${ok ? 'OK  ' : 'FAIL'} ${dev}/${lang} ${'label'.padEnd(9)} colW=${rowLabelW}dp  widest="${worstLbl}"=${worstL.toFixed(1)}dp` +
+      console.log(`${ok ? 'OK  ' : 'FAIL'} ${dev}/${lang} ${'label'.padEnd(9)} colW=${rowLabelW}dp  widest[${worstLLang}]="${worstLbl}"=${worstL.toFixed(1)}dp` +
         (ok ? '' : `  OVER ${(worstL - rowLabelW).toFixed(1)}dp`));
     }
 
@@ -144,17 +199,17 @@ for (const dev of DEVICES) {
       // Works for both the static-class form and the legacy class-ternary form.
       const sideRe = /<text([^>]*)>([^<]*)<\/text>/g;
       const fsSide = num(decl(src, 'side', 'font-size'));
-      let sm, worstS = 0, worstSide = '';
+      let sm, worstS = 0, worstSide = '', worstSLang = '';
       while ((sm = sideRe.exec(tpl))) {
         const attrs = sm[1];
         const clsM = attrs.match(/\bclass="([^"]*)"/);
         if (!clsM) continue;
         const isSide = /\bside\b/.test(clsM[1]) || /mySide/.test(clsM[1]);
         if (!isSide) continue;
-        const s = sm[2].trim();
-        if (!s || /\{\{/.test(s)) continue;
-        const w = emWidth(s) * fsSide;
-        if (w > worstS) { worstS = w; worstSide = s; }
+        const s = resolveLabel(sm[2], CKEYS);
+        if (s == null || s === '') continue;
+        const measured = labelWidth(s, fsSide);
+        if (measured.w > worstS) { worstS = measured.w; worstSide = measured.text; worstSLang = measured.lang; }
       }
       const ok = need <= sideRowW && worstS <= sideW;
       if (!ok) problems++;

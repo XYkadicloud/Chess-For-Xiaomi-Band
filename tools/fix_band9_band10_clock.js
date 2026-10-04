@@ -13,7 +13,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const TREES = [];
 for (const dev of ['xiaomi-band-9', 'xiaomi-band-10']) {
-  for (const lang of ['chinese', 'english']) TREES.push({ dev, lang });
+  for (const lang of ['chinese']) TREES.push({ dev, lang });
 }
 
 const DIM = {

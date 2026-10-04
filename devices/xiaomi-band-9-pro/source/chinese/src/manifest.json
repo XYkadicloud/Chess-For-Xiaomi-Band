@@ -2,8 +2,8 @@
   "package": "com.xykadi.chess",
   "name": "Chess",
   "icon": "/common/icon.png",
-  "versionName": "1.1.0",
-  "versionCode": 103,
+  "versionName": "1.2.0",
+  "versionCode": 105,
   "minPlatformVersion": 1100,
   "simulationVersion": "default",
   "deviceTypeList": [
@@ -17,16 +17,19 @@
   },
   "features": [
     {
-      "name": "system.router"
-    },
-    {
       "name": "system.app"
     },
     {
-      "name": "system.storage"
+      "name": "system.brightness"
     },
     {
-      "name": "system.brightness"
+      "name": "system.configuration"
+    },
+    {
+      "name": "system.router"
+    },
+    {
+      "name": "system.storage"
     }
   ],
   "router": {

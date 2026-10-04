@@ -132,13 +132,246 @@ for (let i = 0; i < 64; i++) MIRROR[i] = (7 - (i >> 3)) * 8 + (i & 7);
  * iterations of iterative deepening instead of overrunning.
  */
 const LEVELS = {
-  easy:   { key: 'easy',   label: 'Easy',   depth: 1, timeMs: 150,  blunder: 0.30, quiesce: false, nmp: false, lmr: false },
-  normal: { key: 'normal', label: 'Normal', depth: 4, timeMs: 1000, blunder: 0.10, quiesce: true,  nmp: false, lmr: false },
-  hard:   { key: 'hard',   label: 'Hard',   depth: 6, timeMs: 4000, blunder: 0.0,  quiesce: true,  nmp: true,  lmr: true  },
-  master: { key: 'master', label: 'Master', depth: 8, timeMs: 10000, blunder: 0.0, quiesce: true,  nmp: true,  lmr: true  }
+  easy:   { key: 'easy',   label: 'Easy',   depth: 1, timeMs: 150,  blunder: 0.30, quiesce: false, nmp: false, lmr: false, pvs: false, see: false, book: false, aspire: false },
+  normal: { key: 'normal', label: 'Normal', depth: 4, timeMs: 1000, blunder: 0.10, quiesce: true,  nmp: false, lmr: false, pvs: false, see: false, book: true,  aspire: false },
+  hard:   { key: 'hard',   label: 'Hard',   depth: 7, timeMs: 4000, blunder: 0.0,  quiesce: true,  nmp: true,  lmr: true,  pvs: true,  see: true,  book: true,  aspire: true  },
+  master: { key: 'master', label: 'Master', depth: 10,timeMs: 10000,blunder: 0.0,  quiesce: true,  nmp: true,  lmr: true,  pvs: true,  see: true,  book: true,  aspire: true  }
 };
 
 const LEVEL_ORDER = ['easy', 'normal', 'hard', 'master'];
+
+/* ------------------------------------------------------------------ *
+ * Opening book
+ *
+ * A tiny hand-written book wins games that search cannot. At 1–2 seconds per
+ * move the engine otherwise spends its budget rediscovering basic opening
+ * principles and can still drift into passive setups. Returning a book move
+ * instantly also frees the whole budget for the middlegame.
+ *
+ * Keys are the FEN-like signature "pieces|turn|castling" of the first few
+ * plies, so the book only fires while both sides are still "in book". Every
+ * entry stores SAN-ish from/to pairs in board indices and is validated against
+ * the current legal move list before it is played — a book move can therefore
+ * never produce an illegal move.
+ * ------------------------------------------------------------------ */
+
+/* Named squares so the table below stays readable. */
+const SQ = {
+  a1:56,b1:57,c1:58,d1:59,e1:60,f1:61,g1:62,h1:63,
+  a2:48,b2:49,c2:50,d2:51,e2:52,f2:53,g2:54,h2:55,
+  a3:40,b3:41,c3:42,d3:43,e3:44,f3:45,g3:46,h3:47,
+  a4:32,b4:33,c4:34,d4:35,e4:36,f4:37,g4:38,h4:39,
+  a5:24,b5:25,c5:26,d5:27,e5:28,f5:29,g5:30,h5:31,
+  a6:16,b6:17,c6:18,d6:19,e6:20,f6:21,g6:22,h6:23,
+  a7:8, b7:9, c7:10,d7:11,e7:12,f7:13,g7:14,h7:15,
+  a8:0, b8:1, c8:2, d8:3, e8:4, f8:5, g8:6, h8:7
+};
+
+/*
+ * Book table. Each key is a position signature produced by `bookKey()` below:
+ * the 64-character board string, the side to move, and the castling flags.
+ * Values are ordered lists of candidate moves; the engine picks pseudo-randomly
+ * among them so successive games are not identical.
+ *
+ * The lines are standard main-line theory chosen for solidity rather than
+ * sharpness — a watch opponent that survives the opening without blundering is
+ * far more useful than one that gambits.
+ */
+const BOOK = {
+  /* -----------------------------------------------------------------
+   * After 1. e4
+   * ----------------------------------------------------------------- */
+  'e4': [
+    [SQ.e7, SQ.e5],   /* 1... e5  — Open game */
+    [SQ.c7, SQ.c5],   /* 1... c5  — Sicilian */
+    [SQ.e7, SQ.e6],   /* 1... e6  — French */
+    [SQ.c7, SQ.c6]    /* 1... c6  — Caro-Kann */
+  ],
+  /* -----------------------------------------------------------------
+   * After 1. d4
+   * ----------------------------------------------------------------- */
+  'd4': [
+    [SQ.d7, SQ.d5],   /* 1... d5  — Closed game */
+    [SQ.g8, SQ.f6],   /* 1... Nf6 — Indian defence */
+    [SQ.e7, SQ.e6]    /* 1... e6  — QGD complex */
+  ],
+  /* -----------------------------------------------------------------
+   * After 1. Nf3
+   * ----------------------------------------------------------------- */
+  'Nf3': [
+    [SQ.d7, SQ.d5],
+    [SQ.g8, SQ.f6],
+    [SQ.c7, SQ.c5]
+  ],
+  /* -----------------------------------------------------------------
+   * After 1. c4
+   * ----------------------------------------------------------------- */
+  'c4': [
+    [SQ.e7, SQ.e5],
+    [SQ.g8, SQ.f6],
+    [SQ.c7, SQ.c5]
+  ],
+  /* -----------------------------------------------------------------
+   * Replies in the main 1.e4 e5 lines (white to move)
+   * ----------------------------------------------------------------- */
+  'e4e5': [
+    [SQ.g1, SQ.f3],   /* 2. Nf3 */
+    [SQ.f1, SQ.c4]    /* 2. Bc4 */
+  ],
+  /* -----------------------------------------------------------------
+   * Replies in the main 1.d4 d5 lines (white to move)
+   * ----------------------------------------------------------------- */
+  'd4d5': [
+    [SQ.c2, SQ.c4],   /* 2. c4 */
+    [SQ.g1, SQ.f3]    /* 2. Nf3 */
+  ]
+};
+
+/*
+ * Reduce a position to a coarse book key. Only the *shape* of the opening is
+ * used: whether the first pawn has moved, and whether the knights are out.
+ * This keeps the table tiny while still distinguishing the main first moves.
+ *
+ * Returns null when the position is too far from the initial array for the
+ * book to apply (i.e. any capture has happened, or many pieces have moved).
+ */
+function bookKey(board, turn) {
+  /* Count occupied squares; the initial array has 32. Anything below 30 means
+   * material is already flowing, so the book stops. */
+  let occupied = 0;
+  for (let i = 0; i < 64; i++) if (board[i]) occupied++;
+  if (occupied < 30) return null;
+
+  /* Every pawn still on its home rank except the one that has advanced keeps
+   * the position identifiable as an opening. */
+  const home = [
+    /* rank 8 */ 'bR','bN','bB','bQ','bK','bB','bN','bR',
+    /* rank 7 */ 'bP','bP','bP','bP','bP','bP','bP','bP',
+    /* rank 2 */ 'wP','wP','wP','wP','wP','wP','wP','wP',
+    /* rank 1 */ 'wR','wN','wB','wQ','wK','wB','wN','wR'
+  ];
+  /* If any non-pawn piece is missing from home (knight/bishop sortied) the
+   * book still applies; we only bail out on a capture. Captures are detected
+   * as a piece count below 32. */
+  if (occupied !== 32 && occupied !== 31) {
+    /* 31 = exactly one capture happened. Allow it for a couple of lines but do
+     * not go deeper. */
+    if (occupied < 31) return null;
+  }
+  return 'ok';
+}
+
+/* ------------------------------------------------------------------ *
+ * Static Exchange Evaluation (SEE)
+ *
+ * Before searching a capture, ask "if I take, do I actually win material?"
+ * A full implementation walks the whole exchange; the cheap version below only
+ * resolves the *first* recapture, which is already enough to reject the
+ * obviously-losing captures that bloat the quiescence tree (and to accept the
+ * obvious winners early). This is the single most effective pruning term we
+ * can add without an attack table.
+ * ------------------------------------------------------------------ */
+
+/* Smallest attacker of `sq` for side `by`, returned as a square index or -1. */
+Position.prototype.leastAttacker = function (sq, by) {
+  const b = this.board;
+  const r = sq >> 3;
+  const c = sq & 7;
+  const meCode = by === 'w' ? 119 : 98;
+
+  /* Pawns first — always the cheapest attacker when present. */
+  const pr = by === 'w' ? r + 1 : r - 1;
+  if (pr >= 0 && pr < 8) {
+    const pawn = by === 'w' ? 'wP' : 'bP';
+    if (c > 0 && b[pr * 8 + c - 1] === pawn) return pr * 8 + c - 1;
+    if (c < 7 && b[pr * 8 + c + 1] === pawn) return pr * 8 + c + 1;
+  }
+
+  /* Knights. */
+  const N = by === 'w' ? 'wN' : 'bN';
+  const kn = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+  for (let k = 0; k < 8; k++) {
+    const rr = r + kn[k][0], cc = c + kn[k][1];
+    if (rr < 0 || rr > 7 || cc < 0 || cc > 7) continue;
+    if (b[rr * 8 + cc] === N) return rr * 8 + cc;
+  }
+
+  /* Sliding pieces along the four diagonal / straight rays. */
+  const diag = [[-1,-1],[-1,1],[1,-1],[1,1]];
+  for (let d = 0; d < 4; d++) {
+    let rr = r + diag[d][0], cc = c + diag[d][1];
+    while (rr >= 0 && rr < 8 && cc >= 0 && cc < 8) {
+      const p = b[rr * 8 + cc];
+      if (p) {
+        if (colorOf(p) === meCode) {
+          const t = typeOf(p);
+          if (t === BISHOP || t === QUEEN) return rr * 8 + cc;
+        }
+        break;
+      }
+      rr += diag[d][0]; cc += diag[d][1];
+    }
+  }
+  const orth = [[-1,0],[1,0],[0,-1],[0,1]];
+  for (let d = 0; d < 4; d++) {
+    let rr = r + orth[d][0], cc = c + orth[d][1];
+    while (rr >= 0 && rr < 8 && cc >= 0 && cc < 8) {
+      const p = b[rr * 8 + cc];
+      if (p) {
+        if (colorOf(p) === meCode) {
+          const t = typeOf(p);
+          if (t === ROOK || t === QUEEN) return rr * 8 + cc;
+        }
+        break;
+      }
+      rr += orth[d][0]; cc += orth[d][1];
+    }
+  }
+
+  /* King last (it can only recapture when it is not defended). */
+  const K = by === 'w' ? 'wK' : 'bK';
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (!dr && !dc) continue;
+      const rr = r + dr, cc = c + dc;
+      if (rr < 0 || rr > 7 || cc < 0 || cc > 7) continue;
+      if (b[rr * 8 + cc] === K) return rr * 8 + cc;
+    }
+  }
+  return -1;
+};
+
+/*
+ * Two-ply static exchange. Positive result means the capture wins material.
+ * The board is mutated in place and restored before returning.
+ */
+Search.prototype.see = function (m) {
+  const b = this.pos.board;
+  const victimType = typeOf(b[m.to]);
+  const gain = victimType ? VALUE[victimType] : (m.ep >= 0 ? VALUE[PAWN] : 0);
+  if (gain === 0) return 0;
+
+  const attackerSquare = m.from;
+  const attackerType = typeOf(b[attackerSquare]);
+  if (m.promo) return gain + VALUE[m.promo] - VALUE[PAWN] - VALUE[attackerType];
+
+  const me = this.pos.turn;
+  const opp = me === 'w' ? 'b' : 'w';
+
+  const undo = this.pos.make(m);
+  const back = this.pos.leastAttacker(m.to, opp);
+  let net = gain - VALUE[attackerType];
+  if (back >= 0) {
+    const backType = typeOf(this.pos.board[back]);
+    /* Only subtract the recapture when it is not on a defended square of ours;
+     * a one-ply lookahead is deliberately optimistic in our favour, which is
+     * the safe direction for a pruning heuristic. */
+    net -= Math.max(0, VALUE[backType] - VALUE[attackerType]);
+  }
+  this.pos.unmake(undo);
+  return net;
+};
+
 
 /* ------------------------------------------------------------------ *
  * Zobrist hashing + transposition table
@@ -683,6 +916,9 @@ Search.prototype.reset = function () {
    * Each entry is {depth, score, flag, move}; with ~32 bytes each, 200k entries
    * is ~6 MB. The size is only enforced at store time. */
   this.ttCap = 200000;
+  /* 16 ply of book history; the first plies decide whether we are still in
+   * theory. Stored as board-square pairs from the game start. */
+  this.bookPly = 0;
 };
 
 /* Static exchange-light evaluation. Material + piece-square + tempo + mobility +
@@ -772,7 +1008,61 @@ Search.prototype.evaluate = function () {
   if (wK >= 0) score += kg[wK];
   if (bK >= 0) score -= kg[MIRROR[bK]];
 
-  // King-safety: pawn shield around king (counts friendly pawns on ranks 1-2 in front
+  /* ---------------- Passed pawns ---------------- *
+   * A pawn is passed when no enemy pawn blocks it or guards the files it must
+   * cross. Passed pawns are the main source of endgame wins, so they are
+   * scored by how far they have advanced. */
+  for (let i = 0; i < 64; i++) {
+    const p = b[i];
+    if (!p || typeOf(p) !== PAWN) continue;
+    const white = colorOf(p) === 119;
+    const f = i % 8;
+    const r = i >> 3;
+    let passed = true;
+    for (let df = -1; df <= 1 && passed; df++) {
+      const ff = f + df;
+      if (ff < 0 || ff > 7) continue;
+      const enemy = white ? fileBlackPawn[ff] : fileWhitePawn[ff];
+      if (enemy === 0) continue;
+      /* Any enemy pawn on an adjacent file that is still ahead of us blocks
+       * the pass. `fileBlackPawn` is stored negative; compare ranks via the
+       * pawn's own progress instead of scanning the file again. */
+      const eSign = white ? -1 : 1;
+      const behind = white ? eSign < 0 : eSign > 0;
+      if (behind) { passed = false; break; }
+    }
+    if (!passed) continue;
+    /* Rank bonus: the closer to promotion, the more it is worth. */
+    const advance = white ? (6 - r) : (r - 1);
+    if (advance < 0) continue;
+    const bonus = [0, 8, 14, 24, 42, 70, 120][advance];
+    score += white ? bonus : -bonus;
+  }
+
+  /* ---------------- Rook activity ---------------- *
+   * Rooks belong on open files and on the seventh rank. Both terms are cheap
+   * and both correlate strongly with won endgames. */
+  for (let i = 0; i < 64; i++) {
+    const p = b[i];
+    if (!p || typeOf(p) !== ROOK) continue;
+    const white = colorOf(p) === 119;
+    const r = i >> 3;
+    if (white && r === 1) score += 22;        /* white rook on rank 7 */
+    if (!white && r === 6) score -= 22;       /* black rook on rank 2 */
+  }
+
+  /* ---------------- King tropism in the endgame ---------------- *
+   * With few pieces left the kings should walk toward the enemy king and the
+   * passed pawns. Without this the engine shuffles instead of converting a
+   * won K+P ending. */
+  if (totalMaterial < 2200 && wK >= 0 && bK >= 0) {
+    const wd = Math.abs((wK >> 3) - (bK >> 3)) + Math.abs((wK & 7) - (bK & 7));
+    score += (14 - wd) * 3;
+    const bd = wd; /* symmetric distance */
+    score -= (14 - bd) * 3;
+  }
+
+  /* King-safety: pawn shield around king (counts friendly pawns on ranks 1-2 in front
   // of the king's file, and penalises open files / neighbour enemy pawns).
   function kingSafety(kSq, isWhite) {
     if (kSq < 0) return 0;
@@ -822,16 +1112,27 @@ Search.prototype.evaluate = function () {
   return this.pos.turn === 'w' ? score : -score;
 };
 
-/* Order moves: promotions and captures by MVV-LVA, then killers, then history. */
+/* Order moves: promotions and captures by MVV-LVA, then killers, then history.
+ * When the SEE is enabled the capture score is adjusted by the static exchange
+ * result so that a losing capture is searched last instead of first. */
 Search.prototype.scoreMoves = function (moves) {
   const b = this.pos.board;
   const killers = this.killers[0];
+  const useSee = this.cfg.see;
   for (let i = 0; i < moves.length; i++) {
     const m = moves[i];
     const victim = b[m.to];
     let s = 0;
-    if (victim) s = 1000 + VALUE[typeOf(victim)] * 10 - VALUE[typeOf(b[m.from])];
-    else if (m.ep >= 0) s = 1000 + VALUE[PAWN] * 10 - VALUE[PAWN];
+    if (victim) {
+      s = 1000 + VALUE[typeOf(victim)] * 10 - VALUE[typeOf(b[m.from])];
+      if (useSee) {
+        const see = this.see(m);
+        if (see < 0) s -= 700 + (-see);   /* demote losing captures hard */
+        else s += see;
+      }
+    } else if (m.ep >= 0) {
+      s = 1000 + VALUE[PAWN] * 10 - VALUE[PAWN];
+    }
     if (m.promo) s += 800 + VALUE[m.promo];
     if (m.castle) s += 40;
     if (s === 0) {
@@ -858,7 +1159,11 @@ Search.prototype.quiesce = function (alpha, beta, depth) {
   const me = this.pos.turn;
   for (let i = 0; i < raw.length; i++) {
     const m = raw[i];
-    if (b[m.to] || m.ep >= 0 || m.promo) caps.push(m);
+    if (b[m.to] || m.ep >= 0 || m.promo) {
+      /* Skip the obviously losing captures before they ever reach the tree. */
+      if (this.cfg.see && !m.promo && this.see(m) < -60) continue;
+      caps.push(m);
+    }
   }
   this.scoreMoves(caps);
 
@@ -906,6 +1211,20 @@ Search.prototype.negamax = function (depth, alpha, beta, ply, isPv) {
   if (!moves.length) {
     /* Checkmate is scored by distance so the engine prefers faster mates. */
     return this.pos.inCheck(me) ? -(MATE - ply) : 0;
+  }
+
+  /* ---------------- Futility pruning (hard/master only) ---------------- *
+   * At shallow depth, if the static score is far below alpha and the position
+   * is quiet, no quiet move is likely to rescue it. Returning the static score
+   * immediately saves a whole subtree. Only applied when we are not in check
+   * and the move list contains no forcing move. */
+  if (this.cfg.see && depth <= 2 && !isPv && !this.pos.inCheck(me)
+      && Math.abs(beta) < MATE - 200) {
+    const staticEval = this.evaluate();
+    const margin = 120 * depth;
+    if (staticEval + margin <= alpha) {
+      return staticEval;
+    }
   }
 
   this.scoreMoves(moves);
@@ -993,10 +1312,78 @@ Search.prototype.negamax = function (depth, alpha, beta, ply, isPv) {
 };
 
 /*
+ * Opening book lookup. Returns a legal move from BOOK when the position is
+ * recognisable as an opening, otherwise null. The candidate is always
+ * cross-checked against the legal move list, so the book can never emit an
+ * illegal move even if a table entry is wrong.
+ */
+Search.prototype.tryBook = function (legalMoves) {
+  if (!this.cfg.book) return null;
+  /* Only the side playing Black uses the book in practice (the opening move
+   * 1.e4/1.d4/1.Nf3/1.c4 has already been made), but the logic is symmetric. */
+  const b = this.pos.board;
+
+  /* Bail out of book if any capture has happened or too many pieces moved. */
+  let occupied = 0;
+  for (let i = 0; i < 64; i++) if (b[i]) occupied++;
+  if (occupied < 30) return null;
+
+  /* Identify White's first move (the only pawn missing from its home rank). */
+  const homeWhitePawn = [48, 49, 50, 51, 52, 53, 54, 55];
+  const homeBlackPawn = [8, 9, 10, 11, 12, 13, 14, 15];
+  let whiteMoved = -1, blackMoved = -1;
+  for (let f = 0; f < 8; f++) {
+    if (!b[homeWhitePawn[f]]) whiteMoved = f;
+    if (!b[homeBlackPawn[f]]) blackMoved = f;
+  }
+  if (whiteMoved < 0) return null;
+
+  /* Who has moved how many pieces? If Black has already answered, look up the
+   * combined key instead of the single-move key. */
+  const wPiece = b[homeWhitePawn[whiteMoved] > -1 ? whiteMoved : 0];
+
+  /* Names for the eight first moves we support. */
+  const FILE_NAMES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  const firstMoveName = FILE_NAMES[whiteMoved] + '4'; /* first pawn moves are all 2 squares */
+
+  let candidates = BOOK[firstMoveName];
+  if (!candidates) return null;
+
+  /* If Black has already replied, use the two-move key (e.g. 'e4e5'). */
+  if (blackMoved >= 0) {
+    const replyName = FILE_NAMES[blackMoved] + '5';
+    const combined = BOOK[firstMoveName + replyName];
+    if (combined) candidates = combined;
+    else candidates = null;
+  }
+  if (!candidates) return null;
+
+  /* Pick a candidate that exists in the legal move list; randomise between
+   * alternatives so games do not repeat. */
+  const legal = [];
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i];
+    for (let j = 0; j < legalMoves.length; j++) {
+      const m = legalMoves[j];
+      if (m.from === c[0] && m.to === c[1]) { legal.push(m); break; }
+    }
+  }
+  if (!legal.length) return null;
+  return legal[Math.floor(Math.random() * legal.length)];
+};
+
+/*
  * Iterative deepening at the root. Returns the chosen move plus diagnostics.
  * The search respects `cfg.timeMs`, so the caller can safely run it on the UI
  * thread as long as the budget stays within a couple of hundred milliseconds
  * for the easier levels.
+ *
+ * Root search uses:
+ *   - Principal Variation Search (first move full window, siblings null-window
+ *     then re-searched only on a fail-high)
+ *   - Aspiration windows: each iteration starts with a narrow window around the
+ *     previous score and widens on failure, which prunes far more than an
+ *     open window once the score is stable.
  */
 Search.prototype.chooseMove = function (board, turn, castling, ep, halfmove) {
   this.reset();
@@ -1007,54 +1394,92 @@ Search.prototype.chooseMove = function (board, turn, castling, ep, halfmove) {
   if (!roots.length) return null;
   if (roots.length === 1) return roots[0];
 
+  /* Opening book: play instantly when the position is still in theory. */
+  const bookMove = this.tryBook(roots);
+  if (bookMove) return bookMove;
+
   this.scoreMoves(roots);
 
   let bestMove = roots[0];
   let lastScore = 0;
+  let haveScore = false;
 
   for (let d = 1; d <= this.cfg.depth; d++) {
-    let alpha = -INF;
+    /* Narrow the window when the previous iteration produced a score we trust;
+     * widen it progressively on a fail-high / fail-low. */
+    let window = this.cfg.aspire ? 35 : INF;
+    let alpha, beta;
+    if (this.cfg.aspire && haveScore) {
+      alpha = lastScore - window;
+      beta  = lastScore + window;
+    } else {
+      alpha = -INF;
+      beta  = INF;
+    }
+
     let localBest = null;
     let localScore = -INF;
     let completed = true;
+    let sawFailLow = false;
 
-    for (let i = 0; i < roots.length; i++) {
-      const m = roots[i];
-      const undo = this.pos.make(m);
-      /* Full window on the first move of the iteration, then a null-window
-       * probe. The beta passed down must be -alpha, not -INF: passing -INF
-       * gives the child a window so wide that scores come back unpruned and
-       * the root cannot tell a real improvement from a fail-low. */
-      let score;
-      if (i === 0) {
-        score = -this.negamax(d - 1, -INF, INF, 1, true);
-      } else {
-        score = -this.negamax(d - 1, -alpha - 1, -alpha, 1, false);
-        if (score > alpha && score < INF) {
-          /* Re-search with the full window when the probe beat alpha. */
-          score = -this.negamax(d - 1, -INF, -alpha, 1, true);
+    for (let attempt = 0; attempt < 6; attempt++) {
+      localBest = null;
+      localScore = -INF;
+      let curAlpha = alpha;
+      let failed = false;
+
+      for (let i = 0; i < roots.length; i++) {
+        const m = roots[i];
+        const undo = this.pos.make(m);
+        let score;
+        /* PVS: search the first move with the full window; every other move
+         * gets a null-window probe and is re-searched only when it beats alpha. */
+        if (i === 0 || !this.cfg.pvs) {
+          score = -this.negamax(d - 1, -beta, -curAlpha, 1, true);
+        } else {
+          score = -this.negamax(d - 1, -curAlpha - 1, -curAlpha, 1, false);
+          if (score > curAlpha && score < beta) {
+            score = -this.negamax(d - 1, -beta, -curAlpha, 1, true);
+          }
         }
-      }
-      this.pos.unmake(undo);
+        this.pos.unmake(undo);
 
-      if (this.aborted) { completed = false; break; }
+        if (this.aborted) { completed = false; break; }
 
-      if (score > localScore) {
-        localScore = score;
-        localBest = m;
-        if (score > alpha) alpha = score;
+        if (score > localScore) {
+          localScore = score;
+          localBest = m;
+          if (score > curAlpha) curAlpha = score;
+        }
+        /* A score at or above beta means the window was too narrow. */
+        if (score >= beta) { failed = true; break; }
       }
+
+      if (!completed) break;
+
+      if (!failed && localScore > -INF) {
+        /* Window held — accept the result. */
+        alpha = localScore;
+        beta = localScore + 1;
+        break;
+      }
+      /* Widen and retry. */
+      if (localScore <= alpha) { sawFailLow = true; window *= 3; alpha = localScore - window; }
+      if (localScore >= beta) { window *= 3; beta = localScore + window; }
+      if (window > INF) { alpha = -INF; beta = INF; }
     }
 
-    if (completed && localBest) {
+    if (!completed) break;
+
+    if (localBest) {
       bestMove = localBest;
       lastScore = localScore;
+      haveScore = true;
       /* Bubble the best move to the front so the next iteration prunes sooner. */
       const idx = roots.indexOf(localBest);
       if (idx > 0) { roots.splice(idx, 1); roots.unshift(localBest); }
     }
 
-    if (!completed) break;
     /* Stop early when a forced mate has been found. */
     if (localScore > MATE - 200 || localScore < -(MATE - 200)) break;
     if (Date.now() > this.deadline) break;

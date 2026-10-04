@@ -2,31 +2,31 @@
   <div class="setup">
     <div class="head">
       <text class="back" @click="goBack">‹</text>
-      <text class="title">{{step===1 ? '选择对局模式' : '用时设置'}}</text>
+      <text class="title">{{stepTitle}}</text>
     </div>
 
     <div class="pane" if="{{step===1}}">
       <div class="card" style="background-color:{{mode==='two'?'#0D6EFF':'#24262B'}};color:{{mode==='two'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickMode('two')">
-        <text class="cardTitle">双人对弈</text>
-        <text class="cardDesc">两人轮流走子</text>
+        <text class="cardTitle">{{modeTwoLabel}}</text>
+        <text class="cardDesc">{{modeTwoDesc}}</text>
       </div>
       <div class="card" style="background-color:{{mode==='ai'?'#0D6EFF':'#24262B'}};color:{{mode==='ai'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickMode('ai')">
-        <text class="cardTitle">人机对战</text>
-        <text class="cardDesc">与内置 AI 对弈</text>
+        <text class="cardTitle">{{modeAiLabel}}</text>
+        <text class="cardDesc">{{modeAiDesc}}</text>
       </div>
     </div>
 
     <div class="pane" if="{{step===2}}">
       <div class="row" if="{{mode==='ai'}}">
-        <text class="rowLabel">我执</text>
+        <text class="rowLabel">{{sideLabel}}</text>
         <div class="sideRow">
-          <text class="side" style="background-color:{{mySide==='white'?'#0D6EFF':'#24262B'}};color:{{mySide==='white'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickSide('white')">白方</text>
-          <text class="side" style="background-color:{{mySide==='black'?'#0D6EFF':'#24262B'}};color:{{mySide==='black'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickSide('black')">黑方</text>
+          <text class="side" style="background-color:{{mySide==='white'?'#0D6EFF':'#24262B'}};color:{{mySide==='white'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickSide('white')">{{sideWhiteLabel}}</text>
+          <text class="side" style="background-color:{{mySide==='black'?'#0D6EFF':'#24262B'}};color:{{mySide==='black'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickSide('black')">{{sideBlackLabel}}</text>
         </div>
       </div>
 
       <div class="row">
-        <text class="rowLabel">每方时长</text>
+        <text class="rowLabel">{{minutesLabel0}}</text>
         <div class="stepper">
           <text class="stepBtn" @touchend="decMinutes">−</text>
           <text class="stepVal" style="background-color:{{!unlimited?'#0D6EFF':'#24262B'}};color:{{!unlimited?'#FFFFFF':'#C9CDD4'}};" @touchend="toggleUnlimited">{{minutesLabel}}</text>
@@ -35,7 +35,7 @@
       </div>
 
       <div class="row" if="{{!unlimited}}">
-        <text class="rowLabel">每步加秒</text>
+        <text class="rowLabel">{{incrementLabel0}}</text>
         <div class="stepper">
           <text class="stepBtn" @touchend="decIncrement">−</text>
           <text class="stepVal">{{incrementLabel}}</text>
@@ -43,28 +43,19 @@
         </div>
       </div>
 
-      <div class="row">
-        <text class="rowLabel">棋盘大小</text>
-        <div class="segRow">
-          <text class="seg" style="background-color:{{boardSize==='放大'?'#0D6EFF':'#24262B'}};color:{{boardSize==='放大'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickBoard('放大')">放大</text>
-          <text class="seg" style="background-color:{{boardSize==='标准'?'#0D6EFF':'#24262B'}};color:{{boardSize==='标准'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickBoard('标准')">标准</text>
-          <text class="seg" style="background-color:{{boardSize==='紧凑'?'#0D6EFF':'#24262B'}};color:{{boardSize==='紧凑'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickBoard('紧凑')">紧凑</text>
-        </div>
-      </div>
-
       <div class="row" if="{{mode==='ai'}}">
-        <text class="rowLabel">AI 难度</text>
+        <text class="rowLabel">{{levelLabel}}</text>
         <div class="segRow">
-          <text class="seg lv" style="background-color:{{aiLevel==='easy'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='easy'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('easy')">简单</text>
-          <text class="seg lv" style="background-color:{{aiLevel==='normal'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='normal'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('normal')">普通</text>
-          <text class="seg lv" style="background-color:{{aiLevel==='hard'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='hard'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('hard')">困难</text>
-          <text class="seg lv" style="background-color:{{aiLevel==='master'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='master'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('master')">大师</text>
+          <text class="seg lv" style="background-color:{{aiLevel==='easy'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='easy'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('easy')">{{lvEasyShort}}</text>
+          <text class="seg lv" style="background-color:{{aiLevel==='normal'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='normal'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('normal')">{{lvNormalShort}}</text>
+          <text class="seg lv" style="background-color:{{aiLevel==='hard'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='hard'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('hard')">{{lvHardShort}}</text>
+          <text class="seg lv" style="background-color:{{aiLevel==='master'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='master'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('master')">{{lvMasterShort}}</text>
         </div>
       </div>
     </div>
 
-    <text class="start" if="{{step===1}}" @touchend="goStep2">下一步</text>
-    <text class="start" if="{{step===2}}" @touchend="start">开始下棋</text>
+    <text class="start" if="{{step===1}}" @touchend="goStep2">{{nextLabel}}</text>
+    <text class="start" if="{{step===2}}" @touchend="start">{{startLabel}}</text>
   </div>
 </template>
 <style>
@@ -97,30 +88,51 @@
 <script>
 import router from '@system.router';
 import storage from '@system.storage';
+import configuration from '@system.configuration';
+import { tr, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 export default {
-  data: { step:1, mode:'two', mySide:'white', aiLevel:'normal', minutes:10, increment:0, boardSize:'标准' },
-  computed: {
-    unlimited(){ return this.minutes === 0; },
-    minutesLabel(){ return this.minutes === 0 ? '无限制' : this.minutes + ' 分钟'; },
-    incrementLabel(){ return this.increment + ' 秒'; }
-  },
-  onInit(){ this.loadSettings(); },
-  onShow(){ this.loadSettings(); },
-  loadBoardSize(){
-    storage.get({key:'CHESS_SETTINGS',success:(r)=>{
+  tr(k){ return tr(k); },
+  applyLang(){
+    try{ const loc = configuration.getLocale(); setSystemLang(loc && loc.language === 'zh' ? 'zh' : 'en'); }catch(e){ setSystemLang('en'); }
+    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
       try{
-        const raw=r&&r.data!==undefined?r.data:r;
-        const v=typeof raw==='string'?JSON.parse(raw):raw;
-        this.boardSize = v&&v.boardSize ? v.boardSize : '标准';
-      }catch(e){ this.boardSize='标准'; }
-    },fail:()=>{ this.boardSize='标准'; }});
+        const raw=data&&data.data!==undefined?data.data:data;
+        const v=(raw===undefined||raw===null||raw==='')?null:(typeof raw==='string'?JSON.parse(raw):raw);
+        setLang(resolveLang(v&&v.langMode, configuration.getLocale().language==='zh'?'zh':'en'));
+      }catch(e){ setLang('system'); }
+      this.langTick=(this.langTick||0)+1;
+    },fail:()=>{ setLang('system'); this.langTick=(this.langTick||0)+1; }});
   },
-  loadSettings(){ this.loadBoardSize(); },
+  data: { step:1, mode:'two', mySide:'white', aiLevel:'normal', minutes:10, increment:0, langTick:0 },
+  computed: {
+    stepTitle(){ this.langTick; return this.step===1 ? tr('setup.step1Title') : tr('setup.step2Title'); },
+    modeTwoLabel(){ this.langTick; return tr('setup.modeTwo'); },
+    modeTwoDesc(){ this.langTick; return tr('setup.modeTwoDesc'); },
+    modeAiLabel(){ this.langTick; return tr('setup.modeAi'); },
+    modeAiDesc(){ this.langTick; return tr('setup.modeAiDesc'); },
+    sideLabel(){ this.langTick; return tr('setup.sideLabel'); },
+    sideWhiteLabel(){ this.langTick; return tr('setup.sideWhite'); },
+    sideBlackLabel(){ this.langTick; return tr('setup.sideBlack'); },
+    minutesLabel0(){ this.langTick; return tr('setup.minutesLabel'); },
+    incrementLabel0(){ this.langTick; return tr('setup.incrementLabel'); },
+    levelLabel(){ this.langTick; return tr('setup.levelLabel'); },
+    lvEasyShort(){ this.langTick; return tr('setup.levelEasyShort'); },
+    lvNormalShort(){ this.langTick; return tr('setup.levelNormalShort'); },
+    lvHardShort(){ this.langTick; return tr('setup.levelHardShort'); },
+    lvMasterShort(){ this.langTick; return tr('setup.levelMasterShort'); },
+    nextLabel(){ this.langTick; return tr('setup.next'); },
+    startLabel(){ this.langTick; return tr('setup.start'); },
+    unlimited(){ return this.minutes === 0; },
+    minutesLabel(){ this.langTick; return this.minutes === 0 ? tr('setup.minutesInf') : this.minutes + ' ' + tr('setup.minutesUnit'); },
+    incrementLabel(){ this.langTick; return this.increment + ' ' + tr('setup.incrementUnit'); }
+  },
+  onInit(){ this.applyLang(); this.loadSettings(); },
+  onShow(){ this.applyLang(); this.loadSettings(); },
+  loadSettings(){ /* board size now lives on the Settings page */ },
   goBack(){ if(this.step===2){ this.step=1; } else { router.back(); } },
   pickMode(m){ this.mode = m; },
   pickSide(s){ this.mySide = s; },
   pickLevel(l){ this.aiLevel = l; },
-  pickBoard(b){ this.boardSize = b; },
   incMinutes(){ if(this.minutes===0){ this.minutes=1; } else if(this.minutes<10){ this.minutes+=1; } else if(this.minutes<60){ this.minutes+=5; } },
   decMinutes(){ if(this.minutes<=1){ this.minutes=0; } else if(this.minutes<=10){ this.minutes-=1; } else { this.minutes-=5; } },
   toggleUnlimited(){ this.minutes = this.minutes === 0 ? 10 : 0; },
@@ -129,12 +141,10 @@ export default {
   goStep2(){ this.step=2; },
   start(){
     const unlimited = this.minutes === 0;
-    const size = this.boardSize==='放大' ? '44' : (this.boardSize==='紧凑' ? '24' : '30');
     router.push({uri:'/pages/game',params:{
       minutes: String(unlimited ? 0 : this.minutes),
       increment: String(unlimited ? 0 : this.increment),
       unlimited: unlimited ? 'true' : 'false',
-      boardSize: size,
       resume: 'false',
       aiMode: this.mode==='ai' ? 'true' : 'false',
       aiLevel: this.aiLevel,

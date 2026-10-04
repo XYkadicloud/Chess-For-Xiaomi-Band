@@ -1,32 +1,110 @@
 <template>
   <div class="settingsPage">
-    <div class="header"><text class="back" @click="back">‹</text><text class="headerTitle">下棋设置</text></div>
-    <div class="setting" @click="toggleAuto"><text class="settingName">选中后自动居中</text><text class="settingValue">{{autoCenter?'开启':'关闭'}}</text></div>
-    <div class="setting" @click="cycleBoard"><text class="settingName">棋盘大小</text><text class="settingValue">{{boardSize}}</text></div>
-    <text class="footer" @click="back">完成</text>
+    <div class="header">
+      <text class="back" @click="back">‹</text>
+      <text class="headerTitle">{{title}}</text>
+    </div>
+
+    <div class="setting" @click="toggleAuto">
+      <text class="settingName">{{autoLabel}}</text>
+      <text class="settingValue">{{autoValue}}</text>
+    </div>
+
+    <div class="setting" @click="cycleBoard">
+      <text class="settingName">{{boardTitle}}</text>
+      <text class="settingValue">{{boardLabel}}</text>
+    </div>
+
+    <div class="setting" @click="cycleLanguage">
+      <text class="settingName">{{langTitle}}</text>
+      <text class="settingValue">{{langLabel}}</text>
+    </div>
+
+    <text class="footer" @click="back">{{doneLabel}}</text>
   </div>
 </template>
 <style>
 .settingsPage { width:192dp; height:490dp; background-color:#000000; padding:18dp 12dp; flex-direction:column; }
 .header { width:168dp; height:48dp; flex-direction:row; align-items:center; margin-bottom:12dp; }
 .back { color:#FFFFFF; font-size:30dp; width:32dp; text-align:center; height:40dp; line-height:40dp; }
-.headerTitle { color:#FFFFFF; font-size:22dp; font-weight:bold; }
+.headerTitle { color:#FFFFFF; font-size:22dp; font-weight:bold; line-height:40dp; }
 .setting { width:168dp; min-height:54dp; border-radius:18dp; background-color:#252828; margin-bottom:8dp; padding:0 14dp; flex-direction:row; align-items:center; justify-content:space-between; }
-.settingName { color:#FFFFFF; font-size:17dp; lines:1; }
-.settingValue { color:#4EA1FF; font-size:15dp; }
+.settingName { color:#FFFFFF; font-size:17dp; line-height:24dp; }
+.settingValue { color:#4EA1FF; font-size:15dp; line-height:24dp; }
 .footer { width:168dp; height:44dp; border-radius:22dp; background-color:#0D6EFF; color:#FFFFFF; text-align:center; line-height:44dp; font-size:18dp; margin-top:12dp; }
 </style>
 <script>
 import router from '@system.router';
 import storage from '@system.storage';
+import configuration from '@system.configuration';
+import { tr, setLang, setSystemLang } from '../../common/js/strings.js';
+
+/* Language modes, in the order the row cycles through them. */
+const LANG_MODES = ['system', 'zh', 'en'];
+
 export default {
-  data:{autoCenter:true,boardSize:'标准'},
-  onInit(){this.load();},
-  onShow(){this.load();},
-  load(){storage.get({key:'CHESS_SETTINGS',success:(data)=>{try{const raw=data&&data.data!==undefined?data.data:data;if(raw===undefined||raw===null||raw==='')return;const v=typeof raw==='string'?JSON.parse(raw):raw;this.autoCenter=v.autoCenter!==false;this.boardSize=v.boardSize||'标准';}catch(e){}},fail:()=>{}});},
-  save(){storage.set({key:'CHESS_SETTINGS',value:JSON.stringify({autoCenter:this.autoCenter,boardSize:this.boardSize})});},
+  data:{ autoCenter:true, boardSize:'standard', langMode:'system', langTick:0 },
+  computed:{
+    title(){ this.langTick; return tr('settings.title'); },
+    autoLabel(){ this.langTick; return tr('settings.autoCenter'); },
+    autoValue(){ this.langTick; return this.autoCenter ? tr('settings.on') : tr('settings.off'); },
+    boardTitle(){ this.langTick; return tr('settings.boardSize'); },
+    langTitle(){ this.langTick; return tr('settings.language'); },
+    doneLabel(){ this.langTick; return tr('app.done'); },
+    /* boardSize is stored as a stable key ('standard'|'large'|'compact') and
+     * only localised for display, so switching language never corrupts it. */
+    boardLabel(){
+      this.langTick;
+      const m = { standard:'settings.boardStandard', large:'settings.boardLarge', compact:'settings.boardCompact' };
+      return tr(m[this.boardSize] || 'settings.boardStandard');
+    },
+    langLabel(){
+      this.langTick;
+      const m = { system:'settings.langSystem', zh:'settings.langChinese', en:'settings.langEnglish' };
+      return tr(m[this.langMode] || 'settings.langSystem');
+    }
+  },
+  onInit(){ this.load(); this.applySystemLang(); },
+  onShow(){ this.load(); this.applySystemLang(); },
+  /* React to the user changing the band's own language. When the preference is
+   * 'system' the whole UI must follow, so we recompute and re-render. */
+  onConfigurationChanged(event){
+    if (event && event.type === 'locale') { this.applySystemLang(); this.langTick++; }
+  },
+  applySystemLang(){
+    try {
+      const loc = configuration.getLocale();
+      setSystemLang(loc && loc.language === 'zh' ? 'zh' : 'en');
+    } catch(e){ setSystemLang('en'); }
+    setLang(this.langMode);
+  },
+  load(){
+    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
+      try{
+        const raw=data&&data.data!==undefined?data.data:data;
+        if(raw===undefined||raw===null||raw==='')return;
+        const v=typeof raw==='string'?JSON.parse(raw):raw;
+        this.autoCenter=v.autoCenter!==false;
+        this.boardSize=v.boardSize||'standard';
+        this.langMode=v.langMode||'system';
+        this.applySystemLang();
+        this.langTick++;
+      }catch(e){}
+    },fail:()=>{}});
+  },
+  save(){storage.set({key:'CHESS_SETTINGS',value:JSON.stringify({autoCenter:this.autoCenter,boardSize:this.boardSize,langMode:this.langMode})});},
   back(){this.save();router.back();},
   toggleAuto(){this.autoCenter=!this.autoCenter;this.save();},
-  cycleBoard(){this.boardSize=this.boardSize==='标准'?'放大':(this.boardSize==='放大'?'紧凑':'标准');this.save();}
+  cycleBoard(){
+    this.boardSize = this.boardSize==='large' ? 'compact' : (this.boardSize==='compact' ? 'standard' : 'large');
+    this.save();
+  },
+  cycleLanguage(){
+    const i = LANG_MODES.indexOf(this.langMode);
+    this.langMode = LANG_MODES[(i + 1) % LANG_MODES.length];
+    setLang(this.langMode);
+    this.langTick++;
+    this.save();
+  }
 }
 </script>

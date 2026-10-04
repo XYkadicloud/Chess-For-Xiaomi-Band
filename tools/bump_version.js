@@ -5,16 +5,17 @@
  *
  * The About page used to hardcode `版本 1.0` / `Version 1.0`, so it never
  * reflected the real version. This tool is the single source of truth: it
- * rewrites both the manifest and the About page text in one atomic, idempotent
- * pass across all six device/language trees.
+ * rewrites the manifest, and the version label is now supplied by i18n
+ * (src/i18n/*.json `about.version`) rather than being baked into the template.
+ *
+ * After the language merge each device keeps ONE tree (source/chinese), so the
+ * rewrite is a 3-tree pass, idempotent and byte-stable.
  *
  * Usage:
  *   node tools/bump_version.js                  # code +1, name patch +1
  *   node tools/bump_version.js --name 1.2.0     # set versionName, leave code
  *   node tools/bump_version.js --code auto       # code = current + 1, name as-is
  *   node tools/bump_version.js --name 1.2.0 --code 102
- *
- * About page shows major.minor (e.g. "1.2") to match the original "1.0" style.
  *
  * Idempotent: a no-op when the file already matches; writes are byte-stable.
  */
@@ -26,11 +27,8 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const TREES = [
   'devices/xiaomi-band-9/source/chinese',
-  'devices/xiaomi-band-9/source/english',
   'devices/xiaomi-band-9-pro/source/chinese',
-  'devices/xiaomi-band-9-pro/source/english',
   'devices/xiaomi-band-10/source/chinese',
-  'devices/xiaomi-band-10/source/english',
 ];
 
 function parseArgs(argv) {
@@ -75,6 +73,26 @@ function updateAbout(uxPath, name) {
   return next;
 }
 
+/*
+ * The version label is no longer written into about.ux — the template binds
+ * `{{versionText}}` and the page composes it from the i18n `about.version`
+ * key. Keeping the number out of the template means one place to change and no
+ * language-specific branches.
+ *
+ * scripts/update must keep this in sync with tools/build_i18n.js, which owns
+ * the string table. The version key is special-cased here because it is the
+ * only string derived from the manifest rather than hand-written.
+ */
+function updateI18nVersion(file, label) {
+  if (!fs.existsSync(file)) return false;
+  let s = fs.readFileSync(file, 'utf8');
+  const re = /("version"\s*:\s*")[^"]*(")/;
+  if (!re.test(s)) return false;
+  const next = s.replace(re, '$1' + label + '$2');
+  if (next !== s) { fs.writeFileSync(file, next); return true; }
+  return false;
+}
+
 function main() {
   const args = parseArgs(process.argv);
   const refManifest = path.join(ROOT, TREES[0], 'src/manifest.json');
@@ -93,17 +111,14 @@ function main() {
   else if (args.code !== undefined) newCode = parseInt(args.code, 10);
   else newCode = cur.code + 1; // default: code +1
 
+  const label = `${String(newName).split('.')[0] || '1'}.${String(newName).split('.')[1] || '0'}`;
+
   let changed = 0;
   for (const t of TREES) {
     const manifestPath = path.join(ROOT, t, 'src/manifest.json');
-    const uxPath = path.join(ROOT, t, 'src/pages/about/about.ux');
     if (!fs.existsSync(manifestPath)) continue;
 
     const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    const major = String(newName).split('.')[0] || '1';
-    const minor = String(newName).split('.')[1] || '0';
-    const label = `${major}.${minor}`;
-
     if (m.versionName !== newName || m.versionCode !== newCode) {
       m.versionName = newName;
       m.versionCode = newCode;
@@ -111,18 +126,17 @@ function main() {
       changed++;
     }
 
-    if (fs.existsSync(uxPath)) {
-      let s = fs.readFileSync(uxPath, 'utf8');
-      const isZh = /版本/.test(s);
-      const re = /(<text class="version">)[^<]*(<\/text>)/;
-      const wanted = isZh ? `版本 ${label}` : `Version ${label}`;
-      if (re.test(s)) {
-        const updated = s.replace(re, `$1${wanted}$2`);
-        if (updated !== s) {
-          fs.writeFileSync(uxPath, updated);
-          changed++;
-        }
-      }
+    /* The canonical i18n files at the repo root plus the per-device copies. */
+    const i18nTargets = [
+      `src/i18n/zh-CN.json`,
+      `src/i18n/en-US.json`,
+      `src/i18n/defaults.json`,
+      `${t}/src/i18n/zh-CN.json`,
+      `${t}/src/i18n/en-US.json`,
+      `${t}/src/i18n/defaults.json`
+    ];
+    for (const rel of i18nTargets) {
+      if (updateI18nVersion(path.join(ROOT, rel), label)) changed++;
     }
   }
 

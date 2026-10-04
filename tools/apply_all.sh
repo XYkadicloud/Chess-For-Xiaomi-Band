@@ -42,28 +42,40 @@ echo "== 0c. icon: shrink artwork to ~60% canvas so the launcher slot reads even
 "$PYTHON" tools/fix_icon_padding.py | tail -1
 
 echo "== 1. sync shared engine =="
+# ONE tree per device now. The English build was folded into the Chinese tree
+# and the language is chosen at runtime (device locale + a Settings override),
+# so there is no longer a per-language copy to keep in sync.
 for d in devices/xiaomi-band-9 devices/xiaomi-band-9-pro devices/xiaomi-band-10; do
-  for l in chinese english; do
-    mkdir -p "$d/source/$l/src/common/js"
-    cp src/common/js/ai.js "$d/source/$l/src/common/js/ai.js"
-  done
+  mkdir -p "$d/source/chinese/src/common/js"
+  cp src/common/js/ai.js "$d/source/chinese/src/common/js/ai.js"
 done
-echo "   engine copied to 6 trees"
+echo "   engine copied to 3 trees"
+
+echo "== 1b. i18n strings (single source of truth: tools/build_i18n.js) =="
+"$NODE" tools/build_i18n.js | tail -1
 
 echo "== 2. patch game.ux =="
 "$NODE" tools/integrate_ai.js
 
 echo "== 3. generate setup.ux (two-screen wizard) =="
-"$NODE" tools/build_setup_page.js
+"$NODE" tools/build_setup_page.js | tail -1
 
-echo "== 3b. game menu: drop 'new game', add 'end game' =="
-"$NODE" tools/add_end_game_menu.js | tail -1
+echo "== 3b. (retired) new-game/end-game menu rows now in the page generator =="
+# add_end_game_menu.js matched the Chinese literals 新建棋局 / 结束对局, which are
+# now tr() bindings. The merged game page already renders an endGame row and
+# only uses newGame from the result overlay ("再来一局"), so the patch has
+# nothing left to do.
+echo "   skipped (superseded by the i18n table)"
 
 echo "== 3c. clock layout: bigger time on Band 9 / Band 10 (skip Band 9 Pro) =="
 "$NODE" tools/fix_band9_band10_clock.js | tail -1
 
-echo "== 4. refresh user-facing copy =="
-"$NODE" tools/update_copy_ai.js
+echo "== 4. (retired) user-facing copy now lives in tools/build_i18n.js =="
+# update_copy_ai.js used to rewrite the About prose and drop the index subtitle.
+# Both strings are now entries in the i18n table (about.aboutAppBody, etc.) and
+# the subtitle is simply not part of the generator, so the old in-place patch
+# has nothing left to match and must not run here.
+echo "   skipped (superseded by the i18n table)"
 
 echo "== 5. fix text overflow =="
 "$NODE" tools/fix_text_overflow.js
@@ -74,9 +86,21 @@ echo "== 6. fix porting constants =="
 echo "== 7. give text nodes an explicit box (collapsed text is invisible) =="
 "$NODE" tools/fix_back_text.js | tail -1
 
+echo '== 8. merge English into the single tree (tr()/$t(), device-language aware) =='
+# MUST run after every page generator/patcher above: it rewrites the pages'
+# visible strings, so running it earlier would be undone.
+"$NODE" tools/merge_languages.js | tail -3
+
+echo "== 9. sync manifest features with the imports the pages actually use =="
+"$NODE" tools/fix_manifest_features.js | tail -1
+
 echo
 echo "== verification =="
+# Manifest first: a feature imported by a page but not declared here makes the
+# toolkit fail the build outright ("missing feature: system.configuration").
+"$NODE" tools/fix_manifest_features.js | tail -1
 "$NODE" tools/verify_handlers.js
+"$NODE" tools/verify_i18n.js | tail -1
 "$NODE" tools/verify_ai_engine.js | tail -3
 "$NODE" tools/verify_ai_integration.js | tail -3
 "$NODE" tools/verify_ai_first_move.js | tail -1
