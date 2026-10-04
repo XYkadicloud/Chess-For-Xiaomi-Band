@@ -38,9 +38,11 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# The backup lives OUTSIDE the repo so it can never be caught by `git add -A`
-# and so restoring is possible even if the working tree is destroyed.
-BACKUP_DIR="${CHESS_BACKUP_DIR:-$(cd .. && pwd)/backups}"
+# The backup lives OUTSIDE the repo — in its OWN dedicated folder — so
+# `git add -A` can never sweep it in, it survives a destroyed working tree, and
+# several projects can share one ../backups/ root without mixing.
+PROJECT="$(basename "$PWD")"
+BACKUP_DIR="${CHESS_BACKUP_DIR:-$(cd .. && pwd)/backups/$PROJECT}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$BACKUP_DIR/git" "$BACKUP_DIR/local" || exit 1
 
