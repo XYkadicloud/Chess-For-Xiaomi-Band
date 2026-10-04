@@ -30,3 +30,6 @@ _look_pieces/
 
 # Local assistant workspace state (daily notes, scratch). Not project source.
 .workbuddy-ai/
+
+# Throwaway visual/diagnostic dumps (regenerable, never source).
+_diag/

@@ -539,16 +539,28 @@ function gameRules() {
   return [
     /* ---- piece sizing ----
      *
-     * The pieces are 128x128 bitmaps but a square is only 24/30/44dp. A
-     * percentage width on <image> is not dependable here — every OTHER image
-     * in the app sizes in dp — and when it is ignored the bitmap renders at
-     * its native size, far larger than the square, overflowing the board and
-     * looking un-centered. Bind an explicit dp box derived from the current
-     * square size instead, so a piece always fits and stays centered. */
+     * The pieces are 128px bitmaps but a square is only 24/30/44dp. For
+     * <image>, "if width/height are not set it uses the image's ORIGINAL
+     * width/height" (Vela docs) — so a bitmap that fails to get a size renders
+     * at 128px and swamps the board. Two things were therefore made explicit:
+     *
+     *   1. the SIZE, in dp, from a computed (a percentage width is not
+     *      dependable here; every other image in the app sizes in dp);
+     *   2. the CENTERING, via absolute left/top offsets — we do NOT rely on the
+     *      parent being a flex container, because a mis-centred piece is
+     *      exactly what was reported.
+     *
+     * `.pieceImage` also carries a default size/offset in CSS: if an inline
+     * style is ever ignored, the piece is still ~one square big instead of
+     * 128px of overflow. */
     [/<image class="pieceImage" if="\{\{\$item\.pieceSrc\}\}" src="\{\{\$item\.pieceSrc\}\}"><\/image>/,
-     '<image class="pieceImage" if="{{$item.pieceSrc}}" src="{{$item.pieceSrc}}" style="width:{{pieceBox}}dp;height:{{pieceBox}}dp;"></image>', true],
+     '<image class="pieceImage" if="{{$item.pieceSrc}}" src="{{$item.pieceSrc}}" style="left:{{pieceOffset}}dp;top:{{pieceOffset}}dp;width:{{pieceBox}}dp;height:{{pieceBox}}dp;"></image>', true],
+    /* Repair the intermediate form an earlier rule produced (size only, no
+     * offset), so an already-patched tree converges in one pass. */
+    [/<image class="pieceImage" if="\{\{\$item\.pieceSrc\}\}" src="\{\{\$item\.pieceSrc\}\}" style="width:\{\{pieceBox\}\}dp;height:\{\{pieceBox\}\}dp;"><\/image>/,
+     '<image class="pieceImage" if="{{$item.pieceSrc}}" src="{{$item.pieceSrc}}" style="left:{{pieceOffset}}dp;top:{{pieceOffset}}dp;width:{{pieceBox}}dp;height:{{pieceBox}}dp;"></image>', true],
     [/\.pieceImage \{[^}]*\}/,
-     '.pieceImage { object-fit:contain; z-index:3; }', true],
+     '.pieceImage { position:absolute; left:2dp; top:2dp; width:26dp; height:26dp; object-fit:contain; z-index:3; }', true],
     /* ---- AI "thinking" feedback ----
      *
      * The engine can run for up to 10s at master level. Without feedback the
@@ -877,10 +889,16 @@ function gameScript(src, dev) {
   if (!/thinkingDots\s*\(\s*\)\s*\{/.test(out)) {
     out = out.replace(/(computed\s*:\s*\{)/, '$1\n' + COMPUTED);
   }
-  /* The piece image needs an explicit dp box (see gameRules). Kept separate
-   * from COMPUTED so it is also added to trees that already carry the labels. */
+  /* The piece image needs an explicit dp box + offset (see gameRules). Kept
+   * separate from COMPUTED so it is also added to trees that already carry the
+   * labels. The offset centres the piece by absolute positioning rather than
+   * relying on the parent's flex centering. */
   if (!/pieceBox\s*\(\)/.test(out)) {
     out = out.replace(/(computed\s*:\s*\{)/, '$1\n    pieceBox(){ return Math.round(this.squareSize * 0.9); },');
+  }
+  if (!/pieceOffset\s*\(\)/.test(out)) {
+    out = out.replace(/(computed\s*:\s*\{)/,
+      '$1\n    pieceOffset(){ const b = Math.round(this.squareSize * 0.9); return Math.max(0, Math.round((this.squareSize - b) / 2)); },');
   }
 
   /* ---- AI responsiveness ----

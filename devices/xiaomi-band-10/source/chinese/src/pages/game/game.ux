@@ -12,7 +12,7 @@
         <div class="square" for="{{squares}}"
              style="width:{{squareSize}}dp;height:{{squareSize}}dp;left:{{$item.x}}dp;top:{{$item.y}}dp;background-color:{{$item.color}};"
              @click="tapSquare($item.index)">
-          <image class="pieceImage" if="{{$item.pieceSrc}}" src="{{$item.pieceSrc}}" style="width:{{pieceBox}}dp;height:{{pieceBox}}dp;"></image>
+          <image class="pieceImage" if="{{$item.pieceSrc}}" src="{{$item.pieceSrc}}" style="left:{{pieceOffset}}dp;top:{{pieceOffset}}dp;width:{{pieceBox}}dp;height:{{pieceBox}}dp;"></image>
           <div class="selected" if="{{$item.selected}}"></div>
           <div class="lastMove" if="{{$item.lastMove}}"></div>
           <div class="legalDot" if="{{$item.legal}}"></div>
@@ -68,7 +68,7 @@
 .boardViewport { width:212dp; height:264dp; position:relative; overflow:hidden; background-color:#050505; }
 .board { position:absolute; }
 .square { position:absolute; justify-content:center; align-items:center; }
-.pieceImage { object-fit:contain; z-index:3; }
+.pieceImage { position:absolute; left:2dp; top:2dp; width:26dp; height:26dp; object-fit:contain; z-index:3; }
 .selected { position:absolute; left:2dp; top:2dp; right:2dp; bottom:2dp; border:3dp solid #0D6EFF; z-index:2; }
 .lastMove { position:absolute; left:0dp; top:0dp; right:0dp; bottom:0dp; background-color:rgba(255,149,0,0.32); z-index:1; }
 .legalDot { width:10dp; height:10dp; border-radius:5dp; background-color:#0D6EFF; position:absolute; z-index:4; }
@@ -117,6 +117,7 @@ export default {
     ranks: ['8','7','6','5','4','3','2','1']
   },
   computed: {
+    pieceOffset(){ const b = Math.round(this.squareSize * 0.9); return Math.max(0, Math.round((this.squareSize - b) / 2)); },
     whiteLabel(){ return this.$t('game.white'); },
     blackLabel(){ return this.$t('game.black'); },
     undoLabel(){ return this.$t('game.undo'); },

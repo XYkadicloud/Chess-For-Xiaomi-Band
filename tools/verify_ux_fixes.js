@@ -128,12 +128,16 @@ for (const [dev, geo] of Object.entries(DEVICES)) {
      * and when ignored the bitmap renders at native size and overflows. */
     if (/\.pieceImage \{[^}]*%/.test(g)) bad(dev + '/game: .pieceImage still sizes in %');
     else ok();
-    if (!/class="pieceImage"[^>]*style="width:\{\{pieceBox\}\}dp;height:\{\{pieceBox\}\}dp;"/.test(g)) {
-      bad(dev + '/game: piece image has no explicit dp box (pieceBox)');
+    if (!/class="pieceImage"[^>]*style="left:\{\{pieceOffset\}\}dp;top:\{\{pieceOffset\}\}dp;width:\{\{pieceBox\}\}dp;height:\{\{pieceBox\}\}dp;"/.test(g)) {
+      bad(dev + '/game: piece image has no explicit dp box + offset');
     } else ok();
     if (!/pieceBox\(\)\{[^}]*squareSize/.test(g)) bad(dev + '/game: pieceBox() does not derive from squareSize');
     else ok();
-    if (!/pieceBox\(\)\{[^}]*\* 0\.9/.test(g)) bad(dev + '/game: pieceBox() should be ~90% of the square');
+    if (!/pieceOffset\(\)\{[^}]*squareSize/.test(g)) bad(dev + '/game: pieceOffset() does not derive from squareSize');
+    else ok();
+    /* <image> with no width/height renders at the bitmap's NATIVE size (128px),
+     * so the CSS class must carry a sane fallback size as well. */
+    if (!/\.pieceImage \{[^}]*width:26dp/.test(g)) bad(dev + '/game: .pieceImage has no CSS size fallback');
     else ok();
   }
 
