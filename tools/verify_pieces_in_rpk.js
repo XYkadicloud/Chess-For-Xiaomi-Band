@@ -22,15 +22,33 @@ const crypto = require('crypto');
 const ROOT = path.resolve(__dirname, '..');
 const RELEASES = path.join(ROOT, 'releases');
 
-// 设备/语言 -> 源码目录 与 发布包名
+// 设备/语言 -> 源码目录。The release filename embeds the marketing version
+// (Chess_Band9_中文_v1.1.0_release.rpk), which changes every release, so we
+// DISCOVER the newest matching package instead of hardcoding a version — a
+// hardcoded v1.0.0 silently made this checker report "rpk not found" after the
+// version bump, which looks like a real failure but is just a stale path.
 const TARGETS = [
-  { dev: 'xiaomi-band-9',      lang: 'chinese', rpk: 'Chess_Band9_中文_v1.0.0_release.rpk' },
-  { dev: 'xiaomi-band-9',      lang: 'english', rpk: 'Chess_Band9_英文_v1.0.0_release.rpk' },
-  { dev: 'xiaomi-band-9-pro',  lang: 'chinese', rpk: 'Chess_Band9Pro_中文_v1.0.0_release.rpk' },
-  { dev: 'xiaomi-band-9-pro',  lang: 'english', rpk: 'Chess_Band9Pro_英文_v1.0.0_release.rpk' },
-  { dev: 'xiaomi-band-10',     lang: 'chinese', rpk: 'Chess_Band10_中文_v1.0.0_release.rpk' },
-  { dev: 'xiaomi-band-10',     lang: 'english', rpk: 'Chess_Band10_英文_v1.0.0_release.rpk' },
+  { dev: 'xiaomi-band-9',      lang: 'chinese', prefix: 'Chess_Band9_中文_v' },
+  { dev: 'xiaomi-band-9',      lang: 'english', prefix: 'Chess_Band9_英文_v' },
+  { dev: 'xiaomi-band-9-pro',  lang: 'chinese', prefix: 'Chess_Band9Pro_中文_v' },
+  { dev: 'xiaomi-band-9-pro',  lang: 'english', prefix: 'Chess_Band9Pro_英文_v' },
+  { dev: 'xiaomi-band-10',     lang: 'chinese', prefix: 'Chess_Band10_中文_v' },
+  { dev: 'xiaomi-band-10',     lang: 'english', prefix: 'Chess_Band10_英文_v' },
 ];
+
+/** Pick the newest `releases/<prefix>*_release.rpk`, or null. */
+function findRpk(prefix) {
+  if (!fs.existsSync(RELEASES)) return null;
+  const hits = fs.readdirSync(RELEASES)
+    .filter((f) => f.startsWith(prefix) && f.endsWith('_release.rpk'))
+    .sort((a, b) => {
+      // sort by the numeric version triple, then by name for stability
+      const v = (s) => (s.match(/v(\d+)\.(\d+)\.(\d+)/) || [0, 0, 0, 0]).slice(1).map(Number);
+      const va = v(a), vb = v(b);
+      return (vb[0] - va[0]) || (vb[1] - va[1]) || (vb[2] - va[2]) || a.localeCompare(b);
+    });
+  return hits.length ? path.join(RELEASES, hits[0]) : null;
+}
 
 // 每套工程应有 12 枚棋子
 const PIECES = ['wK','wQ','wR','wB','wN','wP','bK','bQ','bR','bB','bN','bP'];
@@ -81,10 +99,10 @@ function readZip(buf) {
 let fail = 0, totalChecked = 0;
 
 for (const t of TARGETS) {
-  const rpkPath = path.join(RELEASES, t.rpk);
+  const rpkPath = findRpk(t.prefix);
   const srcDir = path.join(ROOT, 'devices', t.dev, 'source', t.lang, 'src', 'common', 'pieces');
 
-  if (!fs.existsSync(rpkPath)) { console.log('MISS  ' + t.dev + '/' + t.lang + '  (rpk not found)'); fail++; continue; }
+  if (!rpkPath) { console.log('MISS  ' + t.dev + '/' + t.lang + '  (no ' + t.prefix + '*_release.rpk in releases/)'); fail++; continue; }
   if (!fs.existsSync(srcDir))  { console.log('MISS  ' + t.dev + '/' + t.lang + '  (src pieces dir not found)'); fail++; continue; }
 
   const zip = readZip(fs.readFileSync(rpkPath));

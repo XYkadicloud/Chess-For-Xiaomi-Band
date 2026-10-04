@@ -29,7 +29,7 @@
         <text class="rowLabel">每方时长</text>
         <div class="stepper">
           <text class="stepBtn" @touchend="decMinutes">−</text>
-          <text class="stepVal">{{minutesLabel}}</text>
+          <text class="stepVal" style="background-color:{{!unlimited?'#0D6EFF':'#24262B'}};color:{{!unlimited?'#FFFFFF':'#C9CDD4'}};" @touchend="toggleUnlimited">{{minutesLabel}}</text>
           <text class="stepBtn" @touchend="incMinutes">+</text>
         </div>
       </div>
@@ -123,6 +123,7 @@ export default {
   pickBoard(b){ this.boardSize = b; },
   incMinutes(){ if(this.minutes===0){ this.minutes=1; } else if(this.minutes<10){ this.minutes+=1; } else if(this.minutes<60){ this.minutes+=5; } },
   decMinutes(){ if(this.minutes<=1){ this.minutes=0; } else if(this.minutes<=10){ this.minutes-=1; } else { this.minutes-=5; } },
+  toggleUnlimited(){ this.minutes = this.minutes === 0 ? 10 : 0; },
   incIncrement(){ if(this.increment<10){ this.increment+=1; } else if(this.increment<30){ this.increment+=5; } },
   decIncrement(){ if(this.increment<=10){ this.increment-=1; } else { this.increment-=5; } if(this.increment<0){ this.increment=0; } },
   goStep2(){ this.step=2; },

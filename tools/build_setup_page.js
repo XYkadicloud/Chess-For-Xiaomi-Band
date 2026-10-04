@@ -167,7 +167,7 @@ function tpl(c, isChinese, geo) {
         <text class="rowLabel">${c.minutesLabel}</text>
         <div class="stepper">
           <text class="stepBtn" @touchend="decMinutes">\u2212</text>
-          <text class="stepVal">{{minutesLabel}}</text>
+          <text class="stepVal" style="${chipStyle('!unlimited')}" @touchend="toggleUnlimited">{{minutesLabel}}</text>
           <text class="stepBtn" @touchend="incMinutes">+</text>
         </div>
       </div>
@@ -261,6 +261,7 @@ export default {
   pickBoard(b){ this.boardSize = b; },
   incMinutes(){ if(this.minutes===0){ this.minutes=1; } else if(this.minutes<10){ this.minutes+=1; } else if(this.minutes<60){ this.minutes+=5; } },
   decMinutes(){ if(this.minutes<=1){ this.minutes=0; } else if(this.minutes<=10){ this.minutes-=1; } else { this.minutes-=5; } },
+  toggleUnlimited(){ this.minutes = this.minutes === 0 ? 10 : 0; },
   incIncrement(){ if(this.increment<10){ this.increment+=1; } else if(this.increment<30){ this.increment+=5; } },
   decIncrement(){ if(this.increment<=10){ this.increment-=1; } else { this.increment-=5; } if(this.increment<0){ this.increment=0; } },
   goStep2(){ this.step=2; },
@@ -292,7 +293,7 @@ for (const d of DEVICES) {
 
     // 1) every handler the template calls must exist in the script
     const handlers = ['goBack', 'pickMode', 'pickSide', 'pickLevel', 'pickBoard',
-      'incMinutes', 'decMinutes', 'incIncrement', 'decIncrement', 'goStep2', 'start'];
+      'incMinutes', 'decMinutes', 'toggleUnlimited', 'incIncrement', 'decIncrement', 'goStep2', 'start'];
     const missing = handlers.filter((h) => !new RegExp(h + '\\s*\\(').test(src));
     if (missing.length) throw new Error(d + '/' + l + ': generated page missing handlers: ' + missing.join(', '));
 
