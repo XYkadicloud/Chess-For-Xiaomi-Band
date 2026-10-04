@@ -4,9 +4,9 @@
 
 | 文件 | 设备 | 大小 |
 |---|---|---|
-| Chess_Band9_v1.2.0_release.rpk | Band9 | 162.3 KB |
-| Chess_Band9Pro_v1.2.0_release.rpk | Band9Pro | 166.2 KB |
-| Chess_Band10_v1.2.0_release.rpk | Band10 | 166.4 KB |
+| Chess_Band9_v1.2.0_release.rpk | Band9 | 170.8 KB |
+| Chess_Band9Pro_v1.2.0_release.rpk | Band9Pro | 179.2 KB |
+| Chess_Band10_v1.2.0_release.rpk | Band10 | 179.3 KB |
 
 说明：
 

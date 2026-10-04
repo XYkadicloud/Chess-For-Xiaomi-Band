@@ -37,7 +37,7 @@
 import router from '@system.router';
 import storage from '@system.storage';
 import configuration from '@system.configuration';
-import { tr, setLang, setSystemLang } from '../../common/js/strings.js';
+import { tr, initLang, setLang, setSystemLang } from '../../common/js/strings.js';
 
 /* Language modes, in the order the row cycles through them. */
 const LANG_MODES = ['system', 'zh', 'en'];
@@ -72,10 +72,16 @@ export default {
     if (event && event.type === 'locale') { this.applySystemLang(); this.langTick++; }
   },
   applySystemLang(){
+    /* initLang() settles the device language synchronously and is what keeps
+     * the first painted frame correct; then the stored preference is applied
+     * on top. Keeping this shape identical to the other pages means there is
+     * exactly one language path in the app. */
+    let devLang = 'en';
     try {
       const loc = configuration.getLocale();
-      setSystemLang(loc && loc.language === 'zh' ? 'zh' : 'en');
-    } catch(e){ setSystemLang('en'); }
+      devLang = (loc && loc.language === 'zh') ? 'zh' : 'en';
+    } catch(e){ devLang = 'en'; }
+    initLang({ language: devLang });
     setLang(this.langMode);
   },
   load(){

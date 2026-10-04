@@ -10,17 +10,25 @@
  * Fixes applied:
  *   1. centerOn(): the horizontal centre must be designWidth/2, not 96dp.
  *      Band 10 wrongly used 96 (the Band 9 centre) -> 10dp off-centre.
- *   2. maxBoardLeft()/maxBoardTop(): expressed in terms of designWidth so the
- *      board cannot be scrolled off its own viewport.
+ *   2. centerOn(): the vertical centre must be viewH/2.
+ *   3. maxBoardLeft()/maxBoardTop(): expressed in terms of the board viewport
+ *      so the board cannot be scrolled off it.
+ *
+ * VIEWPORT SIZE: `.boardViewport` is 264dp tall on Band 9 / Band 10 and 280dp
+ * on Band 9 Pro (its single-line clock frees the extra row). Using a flat 280
+ * for all three was the bug behind "放大后棋盘显示不完全，无法滑到边缘": on the
+ * 264dp viewports an enlarged board could never be panned far enough to show
+ * its bottom row. Keep these in step with the .ux styles and with GEO in
+ * merge_languages.js, which re-asserts the same values after this runs.
  */
 const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const DEVICES = {
-  'xiaomi-band-9': { w: 192, viewH: 280 },
+  'xiaomi-band-9': { w: 192, viewH: 264 },
   'xiaomi-band-9-pro': { w: 336, viewH: 280 },
-  'xiaomi-band-10': { w: 212, viewH: 280 }
+  'xiaomi-band-10': { w: 212, viewH: 264 }
 };
 const LANGS = ['chinese'];
 

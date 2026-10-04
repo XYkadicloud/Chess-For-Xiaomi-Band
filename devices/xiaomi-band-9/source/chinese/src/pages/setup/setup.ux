@@ -89,11 +89,11 @@
 import router from '@system.router';
 import storage from '@system.storage';
 import configuration from '@system.configuration';
-import { tr, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
+import { tr, initLang, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 export default {
   tr(k){ return tr(k); },
   applyLang(){
-    try{ const loc = configuration.getLocale(); setSystemLang(loc && loc.language === 'zh' ? 'zh' : 'en'); }catch(e){ setSystemLang('en'); }
+    try{ const loc = configuration.getLocale(); initLang({ language: (loc && loc.language === 'zh') ? 'zh' : 'en' }); }catch(e){ setSystemLang('en'); }
     storage.get({key:'CHESS_SETTINGS',success:(data)=>{
       try{
         const raw=data&&data.data!==undefined?data.data:data;

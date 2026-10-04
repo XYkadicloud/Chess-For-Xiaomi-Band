@@ -1,25 +1,25 @@
 <template>
   <div class="purchasePage">
-    <div class="header"><text class="headerTitle">{{$t('purchase.title')}}</text></div>
+    <div class="header"><text class="headerTitle">{{tt_purchase_title}}</text></div>
     <list class="purchaseList">
       <list-item class="qrItem" type="item">
         <image class="qr" src="/common/aifadian_qr.jpg"></image>
       </list-item>
       <list-item class="priceItem" type="item">
-        <text class="price">{{$t('purchase.price')}}</text>
-        <text class="bodyText priceText">{{$t('purchase.priceText')}}</text>
+        <text class="price">{{tt_purchase_price}}</text>
+        <text class="bodyText priceText">{{tt_purchase_priceText}}</text>
       </list-item>
       <list-item class="infoItem" type="item">
-        <text class="bodyText leftText tokenText">{{$t('purchase.tokenText')}}</text>
-        <text class="bodyText leftText gap featureText">{{$t('purchase.featureText')}}</text>
+        <text class="bodyText leftText tokenText">{{tt_purchase_tokenText}}</text>
+        <text class="bodyText leftText gap featureText">{{tt_purchase_featureText}}</text>
       </list-item>
       <list-item class="browserItem" type="item">
-        <text class="bodyText leftText projectText">{{$t('purchase.projectText')}}</text>
-        <text class="bodyText leftText gap browserText">{{$t('purchase.browserText')}}</text>
+        <text class="bodyText leftText projectText">{{tt_purchase_projectText}}</text>
+        <text class="bodyText leftText gap browserText">{{tt_purchase_browserText}}</text>
       </list-item>
     </list>
     <div class="buttonArea" if="{{!purchaseConfirmed}}">
-      <text class="confirmButton" @touchend="confirmPurchase">{{$t('purchase.confirm')}}</text>
+      <text class="confirmButton" @touchend="confirmPurchase">{{tt_purchase_confirm}}</text>
     </div>
   </div>
 </template>
@@ -46,10 +46,40 @@
 </style>
 <script>
 import router from '@system.router';
+import configuration from '@system.configuration';
+import { tr, initLang, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 import storage from '@system.storage';
 export default {
-  data:{purchaseConfirmed:false},
-  onInit(){this.loadPurchase();},
+  onShow(){ this.applyLang(); },
+  computed:{
+    tt_purchase_priceText(){ this.langTick; return tr('purchase.priceText'); },
+    tt_purchase_tokenText(){ this.langTick; return tr('purchase.tokenText'); },
+    tt_purchase_featureText(){ this.langTick; return tr('purchase.featureText'); },
+    tt_purchase_projectText(){ this.langTick; return tr('purchase.projectText'); },
+    tt_purchase_browserText(){ this.langTick; return tr('purchase.browserText'); },
+    tt_purchase_title(){ this.langTick; return tr('purchase.title'); },
+    tt_purchase_price(){ this.langTick; return tr('purchase.price'); },
+    tt_purchase_confirm(){ this.langTick; return tr('purchase.confirm'); },
+  },
+  tr(k){ return tr(k); },
+  applyLang(){
+    let devLang = 'en';
+    try{
+      const loc = configuration.getLocale();
+      devLang = (loc && loc.language === 'zh') ? 'zh' : 'en';
+    }catch(e){ devLang = 'en'; }
+    initLang({ language: devLang });
+    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
+      try{
+        const raw=data&&data.data!==undefined?data.data:data;
+        const v=(raw===undefined||raw===null||raw==='')?null:(typeof raw==='string'?JSON.parse(raw):raw);
+        setLang(resolveLang(v&&v.langMode, devLang));
+      }catch(e){ setLang('system'); }
+      this.langTick=(this.langTick||0)+1;
+    },fail:()=>{ setLang('system'); this.langTick=(this.langTick||0)+1; }});
+  },
+  data:{ langTick:0,purchaseConfirmed:false},
+  onInit(){ this.applyLang(); this.loadPurchase();},
   loadPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';},fail:()=>{this.purchaseConfirmed=false;}});},
   confirmPurchase(){storage.set({key:'purchase_confirmed',value:'true'});this.purchaseConfirmed=true;router.back();}
 }

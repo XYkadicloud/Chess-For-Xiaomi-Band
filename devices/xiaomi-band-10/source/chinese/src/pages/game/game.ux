@@ -19,8 +19,9 @@
         </div>
       </div>
     </div>
+      <div class="thinkingRing" if="{{aiThinking}}"></div>
 
-    <div class="hint"><text class="hintText">{{hintText}}</text></div>
+    <div class="hint"><text class="hintText">{{hintText}}</text><text class="hintDots" if="{{aiThinking}}">{{thinkingDots}}</text></div>
     <div class="bottom"><text class="action" @click="undoMove">{{undoLabel}}</text><text class="action" @click="openMenu">{{menuLabel}}</text></div>
 
     <div class="overlay" if="{{menuVisible}}">
@@ -73,6 +74,8 @@
 .legalDot { width:10dp; height:10dp; border-radius:5dp; background-color:#0D6EFF; position:absolute; z-index:4; }
 .hint { width:212dp; height:46dp; justify-content:center; align-items:center; }
 .hintText { color:rgba(255,255,255,0.7); font-size:16dp; text-align:center; }
+.hintDots { color:#4EA1FF; font-size:16dp; margin-left:2dp; }
+.thinkingRing { position:absolute; left:0dp; top:0dp; right:0dp; bottom:0dp; border:2dp solid #4EA1FF; opacity:0.85; }
 .bottom { width:212dp; height:58dp; justify-content:space-around; align-items:center; }
 .action { color:#FFFFFF; background-color:#262626; border-radius:20dp; padding:8dp 18dp; font-size:16dp; font-weight:bold; }
 .overlay { position:absolute; left:0dp; top:0dp; width:212dp; height:520dp; background-color:rgba(0,0,0,0.92); justify-content:center; align-items:center; z-index:20; }
@@ -87,7 +90,7 @@
 <script>
 import storage from '@system.storage';
 import configuration from '@system.configuration';
-import { tr, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
+import { tr, initLang, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 const WHITE = 'white';
 const BLACK = 'black';
 const GLYPHS = { wK:'K', wQ:'Q', wR:'R', wB:'B', wN:'N', wP:'P', bK:'k', bQ:'q', bR:'r', bB:'b', bN:'n', bP:'p' };
@@ -96,10 +99,7 @@ import ai from '../../common/js/ai.js';
 export default {
   tr(k){ return tr(k); },
   applyLang(){
-    try{
-      const loc = configuration.getLocale();
-      setSystemLang(loc && loc.language === 'zh' ? 'zh' : 'en');
-    }catch(e){ setSystemLang('en'); }
+    try{ const loc = configuration.getLocale(); initLang({ language: (loc && loc.language === 'zh') ? 'zh' : 'en' }); }catch(e){ setSystemLang('en'); }
     storage.get({key:'CHESS_SETTINGS',success:(data)=>{
       try{
         const raw=data&&data.data!==undefined?data.data:data;
@@ -111,7 +111,7 @@ export default {
   },
   private: {
     incrementSeconds:0,
-    aiEnabled: false, aiLevel: 'normal', aiThinking: false, aiColor: 'black', aiStatusText: '', aiTimerId: null, aiDisabledByUser:false,
+    aiEnabled: false, aiLevel: 'normal', aiThinking: false, aiColor: 'black', aiStatusText: '', aiTimerId: null, dotTimerId: null, dotTick: 0, aiDisabledByUser:false,
     
     board: [], squares: [], history: [], turn: WHITE, selected: -1, legalMoves: [], lastMove: [],
     squareSize: 30, boardSize: 240, boardLeft: -22, boardTop: 36, castling: {wK:true,wQ:true,bK:true,bQ:true}, legalCache:{},
@@ -145,7 +145,7 @@ export default {
     boardSizeLabel() { this.langTick; return this.squareSize===44?tr('settings.boardLarge'):(this.squareSize===24?tr('settings.boardCompact'):tr('settings.boardStandard')); }
   },
   protected: { minutes: '10', unlimited: 'false', boardSize: '30', resume: 'false' , aiMode: 'false', aiLevel: 'normal' , mySide: 'white', increment: '0' },
-  onInit() { this.unlimited=String(this.unlimited)==='true'; const parsed=parseInt(String(this.minutes),10); this.initialMinutes=this.unlimited?0:(isNaN(parsed)||parsed<1?10:parsed); this.restoring=String(this.resume)==='true'; this.loadSettings(); if(this.restoring)this.loadActiveGame();else{this.clearActiveGame();this.applyBoardSize(this.boardSize||30);this.newPosition();}  /* __SIDE_TIME_PARAMS__ */ this.aiEnabled=String(this.aiMode)==='true'; const _inc=parseInt(String(this.increment),10);this.incrementSeconds=(isNaN(_inc)||_inc<0)?0:_inc; if(this.aiEnabled){this.aiLevel=this.aiLevel||'normal';this.aiColor=(String(this.mySide)==='black')?'white':'black';}else{this.aiColor=this.aiColor||'black';}this.resetAi();if(this.aiEnabled&&this.isAiTurn()){this.hintText=this.aiColor==='white'?tr('game.aiWhiteFirst'):'';} if(this.aiEnabled&&this.isAiTurn())this.maybeAiMove();},
+  onInit() { this.applyLang();  this.unlimited=String(this.unlimited)==='true'; const parsed=parseInt(String(this.minutes),10); this.initialMinutes=this.unlimited?0:(isNaN(parsed)||parsed<1?10:parsed); this.restoring=String(this.resume)==='true'; this.loadSettings(); if(this.restoring)this.loadActiveGame();else{this.clearActiveGame();this.applyBoardSize(this.boardSize||30);this.newPosition();}  /* __SIDE_TIME_PARAMS__ */ this.aiEnabled=String(this.aiMode)==='true'; const _inc=parseInt(String(this.increment),10);this.incrementSeconds=(isNaN(_inc)||_inc<0)?0:_inc; if(this.aiEnabled){this.aiLevel=this.aiLevel||'normal';this.aiColor=(String(this.mySide)==='black')?'white':'black';}else{this.aiColor=this.aiColor||'black';}this.resetAi();if(this.aiEnabled&&this.isAiTurn()){this.hintText=this.aiColor==='white'?tr('game.aiWhiteFirst'):'';} if(this.aiEnabled&&this.isAiTurn())this.maybeAiMove();},
   onShow(){ this.applyLang();  this.lastTick=Date.now(); if(!this.gameOver&&!this.resultVisible&&!this.paused)this.startClock();  if(!this.gameOver&&!this.resultVisible&&!this.paused&&this.isAiTurn())this.maybeAiMove();},
   applyBoardSize(v){const n=parseInt(v,10);this.squareSize=n===44?44:(n===24?24:30);this.boardSize=this.squareSize*8;this.boardLeft=Math.max(this.maxBoardLeft(),Math.min(0,this.boardLeft));this.boardTop=Math.max(this.maxBoardTop(),Math.min(0,this.boardTop));},
   loadSettings(){ storage.get({key:'CHESS_SETTINGS',success:(data)=>{try{const raw=data&&data.data!==undefined?data.data:data;const v=typeof raw==='string'?JSON.parse(raw):raw;if(!v)return;this.showHints=true;this.autoCenter=v.autoCenter!==false;if(v.boardSize==='large')this.squareSize=44;else if(v.boardSize==='compact')this.squareSize=24;else this.squareSize=30;this.boardSize=this.squareSize*8;this.boardLeft=Math.max(this.maxBoardLeft(),Math.min(0,this.boardLeft));this.boardTop=Math.max(this.maxBoardTop(),Math.min(0,this.boardTop));this.buildSquares();}catch(e){}},fail:()=>{}}); },
@@ -153,7 +153,7 @@ export default {
   clearActiveGame(){storage.set({key:'CHESS_ACTIVE_GAME',value:''});},
   saveActiveGame(){if(this.gameOver||this.resultVisible||!this.board||this.board.length!==64)return;storage.set({key:'CHESS_ACTIVE_GAME',value:JSON.stringify({board:this.board,history:this.history,turn:this.turn,lastMove:this.lastMove,castling:this.castling,unlimited:this.unlimited,whiteSeconds:this.whiteSeconds,blackSeconds:this.blackSeconds,initialMinutes:this.initialMinutes,incrementSeconds:this.incrementSeconds,squareSize:this.squareSize,boardLeft:this.boardLeft,boardTop:this.boardTop,halfmoveClock:this.halfmoveClock,positionCounts:this.positionCounts,showHints:this.showHints,autoCenter:this.autoCenter,confirmBeforeResign:this.confirmBeforeResign,gameOver:false,aiEnabled:this.aiEnabled,aiLevel:this.aiLevel,aiColor:this.aiColor})});},
   loadActiveGame(){storage.get({key:'CHESS_ACTIVE_GAME',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;if(!v||!v.board||v.board.length!==64){this.restoring=false;this.applyBoardSize(this.boardSize||30);this.newPosition();return;}this.board=v.board;this.history=v.history||[];this.turn=v.turn||WHITE;this.lastMove=v.lastMove||[];this.castling=v.castling||{wK:true,wQ:true,bK:true,bQ:true};this.unlimited=v.unlimited===true||String(v.unlimited)==='true';this.whiteSeconds=Number(v.whiteSeconds)||0;this.blackSeconds=Number(v.blackSeconds)||0;this.initialMinutes=this.unlimited?0:(Number(v.initialMinutes)||this.initialMinutes);this.incrementSeconds=this.unlimited?0:(Number(v.incrementSeconds)||0);this.applyBoardSize(v.squareSize||this.boardSize||30);this.boardLeft=Number(v.boardLeft)||0;this.boardTop=Number(v.boardTop)||0;this.halfmoveClock=Number(v.halfmoveClock)||0;this.positionCounts=v.positionCounts||{};this.showHints=true;this.autoCenter=v.autoCenter!==false;this.confirmBeforeResign=true;this.aiEnabled=v.aiEnabled===true;this.aiLevel=v.aiLevel||'normal';this.aiColor=v.aiColor||'black';this.resetAi();this.selected=-1;this.legalMoves=[];this.resultVisible=false;this.gameOver=false;this.paused=false;this.whiteClock=this.unlimited?'∞':this.formatClock(this.whiteSeconds);this.blackClock=this.unlimited?'∞':this.formatClock(this.blackSeconds);this.lastTick=Date.now();this.buildSquares();this.hintText=tr('game.restoredTurn')+this.sideName(this.turn);this.startClock();}catch(e){this.restoring=false;this.applyBoardSize(this.boardSize||30);this.newPosition();}},fail:()=>{this.restoring=false;this.applyBoardSize(this.boardSize||30);this.newPosition();}});},
-  onHide(){if(this.aiTimerId){clearTimeout(this.aiTimerId);this.aiTimerId=null;}this.aiThinking=false; if(!this.paused&&!this.gameOver&&!this.resultVisible)this.tickClock(); this.stopClock(); this.saveActiveGame(); },
+  onHide(){if(this.aiTimerId){clearTimeout(this.aiTimerId);this.aiTimerId=null;}if(this.dotTimerId){clearInterval(this.dotTimerId);this.dotTimerId=null;}this.aiThinking=false; if(!this.paused&&!this.gameOver&&!this.resultVisible)this.tickClock(); this.stopClock(); this.saveActiveGame(); },
   startClock(){ if(this.unlimited||this.timerId||this.gameOver||this.resultVisible||this.paused)return; this.lastTick=Date.now(); this.timerId=setInterval(()=>this.tickClock(),1000); },
   stopClock(){ if(this.timerId){clearInterval(this.timerId);this.timerId=null;} },
   tickClock(){ if(this.unlimited||this.resultVisible)return; const now=Date.now(); const elapsed=Math.max(0,Math.floor((now-this.lastTick)/1000)); this.lastTick=now; if(this.turn==='white')this.whiteSeconds=Math.max(0,this.whiteSeconds-elapsed);else this.blackSeconds=Math.max(0,this.blackSeconds-elapsed); this.whiteClock=this.formatClock(this.whiteSeconds);this.blackClock=this.formatClock(this.blackSeconds); if((this.turn==='white'&&this.whiteSeconds<=0)||(this.turn==='black'&&this.blackSeconds<=0))this.finishByTimeout(); },
@@ -186,13 +186,13 @@ export default {
 
   /* __AI_METHODS_BEGIN__ */
   isAiTurn(){return this.aiEnabled&&!this.gameOver&&!this.resultVisible&&this.turn[0]===this.aiColor[0];},
-  resetAi(){this.aiThinking=false;if(this.aiTimerId){clearTimeout(this.aiTimerId);this.aiTimerId=null;}ai.setLevel(this.aiLevel);},
+  resetAi(){this.aiThinking=false;if(this.dotTimerId){clearInterval(this.dotTimerId);this.dotTimerId=null;}this.dotTick=0;if(this.aiTimerId){clearTimeout(this.aiTimerId);this.aiTimerId=null;}ai.setLevel(this.aiLevel);},
   cycleAiLevel(){const order=['easy','normal','hard','master'];const i=order.indexOf(this.aiLevel);this.aiLevel=order[(i+1)%order.length];ai.setLevel(this.aiLevel);this.saveSettings();this.buildSquares();},
   toggleAiMode(){this.aiEnabled=!this.aiEnabled;this.aiThinking=false;this.hintText=this.aiEnabled?this.aiHumanBanner():tr('game.switchedTwo');this.saveSettings();if(this.isAiTurn())this.maybeAiMove();},
   aiHumanBanner(){return this.aiColor==='white'?tr('game.youBlack')+"，"+tr('game.aiWhiteFirst'):tr('game.youWhite')+"，"+tr('game.aiWhiteFirst');},
-  maybeAiMove(){if(!this.isAiTurn()||this.aiThinking)return;this.aiThinking=true;this.hintText=tr('game.aiTurn');this.timerWasRunning=!!this.timerId;this.stopClock();this.aiTimerId=setTimeout(()=>{this.aiTimerId=null;this.runAiMove();},60);},
+  maybeAiMove(){if(!this.isAiTurn()||this.aiThinking)return;this.aiThinking=true;this.hintText=tr('game.aiTurn');this.timerWasRunning=!!this.timerId;this.stopClock();this.dotTick=0;if(this.dotTimerId)clearInterval(this.dotTimerId);this.dotTimerId=setInterval(()=>{this.dotTick=(this.dotTick||0)+1;},420);this.aiTimerId=setTimeout(()=>{this.aiTimerId=null;this.runAiMove();},0);},
   aiEpSquare(){const lm=this.lastMove;if(!lm||lm.length!==2)return -1;const d=Math.abs(lm[1]-lm[0]);if(d!==16)return -1;const p=this.board[lm[1]];if(!p||p[1]!=='P')return -1;return (lm[0]<lm[1]?lm[0]+8:lm[0]-8);},
-  runAiMove(){let mv=null;try{ai.setLevel(this.aiLevel);mv=ai.compute(this.board,this.turn==='white'?'w':'b',this.castling,this.aiEpSquare(),this.halfmoveClock);}catch(e){mv=null;}this.aiThinking=false;if(mv&&this.board[mv.from]&&this.board[mv.from][0]===this.turn[0]){this.applyAiMove(mv.from,mv.to);}else{this.hintText=tr('game.aiCantMove')+tr('game.boardError');if(this.timerWasRunning)this.startClock();}},
+  runAiMove(){if(this.dotTimerId){clearInterval(this.dotTimerId);this.dotTimerId=null;}this.dotTick=0;let mv=null;try{ai.setLevel(this.aiLevel);mv=ai.compute(this.board,this.turn==='white'?'w':'b',this.castling,this.aiEpSquare(),this.halfmoveClock);}catch(e){mv=null;}this.aiThinking=false;if(mv&&this.board[mv.from]&&this.board[mv.from][0]===this.turn[0]){this.applyAiMove(mv.from,mv.to);}else{this.hintText=tr('game.aiCantMove')+tr('game.boardError');if(this.timerWasRunning)this.startClock();}},
   applyAiMove(from,to){this.selected=from;this.legalMoves=[to];this.move(from,to);if(!this.unlimited&&!this.gameOver&&!this.resultVisible&&!this.aiThinking)this.startClock();},
   undoMove(){if(this.aiEnabled&&!this.aiThinking&&this.history.length>=2){this.undoMoveBase();this.undoMoveBase();this.resultVisible=false;this.gameOver=false;this.hintText=tr('game.undoDone');return;}this.undoMoveBase();},
   /* __AI_METHODS_END__ */
@@ -214,8 +214,8 @@ export default {
   isInsufficientMaterial(){const pieces=[];for(let i=0;i<64;i++)if(this.board[i]&&this.board[i][1]!=='K')pieces.push(this.board[i]);if(!pieces.length)return true;if(pieces.length===1&&(pieces[0][1]==='B'||pieces[0][1]==='N'))return true;if(pieces.length===2&&pieces[0][1]==='B'&&pieces[1][1]==='B'){const a=this.board.indexOf(pieces[0]),b=this.board.indexOf(pieces[1]);return ((Math.floor(a/8)+a%8)%2)===((Math.floor(b/8)+b%8)%2);}return false;},
   nameOf(i){return 'abcdefgh'[i%8]+(8-Math.floor(i/8));},
   maxBoardLeft(){return Math.min(0,212-this.boardSize);},
-  maxBoardTop(){return Math.min(0,280-this.boardSize);},
-  centerOn(i){const col=i%8,row=Math.floor(i/8);const minLeft=this.maxBoardLeft(),minTop=this.maxBoardTop();this.boardLeft=Math.max(minLeft,Math.min(0,106-(col+0.5)*this.squareSize));this.boardTop=Math.max(minTop,Math.min(0,140-(row+0.5)*this.squareSize));},
+  maxBoardTop(){return Math.min(0,264-this.boardSize);},
+  centerOn(i){const col=i%8,row=Math.floor(i/8);this.boardLeft=Math.max(this.maxBoardLeft(),Math.min(0,106-(col+0.5)*this.squareSize));this.boardTop=Math.max(this.maxBoardTop(),Math.min(0,132-(row+0.5)*this.squareSize));},
   onTouchStart(e){if(e.stopPropagation)e.stopPropagation();this.touchX=e.touches[0].pageX;this.touchY=e.touches[0].pageY;this.pendingTouchX=this.touchX;this.pendingTouchY=this.touchY;this.dragging=true;},
   onTouchMove(e){if(e.stopPropagation)e.stopPropagation();if(e.preventDefault)e.preventDefault();if(!this.dragging)return;this.pendingTouchX=e.touches[0].pageX;this.pendingTouchY=e.touches[0].pageY;if(this.touchQueued)return;this.touchQueued=true;setTimeout(()=>{this.touchQueued=false;if(!this.dragging)return;const x=this.pendingTouchX,y=this.pendingTouchY;const minLeft=this.maxBoardLeft(),minTop=this.maxBoardTop();this.boardLeft=Math.max(minLeft,Math.min(0,this.boardLeft+x-this.touchX));this.boardTop=Math.max(minTop,Math.min(0,this.boardTop+y-this.touchY));this.touchX=x;this.touchY=y;},16);},
   onTouchEnd(){this.dragging=false;this.touchQueued=false;},

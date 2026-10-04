@@ -220,10 +220,14 @@ function patch(file, lang, device) {
   }
 
   /* 8. onHide: clear any pending AI timer so it does not fire off-screen. */
-  // First, collapse any duplicates left behind by the old buggy guard (which
-  // re-ran on every pass and stacked up to four copies). Then ensure exactly
-  // one copy is present.
-  const HIDE = 'if(this.aiTimerId){clearTimeout(this.aiTimerId);this.aiTimerId=null;}this.aiThinking=false;';
+  //
+  // NOTE ON PIPELINE ORDER: merge_languages.js (step 8) ALSO rewrites onHide,
+  // to stop the "AI thinking" dot animation. These two tools therefore both
+  // touch the same method and must not fight. We (a) collapse our own cleanup
+  // to exactly one copy using a tolerant pattern rather than a literal, and
+  // (b) never disturb anything the merge added (the dotTimerId clear).
+  const HIDE_RE = /if\s*\(this\.aiTimerId\)\s*\{\s*clearTimeout\(this\.aiTimerId\)\s*;\s*this\.aiTimerId\s*=\s*null\s*;\s*\}/;
+  const HIDE = 'if(this.aiTimerId){clearTimeout(this.aiTimerId);this.aiTimerId=null;}';
   const onHideM = src.match(/onHide\(\)\s*\{/);
   if (onHideM) {
     const from = onHideM.index + onHideM[0].length;
@@ -232,20 +236,22 @@ function patch(file, lang, device) {
     const restMatch = rest.match(/\n\s{2}[a-zA-Z_$][\w$]*\s*\(/);
     const to = restMatch ? from + restMatch.index : src.length;
     let body = src.slice(from, to);
-    // strip every occurrence of the injected cleanup
-    const cleaned = body.split(HIDE).join('');
-    const dupes = (body.length - cleaned.length) / HIDE.length;
-    if (dupes > 1) changes.push('hideCleanupDedup(' + dupes + ')');
-    body = cleaned;
-    if (!body.includes(HIDE)) {
-      body = HIDE + body;
-      changes.push('hideCleanup');
-    }
+    // Collapse every copy of our own cleanup (the old guard stacked up to four).
+    const copies = (body.match(new RegExp(HIDE_RE.source, 'g')) || []).length;
+    if (copies > 1) changes.push('hideCleanupDedup(' + copies + ')');
+    body = body.replace(new RegExp(HIDE_RE.source, 'g'), '');
+    // Re-insert exactly one, right at the top of the body.
+    body = HIDE + body;
+    if (copies !== 1) changes.push('hideCleanup');
     src = src.slice(0, from) + body + src.slice(to);
-    // ASSERT: exactly one copy inside onHide. (Other methods such as resetAi
-    // legitimately contain the same clearTimeout call, so scope the check.)
-    const hideBody = src.slice(from, from + src.slice(from).search(/\n\s{2}[a-zA-Z_$][\w$]*\s*\(/) + 1);
-    const count = (hideBody.match(/this\.aiTimerId\)\{clearTimeout\(this\.aiTimerId\);this\.aiTimerId=null;\}/g) || []).length;
+
+    // ASSERT: exactly one copy of OUR clear inside onHide. Scope the check to
+    // the onHide body so resetAi()'s identical call is not miscounted.
+    const hideStart = from;
+    const hideRest = src.slice(hideStart);
+    const hideEndM = hideRest.match(/\n\s{2}[a-zA-Z_$][\w$]*\s*\(/);
+    const hideBody = hideEndM ? hideRest.slice(0, hideEndM.index) : hideRest;
+    const count = (hideBody.match(new RegExp(HIDE_RE.source, 'g')) || []).length;
     if (count !== 1) throw new Error('injection failed: hideCleanup (found ' + count + ' copies in onHide)');
   }
 

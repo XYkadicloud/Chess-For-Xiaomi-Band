@@ -2,7 +2,7 @@
   <div class="page">
     <div class="header">
       <text class="back" @touchend="back">‹</text>
-      <text class="headerTitle">{{$t('about.title')}}</text>
+      <text class="headerTitle">{{tt_about_title}}</text>
     </div>
     <list class="aboutList">
       <list-item class="appItem" type="item">
@@ -13,37 +13,37 @@
       <list-item class="authorItem" type="item">
         <image class="avatar" src="/common/avatar.jpg"></image>
         <div class="authorInfo">
-          <text class="authorLabel">{{$t('about.developer')}}</text>
+          <text class="authorLabel">{{tt_about_developer}}</text>
           <text class="developer">XYKadi</text>
         </div>
       </list-item>
       <list-item class="infoItem" type="item">
-        <text class="sectionTitle">{{$t('about.aboutApp')}}</text>
-        <text class="bodyText">{{$t('about.aboutAppBody')}}</text>
+        <text class="sectionTitle">{{tt_about_aboutApp}}</text>
+        <text class="bodyText">{{tt_about_aboutAppBody}}</text>
       </list-item>
       <list-item class="infoItem rulesItem" type="item">
-        <text class="sectionTitle">{{$t('about.supportedRules')}}</text>
-        <text class="bodyText">{{$t('about.supportedRulesBody')}}</text>
+        <text class="sectionTitle">{{tt_about_supportedRules}}</text>
+        <text class="bodyText">{{tt_about_supportedRulesBody}}</text>
       </list-item>
       <list-item class="infoItem rulesItem" type="item">
-        <text class="sectionTitle">{{$t('about.notSupported')}}</text>
-        <text class="bodyText">{{$t('about.notSupportedBody')}}</text>
+        <text class="sectionTitle">{{tt_about_notSupported}}</text>
+        <text class="bodyText">{{tt_about_notSupportedBody}}</text>
       </list-item>
       <list-item class="infoItem creditsItem" type="item">
-        <text class="sectionTitle">{{$t('about.pieces')}}</text>
-        <text class="bodyText">{{$t('about.piecesBody')}}</text>
+        <text class="sectionTitle">{{tt_about_pieces}}</text>
+        <text class="bodyText">{{tt_about_piecesBody}}</text>
       </list-item>
       <list-item class="supportItem" type="item" @touchend="openQr">
-        <text class="sectionTitle supportTitle">{{$t('about.afdian')}}</text>
-        <text class="supportText">{{$t('about.afdianBody')}}</text>
+        <text class="sectionTitle supportTitle">{{tt_about_afdian}}</text>
+        <text class="supportText">{{tt_about_afdianBody}}</text>
         <image class="qrPreview" src="/common/aifadian_qr.jpg"></image>
-        <text class="qrButton">{{$t('about.afdianButton')}}</text>
+        <text class="qrButton">{{tt_about_afdianButton}}</text>
       </list-item>
       <list-item class="purchaseEntryItem" type="item" @touchend="openPurchase">
-        <text class="purchaseEntry">{{$t('about.goPay')}}</text>
+        <text class="purchaseEntry">{{tt_about_goPay}}</text>
       </list-item>
       <list-item class="thanksItem" type="item">
-        <text class="thanks">{{$t('about.thanks')}}</text>
+        <text class="thanks">{{tt_about_thanks}}</text>
       </list-item>
     </list>
   </div>
@@ -81,13 +81,32 @@
 </style>
 <script>
 import router from '@system.router';
+import configuration from '@system.configuration';
+import { tr, initLang, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 import storage from '@system.storage';
 export default {
+  tr(k){ return tr(k); },
+  applyLang(){
+    let devLang = 'en';
+    try{
+      const loc = configuration.getLocale();
+      devLang = (loc && loc.language === 'zh') ? 'zh' : 'en';
+    }catch(e){ devLang = 'en'; }
+    initLang({ language: devLang });
+    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
+      try{
+        const raw=data&&data.data!==undefined?data.data:data;
+        const v=(raw===undefined||raw===null||raw==='')?null:(typeof raw==='string'?JSON.parse(raw):raw);
+        setLang(resolveLang(v&&v.langMode, devLang));
+      }catch(e){ setLang('system'); }
+      this.langTick=(this.langTick||0)+1;
+    },fail:()=>{ setLang('system'); this.langTick=(this.langTick||0)+1; }});
+  },
   computed:{
-    versionText(){ return this.$t('about.version'); }
+    versionText(){ return tr('about.version'); }
   },
   data:{purchaseConfirmed:false},
-  onInit(){this.loadPurchase();},
+  onInit(){ this.applyLang(); this.loadPurchase();},
   onShow(){this.loadPurchase();},
   loadPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';},fail:()=>{this.purchaseConfirmed=false;}});},
   back(){router.back();},

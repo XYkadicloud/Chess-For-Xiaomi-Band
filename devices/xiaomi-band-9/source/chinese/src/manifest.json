@@ -3,7 +3,7 @@
   "name": "Chess",
   "icon": "/common/icon.png",
   "versionName": "1.2.0",
-  "versionCode": 105,
+  "versionCode": 109,
   "minPlatformVersion": 1100,
   "simulationVersion": "default",
   "deviceTypeList": [

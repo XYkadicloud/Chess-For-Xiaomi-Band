@@ -27,3 +27,6 @@ _pieces_src/
 # One-off debug artefacts (icon look-primes, side-by-side piece dumps).
 # Regenerable from tools/dump_rpk_pieces.js / verify_release_rpk.js.
 _look_pieces/
+
+# Local assistant workspace state (daily notes, scratch). Not project source.
+.workbuddy-ai/

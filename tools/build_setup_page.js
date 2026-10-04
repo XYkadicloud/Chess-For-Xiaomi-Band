@@ -217,11 +217,11 @@ function tpl(geo) {
 import router from '@system.router';
 import storage from '@system.storage';
 import configuration from '@system.configuration';
-import { tr, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
+import { tr, initLang, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';
 export default {
   tr(k){ return tr(k); },
   applyLang(){
-    try{ const loc = configuration.getLocale(); setSystemLang(loc && loc.language === 'zh' ? 'zh' : 'en'); }catch(e){ setSystemLang('en'); }
+    try{ const loc = configuration.getLocale(); initLang({ language: (loc && loc.language === 'zh') ? 'zh' : 'en' }); }catch(e){ setSystemLang('en'); }
     storage.get({key:'CHESS_SETTINGS',success:(data)=>{
       try{
         const raw=data&&data.data!==undefined?data.data:data;
@@ -347,6 +347,9 @@ for (const d of DEVICES) {
     //     {{tr('x')}} would render once and never update on a language switch.
     if (!/strings\.js/.test(src)) throw new Error(d + '/' + l + ': setup page does not import strings.js');
     if (!/\bapplyLang\s*\(/.test(src)) throw new Error(d + '/' + l + ': setup page has no applyLang()');
+    // The device language must be settled SYNCHRONOUSLY (initLang) before the
+    // first paint; setSystemLang alone leaves one frame in the module default.
+    if (!/initLang\(/.test(src)) throw new Error(d + '/' + l + ': setup page never calls initLang() (startup may flash)');
     if (!/configuration\.getLocale/.test(src)) throw new Error(d + '/' + l + ': setup page does not read the device locale');
     if (/\{\{\s*tr\s*\(/.test(src)) {
       throw new Error(d + '/' + l + ': template calls tr() directly — wrap it in a computed instead');

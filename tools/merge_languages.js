@@ -54,9 +54,13 @@ const ROOT = path.resolve(__dirname, '..');
 const DEVICES = ['xiaomi-band-9', 'xiaomi-band-9-pro', 'xiaomi-band-10'];
 
 const GEO = {
-  'xiaomi-band-9': { w: 192, h: 490 },
-  'xiaomi-band-9-pro': { w: 336, h: 480 },
-  'xiaomi-band-10': { w: 212, h: 520 }
+  /* viewportH = the height of `.boardViewport` in game.ux, which is what the
+   * board must slide within. Band 9 Pro is taller (its clock row is a single
+   * line, see fix_band9_band10_clock.js) and centres its board horizontally
+   * instead of pinning it left. Keep these in step with the .ux styles. */
+  'xiaomi-band-9': { w: 192, h: 490, viewportH: 264, centred: false },
+  'xiaomi-band-9-pro': { w: 336, h: 480, viewportH: 280, centred: true },
+  'xiaomi-band-10': { w: 212, h: 520, viewportH: 264, centred: false }
 };
 
 /*
@@ -114,7 +118,7 @@ function settingsPage(geo, dev) {
 import router from '@system.router';
 import storage from '@system.storage';
 import configuration from '@system.configuration';
-import { tr, setLang, setSystemLang } from '../../common/js/strings.js';
+import { tr, initLang, setLang, setSystemLang } from '../../common/js/strings.js';
 
 /* Language modes, in the order the row cycles through them. */
 const LANG_MODES = ['system', 'zh', 'en'];
@@ -149,10 +153,16 @@ export default {
     if (event && event.type === 'locale') { this.applySystemLang(); this.langTick++; }
   },
   applySystemLang(){
+    /* initLang() settles the device language synchronously and is what keeps
+     * the first painted frame correct; then the stored preference is applied
+     * on top. Keeping this shape identical to the other pages means there is
+     * exactly one language path in the app. */
+    let devLang = 'en';
     try {
       const loc = configuration.getLocale();
-      setSystemLang(loc && loc.language === 'zh' ? 'zh' : 'en');
-    } catch(e){ setSystemLang('en'); }
+      devLang = (loc && loc.language === 'zh') ? 'zh' : 'en';
+    } catch(e){ devLang = 'en'; }
+    initLang({ language: devLang });
     setLang(this.langMode);
   },
   load(){
@@ -224,6 +234,100 @@ function rewritePages(absFile, rules, preSrc) {
   }
   /* A no-op is fine on a re-run; only a genuine miss is an error. */
   return src === before ? null : src;
+}
+
+/* ------------------------------------------------------------------ *
+ * Unify every page onto tr().
+ *
+ * Background: $t() follows the SYSTEM locale and cannot be overridden by
+ * the app. Pages that used $t() therefore stayed Chinese on a Chinese band
+ * even after the user picked English in Settings, while pages built on tr()
+ * switched — the "About is Chinese, Home is English" split users reported.
+ *
+ * The fix is one language path for the whole app. This pass rewrites every
+ * remaining {{$t('group.key')}} template binding into a computed property
+ * that calls tr() and reads `this.langTick` for reactivity:
+ *
+ *   {{$t('about.title')}}   ->   {{tt_about_title}}
+ *   computed: { tt_about_title(){ this.langTick; return tr('about.title'); }, ... }
+ *
+ * It also makes sure the page has the tr/applyLang bootstrap. Runs after all
+ * the per-page rules, so it sees whatever $t() bindings survived them.
+ * ------------------------------------------------------------------ */
+function localizeName(key) {
+  /* about.title -> tt_about_title  (stable, collision-free, valid identifier) */
+  return 'tt_' + key.replace(/[^A-Za-z0-9_]/g, '_');
+}
+
+function unifyToTr(src, dev, page) {
+  /* Collect keys still bound through $t() in the template. */
+  const keys = new Set();
+  const re = /\{\{\s*\$t\(\s*'([^']+)'\s*\)\s*\}\}/g;
+  let m;
+  while ((m = re.exec(src)) !== null) keys.add(m[1]);
+  /* Script-side `this.$t('key')` is just as pinned to the system locale, so
+   * fold those into the same rewrite (e.g. about's versionText computed). */
+  const reScript = /this\.\$t\(\s*'([^']+)'\s*\)/g;
+  const scriptKeys = new Set();
+  while ((m = reScript.exec(src)) !== null) scriptKeys.add(m[1]);
+  if (keys.size === 0 && scriptKeys.size === 0) return seedOnInit(src, 'export default {');
+
+  /* 1. rewrite the call sites: template binding and script call alike. */
+  let out = src.replace(re, (_all, key) => '{{' + localizeName(key) + '}}');
+  out = out.replace(reScript, (_all, key) => "tr('" + key + "')");
+
+  /* 2. make sure the page imports tr() and sets the language synchronously */
+  if (!/strings\.js/.test(out)) out = injectTrHelper(out, dev, page);
+
+  /* The script-side calls are already plain tr() now; only the template
+   * bindings need a computed to stay reactive. */
+  if (keys.size === 0) return seedOnInit(out, 'export default {');
+
+  /* 3. splice the computeds in. Existing computed blocks get the entries
+   *    appended; a page with no computed block gets one.
+   *
+   *    IDEMPOTENCY: a key whose computed is already defined is skipped, so a
+   *    second run cannot stack duplicate entries. (The call-site rewrite in
+   *    step 1 is a no-op once the $t() form is gone, but the splice below is
+   *    driven by the collected keys and would otherwise re-add them.) */
+  const fresh = [...keys].filter((k) => !new RegExp('\\b' + localizeName(k) + '\\s*\\(').test(out));
+  if (fresh.length === 0) {
+    /* nothing left to add; still finish the other guarantees below */
+  } else {
+    const entries = fresh.map((k) =>
+      "    " + localizeName(k) + "(){ this.langTick; return tr('" + k + "'); },").join('\n');
+
+    if (/computed\s*:\s*\{/.test(out)) {
+      out = out.replace(/(computed\s*:\s*\{)/, '$1\n' + entries);
+    } else {
+      out = out.replace(/(export default\s*\{)/, '$1\n  computed:{\n' + entries + '\n  },');
+    }
+  }
+
+  /* 4. langTick must exist as data for the dependency to register. */
+  if (!/langTick\s*:/.test(out)) {
+    if (/(data\s*:\s*\{)/.test(out)) {
+      out = out.replace(/(data\s*:\s*\{)/, '$1 langTick:0,');
+    } else {
+      out = out.replace(/(export default\s*\{)/, '$1\n  data:{ langTick:0 },');
+    }
+  }
+
+  /* 5. settle the language on show so a Settings change is picked up. */
+  if (!/this\.applyLang\(\)/.test(out)) {
+    if (/(\n\s*)(onShow\s*\([^)]*\)\s*\{)/.test(out)) {
+      out = out.replace(/(\n\s*)(onShow\s*\([^)]*\)\s*\{)/, "$1$2 this.applyLang(); ");
+    } else {
+      /* No onShow: add one next to the first lifecycle hook we can find. */
+      out = out.replace(/(export default\s*\{)/, "$1\n  onShow(){ this.applyLang(); },");
+    }
+  }
+
+  /* 6. ...and once more in onInit, so the FIRST painted frame is already in
+   *    the right language (onShow is too late — see seedOnInit). */
+  out = seedOnInit(out, 'export default {');
+
+  return out;
 }
 
 /* ------------------------------------------------------------------ *
@@ -353,6 +457,50 @@ function supportRules() {
  * ------------------------------------------------------------------ */
 function gameRules() {
   return [
+    /* ---- AI "thinking" feedback ----
+     *
+     * The engine can run for up to 10s at master level. Without feedback the
+     * board appears frozen for that whole time: the human taps, nothing moves,
+     * then the reply snaps in. Two cheap additions fix the perceived lag:
+     *
+     *   1. a pulsing ring over the board, so it is obvious the app is busy —
+     *      and the human's own move is already painted underneath it, which is
+     *      the "show me where it went" part of the request;
+     *   2. an animated hint line ("···") in the area the eye already rests on.
+     *
+     * Both are driven by the existing `aiThinking` flag — no new state.
+     *
+     * NOTE: a `class="{{cond?'a':'b'}}"` ternary is a known Vela pitfall (the
+     * compiler mishandles the quotes), so the ring is an `if`-gated element
+     * rather than a toggled class. */
+    [/<div class="hint"><text class="hintText">\{\{hintText\}\}<\/text><\/div>/,
+     "<div class=\"hint\"><text class=\"hintText\">{{hintText}}</text><text class=\"hintDots\" if=\"{{aiThinking}}\">{{thinkingDots}}</text></div>", true],
+    /* SELF-HEAL the mis-placed ring from the earlier (buggy) rule:
+     *
+     *     </div>                              <- .board close
+     *     </div>                              <- .boardViewport close
+     *     <div class="thinkingRing" .../>     <- wrong: outside the viewport
+     *     </div>                              <- stray, unbalanced
+     *
+     * Collapse it back to the balanced form (ring between the two closes).
+     * Runs before the placement rule below, so a tree broken by the old rule
+     * converges in one pass. */
+    [/(\n\s*)(<\/div>\n\s*<\/div>)\n\s*<div class="thinkingRing" if="\{\{aiThinking\}\}"><\/div>\n\s*<\/div>/,
+     "$1$2\n      <div class=\"thinkingRing\" if=\"{{aiThinking}}\"></div>", true],
+    /* The ring goes just inside .boardViewport, AFTER the .board div closes
+     * but BEFORE the viewport's own close. The target sequence is
+     *     </div>   <- closes .board (the 64-square container)
+     *     </div>   <- closes .boardViewport
+     *
+     * IMPORTANT: the insertion must go BETWEEN those two, not after them. An
+     * earlier version appended `</div>` on top of the two it matched, which
+     * produced 6 children in <template> and made the compiler reject the page
+     * ("There are 6 children, but expect to have 1"). We now keep the brace
+     * stack balanced by emitting only the ring element between the two closes.
+     * Self-healing: strip any previously mis-placed copy first. */
+    [/(\n\s*<\/div>)(\n\s*<\/div>\n\n)(\s*<div class="hint">)/,
+     "$1\n      <div class=\"thinkingRing\" if=\"{{aiThinking}}\"></div>$2$3", true],
+
     /* ---- top bar / clocks / bottom bar ---- */
     [/<text class="turn">\{\{ statusText \}\}<\/text>/,
      "<text class=\"turn\">{{statusText}}</text>", true],
@@ -370,6 +518,15 @@ function gameRules() {
      "<text class=\"action\" @click=\"undoMove\">{{undoLabel}}</text>", true],
     [/<text class="action" @click="openMenu">菜单<\/text>/,
      "<text class=\"action\" @click=\"openMenu\">{{menuLabel}}</text>", true],
+
+    /* ---- AI feedback styles ----
+     * A pulsing accent ring over the board while the engine searches, plus the
+     * animated dots next to the hint. Both are decorative and non-blocking:
+     * pointer events pass through to the board underneath (the ring is a
+     * `div` with no handler, and Vela routes taps to the deepest target). */
+    [/\.hintText \{([^}]*)\}/,
+     (all, body) => /\.thinkingRing/.test(all) ? all :
+       ".hintText {" + body + "}\n.hintDots { color:#4EA1FF; font-size:16dp; margin-left:2dp; }\n.thinkingRing { position:absolute; left:0dp; top:0dp; right:0dp; bottom:0dp; border:2dp solid #4EA1FF; opacity:0.85; }", true],
 
     /* ---- game menu overlay ---- */
     [/<text class="menuTitle">棋局菜单<\/text>/,
@@ -473,6 +630,85 @@ function gameRules() {
 }
 
 /* ------------------------------------------------------------------ *
+ * Board panning bounds.
+ *
+ * The clamp constants must come from the ACTUAL board viewport, not a
+ * guessed number. The original code used a flat `280`, which was the
+ * Band 9 Pro viewport height; on Band 9 / Band 10 the viewport is only
+ * 264dp tall, so a 352dp (44dp-square) board could never be dragged far
+ * enough to reveal its bottom row — the user reported exactly that
+ * ("放大后棋盘显示不完全，无法滑到边缘").
+ *
+ * Correct bounds, per device:
+ *   left-clamped devices (Band 9 / Band 10):
+ *       maxBoardLeft = min(0, viewportW - boardSize)
+ *   centred device (Band 9 Pro):
+ *       maxBoardLeft = max(0, floor((viewportW - boardSize)/2))
+ *   all devices:
+ *       maxBoardTop  = min(0, viewportH - boardSize)
+ *
+ * Also fixes centerOn(): it scrolled to a hardcoded `140` (half of the
+ * wrong 280), so "auto centre" landed off-centre vertically. It now uses
+ * viewportH/2.
+ * ------------------------------------------------------------------ */
+function boardBoundsRules(dev) {
+  const g = GEO[dev];
+  const vh = g.viewportH;
+  const vw = g.w;
+  const centred = !!g.centred;
+
+  const maxLeft = centred
+    ? 'Math.max(0,Math.floor((' + vw + '-this.boardSize)/2))'
+    : 'Math.min(0,' + vw + '-this.boardSize)';
+  const maxTop = 'Math.min(0,' + vh + '-this.boardSize)';
+  const midV = Math.round(vh / 2);
+  const midH = Math.round(vw / 2);
+
+  return [
+    /* maxBoardLeft / maxBoardTop — match whatever body is currently there so
+     * the rule is device-agnostic and idempotent. */
+    [/(\n\s*)maxBoardLeft\(\)\{[^\n]*\},/, '$1maxBoardLeft(){return ' + maxLeft + ';},'],
+    [/(\n\s*)maxBoardTop\(\)\{[^\n]*\},/, '$1maxBoardTop(){return ' + maxTop + ';},'],
+    /* centerOn(): centre on the viewport, not on a hardcoded 140/96-of-192. */
+    [/(\n\s*)centerOn\(i\)\{[^\n]*\},/,
+     '$1centerOn(i){const col=i%8,row=Math.floor(i/8);this.boardLeft=' +
+     (centred
+       ? 'Math.max(0,Math.min(this.maxBoardLeft(),' + midH + '-(col+0.5)*this.squareSize))'
+       : 'Math.max(this.maxBoardLeft(),Math.min(0,' + midH + '-(col+0.5)*this.squareSize))') +
+     ';this.boardTop=Math.max(this.maxBoardTop(),Math.min(0,' + midV + '-(row+0.5)*this.squareSize));},']
+  ];
+}
+
+/* ------------------------------------------------------------------ *
+ * Collapse duplicate simple declarations inside a <style> block.
+ *
+ * The feedback rules append `.hintDots` / `.thinkingRing`; before they were
+ * made idempotent a re-run could stack several copies. This removes the
+ * later duplicates so the pass converges no matter what state the file is
+ * in. Only single-line, non-nested declarations are considered, which is all
+ * this stylesheet uses.
+ * ------------------------------------------------------------------ */
+function dedupeStyleLines(src) {
+  const open = src.indexOf('<style>');
+  const close = src.indexOf('</style>');
+  if (open < 0 || close < 0) return src;
+  const head = src.slice(0, open + '<style>'.length);
+  const body = src.slice(open + '<style>'.length, close);
+  const tail = src.slice(close);
+  const seen = new Set();
+  const out = [];
+  for (const ln of body.split('\n')) {
+    const sel = ln.match(/^\s*(\.[A-Za-z0-9_-]+)\s*\{/);
+    if (sel) {
+      if (seen.has(sel[1])) continue;   /* keep the first declaration */
+      seen.add(sel[1]);
+    }
+    out.push(ln);
+  }
+  return head + out.join('\n') + tail;
+}
+
+/* ------------------------------------------------------------------ *
  * Game page: after the string rewiring, splice in
  *   (a) the tr/applyLang bootstrap (shared with the other pages),
  *   (b) `sideName()` — turns WHITE/BLACK into a localised side name,
@@ -482,6 +718,11 @@ function gameRules() {
  * ------------------------------------------------------------------ */
 function gameScript(src, dev) {
   let out = src;
+
+  /* Self-healing: collapse duplicate CSS declarations produced by earlier,
+   * non-idempotent runs of the feedback rules. Keeps the first of each. */
+  out = dedupeStyleLines(out);
+
   const LBL = [
     ['whiteLabel', "tr('game.white')"],
     ['blackLabel', "tr('game.black')"],
@@ -507,7 +748,10 @@ function gameScript(src, dev) {
    * into already has its own members, and Vela (like any JS parser) needs
    * every property separated by a comma. */
   const COMPUTED = LBL.map(([k, v]) => '    ' + k + '(){ this.langTick; return ' + v + '; },').join('\n') +
-    '\n    aiLevelName(){ this.langTick; const L=this.aiLevel; return L===\'easy\'?tr(\'game.levelEasy\'):(L===\'hard\'?tr(\'game.levelHard\'):(L===\'master\'?tr(\'game.levelMaster\'):tr(\'game.levelNormal\'))); },';
+    '\n    aiLevelName(){ this.langTick; const L=this.aiLevel; return L===\'easy\'?tr(\'game.levelEasy\'):(L===\'hard\'?tr(\'game.levelHard\'):(L===\'master\'?tr(\'game.levelMaster\'):tr(\'game.levelNormal\'))); },' +
+    /* Animated ellipsis beside the hint while the engine runs. Purely visual:
+     * it cycles ·  ··  ··· so a long master-level search does not look hung. */
+    '\n    thinkingDots(){ const n=(this.dotTick||0)%4; return n===0?\'\':(n===1?\'·\':(n===2?\'··\':\'···\')); },';
 
   /* `sideName` first — the dynamic-string rules above now call it. Anchor on
    * `},updateSquares(){`: the page's methods are written compactly on one
@@ -524,14 +768,135 @@ function gameScript(src, dev) {
     }
   }
 
-  /* The tr/applyLang bootstrap is keyed off strings.js, NOT langTick: the
-   * string rules above already introduce `this.langTick;`, so a langTick test
-   * would wrongly conclude the bootstrap was done and skip it. */
+  /* Each bootstrap concern is guarded on its OWN marker, so a re-run that
+   * finds the import already present still applies the parts that are missing.
+   * (Using one `strings.js` test for everything meant a tree converted before
+   * the onInit rule existed never got it.) */
   if (!/strings\.js/.test(out)) {
     out = injectTrHelper(out, dev, 'game');
+  }
+  if (!/thinkingDots/.test(out)) {
     out = out.replace(/(computed\s*:\s*\{)/, '$1\n' + COMPUTED);
+  }
+  if (!/langTick\s*:\s*0/.test(out)) {
     out = out.replace(/(\bresultTitle: ''\s*,)/, "$1 langTick: 0,");
+  }
+  if (!/onShow\([^)]*\)\s*\{[^}]*this\.applyLang\(\)/.test(out)) {
     out = out.replace(/(\n\s*)(onShow\s*\([^)]*\)\s*\{)/, "$1$2 this.applyLang(); ");
+  }
+  /* Language must also be settled in onInit, before the first paint. */
+  out = seedOnInit(out, 'export default {');
+
+  /* ---- AI responsiveness ----
+   *
+   * Two problems to fix, both about what the user SEES while the engine runs:
+   *
+   * 1. "点击后先显示下哪里了再计算 ai 走法". The human's move IS already
+   *    painted (move() calls buildSquares() before maybeAiMove()), but the
+   *    60ms artificial delay before the search starts meant the frame could
+   *    still be pending. We now yield exactly one frame (setTimeout 0) and
+   *    start the engine immediately after — so the board shows the human's
+   *    move at once and only THEN does the ring appear.
+   *
+   * 2. A long search looked like a freeze. `aiThinking` now also drives the
+   *    pulsing ring and the animated dots, and we tick `dotTick` on an
+   *    interval so the dots actually move.
+   */
+  if (!/thinkingDots/.test(out)) {
+    /* Computeds are spliced by the bootstrap above; make sure ours got in. */
+    throw new Error(dev + '/game: thinkingDots computed was not spliced');
+  }
+
+  /* Replace the 60ms pre-search delay with a single-frame yield. */
+  out = out.replace(
+    /this\.aiTimerId=setTimeout\(\(\)=>\{this\.aiTimerId=null;this\.runAiMove\(\);\},60\);/,
+    'this.dotTick=0;if(this.dotTimerId)clearInterval(this.dotTimerId);' +
+    'this.dotTimerId=setInterval(()=>{this.dotTick=(this.dotTick||0)+1;},420);' +
+    'this.aiTimerId=setTimeout(()=>{this.aiTimerId=null;this.runAiMove();},0);');
+
+  /* Stop the dots as soon as a move is produced (or the search fails). */
+  out = out.replace(
+    /runAiMove\(\)\{let mv=null;/,
+    'runAiMove(){if(this.dotTimerId){clearInterval(this.dotTimerId);this.dotTimerId=null;}' +
+    'this.dotTick=0;let mv=null;');
+
+  /* A stale interval must not outlive the page or a reset. Guard on the
+   * ALREADY-PATCHED form, otherwise re-running stacks a second clear on
+   * every pass (the anchor keeps matching). */
+  if (!/resetAi\(\)\{this\.aiThinking=false;if\(this\.dotTimerId\)\{clearInterval/.test(out)) {
+    out = out.replace(
+      /resetAi\(\)\{this\.aiThinking=false;/,
+      'resetAi(){this.aiThinking=false;if(this.dotTimerId){clearInterval(this.dotTimerId);this.dotTimerId=null;}this.dotTick=0;');
+  }
+
+  /* Declare the new state, and stop the animation when the page is hidden —
+   * Vela may kill the page while it runs, but we should not leak a live
+   * interval for as long as we are alive. Both are guarded for the same
+   * idempotency reason. */
+  if (!/dotTimerId: null/.test(out)) {
+    out = out.replace(
+      /aiTimerId: null,/,
+      'aiTimerId: null, dotTimerId: null, dotTick: 0,');
+  }
+  /* onHide must clear the dot interval too. Two idempotency hazards live here:
+   *
+   *  - `integrate_ai.js` (step 2) strips its OWN aiTimerId clear from the
+   *    onHide body and re-inserts it at the top every run. Anything sitting
+   *    between our clear and that block survives, but a guard that keys off
+   *    text *before* the aiTimerId block cannot see it reliably.
+   *  - A naive guard also mis-fires because the onHide body is one long line
+   *    of `...;...;...` — `[^;]*` cannot cross the semicolons.
+   *
+   * So we SELF-HEAL instead: strip every copy of our dot clear from the body,
+   * then insert exactly one right after the aiTimerId clear. Re-running is
+   * then a no-op regardless of what integrate_ai.js did in between. */
+  {
+    const bodyM = out.match(/onHide\(\)\s*\{/);
+    if (bodyM) {
+      const from = bodyM.index + bodyM[0].length;
+      const rest = out.slice(from);
+      const nextM = rest.match(/\n\s{2}[a-zA-Z_$][\w$]*\s*\(/);
+      const to = nextM ? from + nextM.index : out.length;
+      let body = out.slice(from, to);
+      const DOT_CLEAR_RE = /if\s*\(this\.dotTimerId\)\s*\{\s*clearInterval\(this\.dotTimerId\)\s*;\s*this\.dotTimerId\s*=\s*null\s*;\s*\}/g;
+      body = body.replace(DOT_CLEAR_RE, '');
+      const DOT_CLEAR = 'if(this.dotTimerId){clearInterval(this.dotTimerId);this.dotTimerId=null;}';
+      const AI_CLEAR = /if\s*\(this\.aiTimerId\)\s*\{\s*clearTimeout\(this\.aiTimerId\)\s*;\s*this\.aiTimerId\s*=\s*null\s*;\s*\}/;
+      if (AI_CLEAR.test(body)) {
+        /* Insert immediately after the aiTimerId clear, normalised. */
+        body = body.replace(AI_CLEAR, (m) => m + DOT_CLEAR);
+      } else {
+        /* No aiTimerId clear (shouldn't happen once integrate_ai has run) —
+         * still make sure our clear is present. */
+        body = DOT_CLEAR + body;
+      }
+      out = out.slice(0, from) + body + out.slice(to);
+    }
+  }
+  {
+    const bodyM = out.match(/onHide\(\)\s*\{/);
+    if (!bodyM) throw new Error(dev + '/game: onHide() not found');
+    const from = bodyM.index + bodyM[0].length;
+    const rest = out.slice(from);
+    const nextM = rest.match(/\n\s{2}[a-zA-Z_$][\w$]*\s*\(/);
+    const hideBody = nextM ? rest.slice(0, nextM.index) : rest;
+    const dots = (hideBody.match(/clearInterval\(this\.dotTimerId\)/g) || []).length;
+    if (dots !== 1) throw new Error(dev + '/game: onHide has ' + dots + ' dot clears (want exactly 1)');
+  }
+
+  /* Assertions — each anchor separately, so a silent regex miss cannot pass. */
+  if (/setTimeout\(\(\)=>\{this\.aiTimerId=null;this\.runAiMove\(\);\},60\)/.test(out)) {
+    throw new Error(dev + '/game: the 60ms pre-search delay is still present');
+  }
+  if (!/dotTimerId=setInterval/.test(out)) throw new Error(dev + '/game: thinking-dot interval not wired');
+  if (!/clearInterval\(this\.dotTimerId\)/.test(out)) throw new Error(dev + '/game: thinking-dot interval never cleared');
+  if (!/dotTimerId: null/.test(out)) throw new Error(dev + '/game: dotTimerId is never declared');
+  /* The onHide body is short; slice it out and look for the clear inside it
+   * rather than trying to match braces with a regex. */
+  const hideAt = out.indexOf('onHide()');
+  const hideBody = hideAt < 0 ? '' : out.slice(hideAt, hideAt + 400);
+  if (!/clearInterval\(this\.dotTimerId\)/.test(hideBody)) {
+    throw new Error(dev + '/game: onHide does not stop the thinking-dot interval');
   }
   return out;
 }
@@ -571,14 +936,18 @@ function purchaseRules() {
  * the Settings page take effect the moment the user comes back.
  * ------------------------------------------------------------------ */
 function injectTrHelper(src, dev, page) {
-  const IMPORTS = "import { tr, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';";
+  const IMPORTS = "import { tr, initLang, setLang, setSystemLang, resolveLang } from '../../common/js/strings.js';";
   const ANCHOR = 'export default {';
   if (!src.includes(ANCHOR)) {
     throw new Error(dev + '/' + page + ': no `export default {` to attach the tr helper to');
   }
   /* Already injected on a previous run — leave it alone so the pass stays
-   * idempotent instead of stacking duplicate imports/methods. */
-  if (/\btr\s*\(k\)\s*\{\s*return tr\(k\);?\s*\}/.test(src) && /\bapplyLang\s*\(/.test(src)) return src;
+   * idempotent instead of stacking duplicate imports/methods. The onInit
+   * language seed below is still applied, because it may be missing on trees
+   * converted before that rule existed. */
+  if (/\btr\s*\(k\)\s*\{\s*return tr\(k\);?\s*\}/.test(src) && /\bapplyLang\s*\(/.test(src)) {
+    return seedOnInit(src, ANCHOR);
+  }
   /* Add the import next to the other imports. */
   if (!src.includes('common/js/strings.js')) {
     const m = src.match(/^(import [^\n]+\n)/m);
@@ -591,19 +960,33 @@ function injectTrHelper(src, dev, page) {
     src = src.replace(m[0], m[0] + "import storage from '@system.storage';\n");
   }
   /* Add the forwarding method and the bootstrap. Inserted as the first members
-   * so nothing later can shadow them. */
+   * so nothing later can shadow them.
+   *
+   * applyLang() settles the language in TWO stages because storage is async:
+   *
+   *   1. initLang(getLocale())  — SYNCHRONOUS, called before waiting on
+   *      storage. This is what removes the startup flash: the module default
+   *      was English, so a Chinese band painted English text for one frame
+   *      and then swapped to Chinese. Now the device language is applied
+   *      immediately and the first painted frame is already correct.
+   *
+   *   2. storage.get(...)       — then honours an explicit zh/en override.
+   *      Until it returns we are already right in the common case of
+   *      "follow system", which is also the default preference. */
   const helpers =
     "\n  tr(k){ return tr(k); }," +
     "\n  applyLang(){" +
+    "\n    let devLang = 'en';" +
     "\n    try{" +
     "\n      const loc = configuration.getLocale();" +
-    "\n      setSystemLang(loc && loc.language === 'zh' ? 'zh' : 'en');" +
-    "\n    }catch(e){ setSystemLang('en'); }" +
+    "\n      devLang = (loc && loc.language === 'zh') ? 'zh' : 'en';" +
+    "\n    }catch(e){ devLang = 'en'; }" +
+    "\n    initLang({ language: devLang });" +   /* synchronous: no first-frame flash */
     "\n    storage.get({key:'CHESS_SETTINGS',success:(data)=>{" +
     "\n      try{" +
     "\n        const raw=data&&data.data!==undefined?data.data:data;" +
     "\n        const v=(raw===undefined||raw===null||raw==='')?null:(typeof raw==='string'?JSON.parse(raw):raw);" +
-    "\n        setLang(resolveLang(v&&v.langMode, configuration.getLocale().language==='zh'?'zh':'en'));" +
+    "\n        setLang(resolveLang(v&&v.langMode, devLang));" +
     "\n      }catch(e){ setLang('system'); }" +
     "\n      this.langTick=(this.langTick||0)+1;" +
     "\n    },fail:()=>{ setLang('system'); this.langTick=(this.langTick||0)+1; }});" +
@@ -618,6 +1001,7 @@ function injectTrHelper(src, dev, page) {
   if (!/\bapplyLang\s*\(/.test(src) || !/\btr\s*\(k\)\s*\{\s*return tr\(k\)/.test(src)) {
     throw new Error(dev + '/' + page + ': failed to inject the tr/lang helpers');
   }
+
   /* Collapse any duplicate import lines introduced by repeated runs. */
   const seenImports = new Set();
   src = src
@@ -630,7 +1014,79 @@ function injectTrHelper(src, dev, page) {
       return true;
     })
     .join('\n');
-  return src;
+
+  /* Settle the language before the first render (see seedOnInit). */
+  return seedOnInit(src, ANCHOR);
+}
+
+/* ------------------------------------------------------------------ *
+ * Make sure the page applies its language in onInit.
+ *
+ * onShow runs AFTER the first paint, so putting initLang() only there still
+ * lets one frame render with the module default (English) before swapping to
+ * the device language — the zh -> en flash the user reported. onInit runs
+ * BEFORE the first render, so calling applyLang() there makes the very first
+ * frame correct. The storage read inside is async, but initLang() has already
+ * applied the device language by then, which is right in the common case of
+ * "follow system" (the default preference).
+ *
+ * Pages that already have an onInit get the call prepended; pages without one
+ * get a minimal onInit added. Idempotent.
+ * ------------------------------------------------------------------ */
+function seedOnInit(src, anchor) {
+  /* Make sure initLang is imported. Trees converted before the onInit rule
+   * existed import only { tr, setLang, setSystemLang, resolveLang }, and the
+   * call below would be a ReferenceError on the device. */
+  src = src.replace(
+    /import\s*\{([^}]*)\}\s*from\s*'([^']*common\/js\/strings\.js)';/,
+    (all, names, mod) => {
+      const set = names.split(',').map((x) => x.trim()).filter(Boolean);
+      if (!set.includes('initLang')) set.splice(1, 0, 'initLang');
+      return "import { " + set.join(', ') + " } from '" + mod + "';";
+    });
+
+  /* Normalise the synchronous language settle inside applyLang().
+   *
+   * Pages from the very first conversion (index/setup/game on all three
+   * devices) wrote the device locale into the module via setSystemLang(),
+   * e.g.
+   *     try{ const loc = configuration.getLocale();
+   *          setSystemLang(loc && loc.language === 'zh' ? 'zh' : 'en');
+   *     }catch(e){ setSystemLang('en'); }
+   * That works, but initLang() is the single canonical entry point: it does
+   * the same setSystemLang() AND returns the resolved tag, so the verifier
+   * (and any future reader) sees one uniform startup path. Rewrite it in
+   * place. Guarded so it only fires on the legacy form and stays idempotent
+   * (running again after the rewrite is a no-op because initLang( is present). */
+  const settleOneLine =
+    /try\{\s*const loc = configuration\.getLocale\(\);\s*setSystemLang\(loc && loc\.language === 'zh' \? 'zh' : 'en'\);\s*\}catch\(e\)\{ setSystemLang\('en'\); \}/;
+  const settleMultiLine =
+    /try\{[\s\S]{0,200}?const loc = configuration\.getLocale\(\);[\s\S]{0,120}?setSystemLang\(loc && loc\.language === 'zh' \? 'zh' : 'en'\);[\s\S]{0,60}?\}catch\(e\)\{ setSystemLang\('en'\); \}/;
+  const settleReplacement =
+    "try{ const loc = configuration.getLocale(); initLang({ language: (loc && loc.language === 'zh') ? 'zh' : 'en' }); }catch(e){ setSystemLang('en'); }";
+  if (!/initLang\(/.test(src)) {
+    if (settleOneLine.test(src)) src = src.replace(settleOneLine, settleReplacement);
+    else if (settleMultiLine.test(src)) src = src.replace(settleMultiLine, settleReplacement);
+  }
+
+  /* Find EVERY onInit and confirm exactly one. More than one would be a
+   * duplicate key (the last wins silently), so that is an error worth throwing
+   * rather than papering over. */
+  const all = src.match(/onInit\s*\([^)]*\)\s*\{/g) || [];
+  if (all.length > 1) {
+    throw new Error('page has ' + all.length + ' onInit definitions — refusing to patch');
+  }
+  if (all.length === 1) {
+    /* Already seeds the language? Nothing to do. */
+    const body = src.slice(src.indexOf(all[0]));
+    const end = body.indexOf('},');
+    const scope = end < 0 ? body.slice(0, 600) : body.slice(0, end);
+    if (/this\.applyLang\(\)/.test(scope)) return src;
+    /* Prepend the call inside the existing onInit. */
+    return src.replace(/(onInit\s*\([^)]*\)\s*\{)/, '$1 this.applyLang(); ');
+  }
+  /* No onInit at all: add a minimal one as the first member. */
+  return src.replace(anchor, anchor + '\n  onInit(){ this.applyLang(); },');
 }
 
 /* ------------------------------------------------------------------ *
@@ -730,25 +1186,34 @@ for (const d of DEVICES) {
     console.log('  OK   ' + d + '/index');
   }
 
-  /* ---- 3. about (static $t) ---- */
+  /* ---- 3. about ---- */
   const aboutFile = path.join(main, 'src', 'pages', 'about', 'about.ux');
   if (fs.existsSync(aboutFile)) {
     const aboutSrc = fs.readFileSync(aboutFile, 'utf8');
-    const out = rewritePages(aboutFile, aboutRules(aboutSrc), aboutSrc);
-    if (out !== null) fs.writeFileSync(aboutFile, out, 'utf8');
+    let out = rewritePages(aboutFile, aboutRules(aboutSrc), aboutSrc);
+    /* Unify onto tr() so the page honours the Settings language override
+     * instead of being pinned to the system locale by $t(). */
+    out = unifyToTr(out === null ? aboutSrc : out, d, 'about');
+    if (out !== aboutSrc) fs.writeFileSync(aboutFile, out, 'utf8');
     const fin = fs.readFileSync(aboutFile, 'utf8');
     if (!/versionText\s*\(\s*\)/.test(fin)) throw new Error(d + ': about.ux lost its versionText computed');
+    if (/\{\{\s*\$t\(/.test(fin)) throw new Error(d + '/about: template still binds through $t()');
     if (/\bopenPurchase\b/.test(fin) && !/openPurchase\s*\(\s*\)\s*\{/.test(fin)) {
       throw new Error(d + ': about.ux template calls openPurchase but the script does not define it');
     }
     console.log('  OK   ' + d + '/about');
   }
 
-  /* ---- 4. support (static $t) ---- */
+  /* ---- 4. support ---- */
   const supFile = path.join(main, 'src', 'pages', 'support', 'support.ux');
   if (fs.existsSync(supFile)) {
-    const out = rewritePages(supFile, supportRules());
-    if (out !== null) fs.writeFileSync(supFile, out, 'utf8');
+    const supSrc = fs.readFileSync(supFile, 'utf8');
+    let out = rewritePages(supFile, supportRules(), supSrc);
+    out = unifyToTr(out === null ? supSrc : out, d, 'support');
+    if (out !== supSrc) fs.writeFileSync(supFile, out, 'utf8');
+    if (/\{\{\s*\$t\(/.test(fs.readFileSync(supFile, 'utf8'))) {
+      throw new Error(d + '/support: template still binds through $t()');
+    }
     console.log('  OK   ' + d + '/support');
   }
 
@@ -756,7 +1221,11 @@ for (const d of DEVICES) {
   const gameFile = path.join(main, 'src', 'pages', 'game', 'game.ux');
   if (fs.existsSync(gameFile)) {
     let out = rewritePages(gameFile, gameRules());
-    out = gameScript(out === null ? fs.readFileSync(gameFile, 'utf8') : out, d);
+    out = out === null ? fs.readFileSync(gameFile, 'utf8') : out;
+    /* Bounds must be derived from the real viewport, else a 44dp-square
+     * board cannot be panned to its last row. */
+    out = rewritePages(gameFile, boardBoundsRules(d), out) || out;
+    out = gameScript(out, d);
     /* assertions: the page is the most failure-prone one, so verify the
      * pieces the device actually needs. */
     for (const need of ['langTick', 'applyLang', 'sideName', 'aiLevelName',
@@ -766,6 +1235,19 @@ for (const d of DEVICES) {
     if (/\{\{\s*tr\s*\(/.test(out)) {
       throw new Error(d + '/game: template calls tr() directly — wrap it in a computed');
     }
+    /* The vertical clamp must equal the viewport height, not a stale 280. */
+    const vh = GEO[d].viewportH;
+    if (!new RegExp('maxBoardTop\\(\\)\\{return Math\\.min\\(0,' + vh + '-this\\.boardSize\\);\\}').test(out)) {
+      throw new Error(d + '/game: maxBoardTop does not use the viewport height ' + vh);
+    }
+    /* A missing GEO field would silently bake `undefined`/`NaN` into the
+     * arithmetic and break panning at runtime — catch it here instead. */
+    for (const bad of ["undefined-this.boardSize", "NaN-(col", "undefined-(col"]) {
+      if (out.includes(bad)) throw new Error(d + '/game: bounds contain `' + bad + '` (bad GEO field)');
+    }
+    if (!new RegExp('maxBoardLeft\\(\\)\\{return ' + (GEO[d].centred ? 'Math\\.max' : 'Math\\.min')).test(out)) {
+      throw new Error(d + '/game: maxBoardLeft has an unexpected form');
+    }
     fs.writeFileSync(gameFile, out, 'utf8');
     console.log('  OK   ' + d + '/game');
   }
@@ -773,8 +1255,13 @@ for (const d of DEVICES) {
   /* ---- 6. purchase (Band 9 Pro / Band 10 only) ---- */
   const purFile = path.join(main, 'src', 'pages', 'purchase', 'purchase.ux');
   if (fs.existsSync(purFile)) {
-    const out = rewritePages(purFile, purchaseRules());
-    if (out !== null) fs.writeFileSync(purFile, out, 'utf8');
+    const purSrc = fs.readFileSync(purFile, 'utf8');
+    let out = rewritePages(purFile, purchaseRules(), purSrc);
+    out = unifyToTr(out === null ? purSrc : out, d, 'purchase');
+    if (out !== purSrc) fs.writeFileSync(purFile, out, 'utf8');
+    if (/\{\{\s*\$t\(/.test(fs.readFileSync(purFile, 'utf8'))) {
+      throw new Error(d + '/purchase: template still binds through $t()');
+    }
     console.log('  OK   ' + d + '/purchase');
   }
 
