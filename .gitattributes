@@ -1,0 +1,22 @@
+# Normalise line endings so a clone on any platform behaves the same.
+#
+# Deliberately NOT `* text=auto`: the repository already contains mixed files,
+# and a blanket rule would make git want to renormalise everything on the next
+# commit — a huge, meaningless diff. Only the cases that actually matter are
+# declared here.
+
+# The build pipeline is a set of bash scripts. CRLF would break them (a
+# trailing \r turns `then` into `then\r`), so they must stay LF everywhere.
+*.sh    text eol=lf
+*.bash  text eol=lf
+
+# Binary assets — never diff, never convert.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.rpk   binary
+*.zip   binary
+*.pem   binary
+*.key   binary
