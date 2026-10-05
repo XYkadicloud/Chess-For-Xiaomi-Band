@@ -118,6 +118,9 @@ function loadPage(device, lang) {
 /* ---- helper: play one ply through the page's own tap path --------- */
 function humanMove(comp, from, to) {
   comp.tapSquare(from);
+  /* The page paints the selection box first and computes the legal moves on
+   * the next frame, so drain before reading the move list. */
+  comp.__drain();
   const legal = comp.legalMoves || [];
   if (legal.indexOf(to) < 0) return false;
   comp.tapSquare(to);
@@ -147,6 +150,27 @@ for (const d of D) {
     comp.newPosition();
     ok(tag + ': fresh board is 64 squares', comp.board.length === 64);
     ok(tag + ': starts on white', comp.turn === 'white');
+
+    /* Two-phase selection: tapping a piece must paint the selection box
+     * IMMEDIATELY and only compute the legal moves afterwards, so the box is
+     * never held back by the move search. */
+    {
+      comp.showHints = true;
+      comp.selected = -1; comp.legalMoves = [];
+      comp.tapSquare(52);                       // e2 pawn
+      const boxPainted = comp.selected === 52 && comp.legalMoves.length === 0;
+      comp.__drain();
+      ok(tag + ': selection box paints before the move list', boxPainted);
+      ok(tag + ': moves arrive after the deferred pass', comp.legalMoves.length > 0);
+
+      /* Tapping the destination in the SAME frame (before the deferred pass
+       * runs) must still make the move — the pending computation is flushed. */
+      comp.newPosition();
+      comp.tapSquare(52);
+      comp.tapSquare(36);                       // e2-e4, no drain in between
+      comp.__drain();
+      ok(tag + ': fast select+destination still moves', comp.turn === 'black' && comp.board[36] === 'wP');
+    }
 
     // AI off by default -> no reply
     comp.aiEnabled = false;

@@ -535,6 +535,133 @@ function supportRules() {
  *   zh: '走子完成，请交给' + '白方'
  *   en: 'Move played, pass to ' + 'White'
  * ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ *
+ * Board-interaction performance.
+ *
+ * Tapping a piece felt laggy because ALL the work happened before the
+ * repaint: the selection box only appeared once the legal-move list was
+ * ready. Four changes, each measured with tools/bench_selection.js:
+ *
+ *  1. updateSquares() built all 64 square objects on every tap just to find
+ *     that two or three had changed. Only the changed ones are built now.
+ *  2. move() rebuilt all 64 squares (buildSquares) although a move touches at
+ *     most four. It now uses the same incremental path.
+ *  3. getMoves() keyed its cache on `board.join(',') + JSON.stringify(castling)`
+ *     — a ~250-char string plus a serialisation on EVERY call, even cache
+ *     hits, and hasLegalMove() calls it per piece. The cache is now
+ *     per-position and keyed by square index alone, and it is dropped whenever
+ *     the position changes. That also fixes a leak: it was never cleared, so a
+ *     long game accumulated one entry per position.
+ *  4. tapSquare() paints the selection first and computes the moves on the next
+ *     frame. A pending computation is flushed if the user taps again before it
+ *     lands, so "select, then tap the destination" still works at any speed.
+ * ------------------------------------------------------------------ */
+function selectionPerf(out, dev) {
+  const must = (cond, msg) => { if (!cond) throw new Error(dev + '/game: ' + msg); };
+
+  /* --- 1. new state: the deferred selection + its timer --- */
+  if (!/pendingSelect\s*:/.test(out)) {
+    out = out.replace(/(\blegalCache\s*:\s*\{\s*\})/, '$1, pendingSelect: -1, selectTimer: null');
+  }
+
+  /* --- 2. updateSquares: only build what changed --- */
+  {
+    const OLD = "updateSquares(){if(!this.squares||this.squares.length!==64){this.buildSquares();return;}const out=this.squares.slice();let changed=false;for(let i=0;i<64;i++){const n=this.squareOf(i),o=out[i];if(!o||o.piece!==n.piece||o.pieceSrc!==n.pieceSrc||o.selected!==n.selected||o.lastMove!==n.lastMove||o.legal!==n.legal){out[i]=n;changed=true;}}if(changed)this.squares=out;}";
+    const NEW = "updateSquares(){if(!this.squares||this.squares.length!==64){this.buildSquares();return;}const out=this.squares.slice();let changed=false;for(let i=0;i<64;i++){const o=out[i],p=this.board[i],src=p?'/common/pieces/'+p+'.png':'',sel=i===this.selected,lm=this.lastMove.indexOf(i)>=0,lg=this.legalMoves.indexOf(i)>=0;if(!o||o.pieceSrc!==src||o.selected!==sel||o.lastMove!==lm||o.legal!==lg){out[i]=this.squareOf(i);changed=true;}}if(changed)this.squares=out;}";
+    if (out.includes(OLD)) out = out.replace(OLD, NEW);
+    must(/const o=out\[i\],p=this\.board\[i\]/.test(out), 'updateSquares was not optimised');
+  }
+
+  /* --- 3. getMoves: per-position cache + a cheaper legality test ---
+   *
+   *  a. The cache key was `board.join(',') + JSON.stringify(castling)` — a
+   *     ~250-char string plus a serialisation on every call, even a hit, and
+   *     hasLegalMove() calls this once per piece. Keyed by square now, and
+   *     dropped whenever the position changes.
+   *  b. The legality filter ran isInCheckBoard() per pseudo-move, which does
+   *     board.indexOf(king) — a 64-cell scan — before the attack test. The
+   *     king square is computed once per getMoves and passed straight to
+   *     isSquareAttacked (when the moving piece IS the king its destination is
+   *     the king square).
+   *
+   * NOTE: a variant that also replaced applyBoardMove()'s board copy with
+   * make/unmake on a single scratch array was tried and dropped. It bought
+   * nothing measurable (the native Array#slice is hard to beat) while adding
+   * en-passant/castling bookkeeping to the hottest loop — not a trade worth
+   * making. The harness needs thousands of iterations per measurement to be
+   * trustworthy; at 300 the numbers swing by 2x and will mislead you. */
+  {
+    const NEW = "getMoves(i){const p=this.board[i];if(!p)return[];const mine=p[0]===this.turn[0],c=this.legalCache;if(mine&&c[i])return c[i].slice();const b=this.board,color=p[0],type=p[1],opp=color==='w'?'b':'w',pseudo=this.getPseudoMoves(i,b,true),out=[],kingSq=b.indexOf(color+'K');for(let n=0;n<pseudo.length;n++){const to=pseudo[n],nb=this.applyBoardMove(b,i,to);if(!this.isSquareAttacked(nb,type==='K'?to:kingSq,opp))out.push(to);}if(mine)c[i]=out.slice();return out;}";
+    /* original */
+    const V0 = "getMoves(i){const p=this.board[i];if(!p)return[];const key=this.board.join(',')+'|'+this.turn+'|'+i+'|'+JSON.stringify(this.castling);if(this.legalCache[key])return this.legalCache[key].slice();const pseudo=this.getPseudoMoves(i,this.board,true);const out=[];for(let n=0;n<pseudo.length;n++){const b=this.applyBoardMove(this.board,i,pseudo[n]);if(!this.isInCheckBoard(b,p[0]))out.push(pseudo[n]);}this.legalCache[key]=out.slice();return out;}";
+    /* first pass: cheap key, unchanged legality test */
+    const V1 = "getMoves(i){const p=this.board[i];if(!p)return[];const mine=p[0]===this.turn[0],c=this.legalCache;if(mine&&c[i])return c[i].slice();const pseudo=this.getPseudoMoves(i,this.board,true);const out=[];for(let n=0;n<pseudo.length;n++){const b=this.applyBoardMove(this.board,i,pseudo[n]);if(!this.isInCheckBoard(b,p[0]))out.push(pseudo[n]);}if(mine)c[i]=out.slice();return out;}";
+    /* second pass: the slower scratch-board variant, migrated away from */
+    const V2 = "getMoves(i){const p=this.board[i];if(!p)return[];const mine=p[0]===this.turn[0],c=this.legalCache;if(mine&&c[i])return c[i].slice();const b=this.board,color=p[0],type=p[1],opp=color==='w'?'b':'w',pseudo=this.getPseudoMoves(i,b,true),out=[],sc=b.slice(),kingSq=b.indexOf(color+'K');for(let n=0;n<pseudo.length;n++){const to=pseudo[n],cap=sc[to];sc[to]=p;sc[i]=null;let epSq=-1,epCap=null;if(type==='P'&&Math.abs(to-i)===7&&Math.floor(i/8)!==Math.floor(to/8)&&!cap){const e=color==='w'?to+8:to-8;if(sc[e]&&sc[e][0]===opp&&sc[e][1]==='P'){epSq=e;epCap=sc[e];sc[e]=null;}}if(!this.isSquareAttacked(sc,type==='K'?to:kingSq,opp))out.push(to);sc[i]=p;sc[to]=cap;if(epSq>=0)sc[epSq]=epCap;}if(mine)c[i]=out.slice();return out;}";
+    for (const v of [V0, V1, V2]) if (out.includes(v)) { out = out.replace(v, NEW); break; }
+    must(/kingSq=b\.indexOf\(color\+'K'\)/.test(out), 'getMoves was not optimised');
+    must(!/this\.board\.join\(','\)/.test(out), 'getMoves still builds the expensive cache key');
+    must(!/isInCheckBoard\(b,p\[0\]\)/.test(out), 'getMoves still rescans the board for the king');
+  }
+
+  /* --- 4. drop the move cache whenever the position changes ---
+   * Every one of these sites is the ONLY place the board is replaced, so the
+   * cache can never go stale. Each rule matches the pre-change text, so a
+   * second run is a no-op. */
+  const invalidate = [
+    ['this.board=b; this.turn=WHITE;', 'this.board=b; this.legalCache={}; this.turn=WHITE;', 'newPosition'],
+    ['this.board=b; this.lastMove=[from,to];', 'this.board=b; this.legalCache={}; this.lastMove=[from,to];', 'move'],
+    ['this.board=h.board;this.turn=h.turn;', 'this.board=h.board;this.legalCache={};this.turn=h.turn;', 'undoMoveBase'],
+    ['this.board=v.board;this.history=', 'this.board=v.board;this.legalCache={};this.history=', 'loadActiveGame'],
+  ];
+  for (const [from, to, where] of invalidate) {
+    if (out.includes(from)) out = out.replace(from, to);
+    must(out.includes(to), 'could not invalidate the move cache in ' + where + '()');
+  }
+
+  /* --- 5. a move only touches a few squares: incremental, not a rebuild --- */
+  {
+    const OLD = 'this.hintText=(this.isInCheckBoard(this.board,this.turn)?this.$t(\'game.checkPass\'):this.$t(\'game.moveDone\'))+this.sideName(this.turn); this.buildSquares();';
+    const NEW = 'this.hintText=(this.isInCheckBoard(this.board,this.turn)?this.$t(\'game.checkPass\'):this.$t(\'game.moveDone\'))+this.sideName(this.turn); this.updateSquares();';
+    if (out.includes(OLD)) out = out.replace(OLD, NEW);
+    must(!/this\.sideName\(this\.turn\); this\.buildSquares\(\);/.test(out), 'move() still rebuilds every square');
+  }
+
+  /* --- 6. two-phase tap: paint the box, then compute the moves --- */
+  {
+    const OLD = "    if (p && p[0]===this.turn[0]) { this.selected=i; this.legalMoves=this.showHints?this.getMoves(i):[]; this.hintText=this.$t('game.reselect')+this.nameOf(i)+this.$t('game.tapBlueDot'); if(this.autoCenter)this.centerOn(i); this.updateSquares(); }";
+    const NEW = [
+      "    if (p && p[0]===this.turn[0]) {",
+      "      /* Paint the selection box NOW; the legal moves are computed on the",
+      "       * next frame, so the box appears before any search work happens. */",
+      "      this.selected=i; this.legalMoves=[];",
+      "      this.hintText=this.$t('game.reselect')+this.nameOf(i)+this.$t('game.tapBlueDot');",
+      "      if(this.autoCenter)this.centerOn(i);",
+      "      this.updateSquares();",
+      "      if(this.showHints){ const sq=i; this.pendingSelect=sq; this.selectTimer=setTimeout(()=>{ this.selectTimer=null; this.pendingSelect=-1; if(this.selected===sq){ this.legalMoves=this.getMoves(sq); this.updateSquares(); } },0); }",
+      "    }",
+    ].join('\n');
+    if (out.includes(OLD)) out = out.replace(OLD, NEW);
+    must(/this\.pendingSelect=sq;/.test(out), 'tapSquare does not defer the move computation');
+  }
+
+  /* --- 7. the flush helper + its call, added once --- */
+  if (!/flushSelect\s*\(\s*\)\s*\{/.test(out)) {
+    out = out.replace(/(\n\s*)(if \(this\.selected >= 0 && this\.legalMoves\.indexOf\(i\)>=0\))/,
+      '$1this.flushSelect();$1$2');
+    const HELPER = "  /* Finish a deferred selection immediately — the user tapped again before\n" +
+      "   * its moves were computed, so \"select then tap the destination\" must not\n" +
+      "   * silently drop the first tap. */\n" +
+      "  flushSelect(){ if(this.selectTimer!=null){clearTimeout(this.selectTimer);this.selectTimer=null;} if(!(this.pendingSelect>=0))return; const i=this.pendingSelect; this.pendingSelect=-1; if(this.selected===i){ this.legalMoves=this.showHints?this.getMoves(i):[]; this.updateSquares(); } },\n";
+    out = out.replace(/(\n  tapSquare\(i\) \{)/, '\n' + HELPER + '$1');
+  }
+  must(/flushSelect\s*\(\s*\)\s*\{/.test(out), 'flushSelect() was not added');
+  must(/this\.flushSelect\(\);[\s\S]{0,80}if \(this\.selected >= 0 && this\.legalMoves/.test(out),
+    'tapSquare does not flush a pending selection before deciding');
+
+  return out;
+}
+
 function gameRules() {
   return [
     /* ---- piece sizing ----
@@ -1347,6 +1474,8 @@ for (const d of DEVICES) {
      * board cannot be panned to its last row. */
     out = rewritePages(gameFile, boardBoundsRules(d), out) || out;
     out = gameScript(out, d);
+    /* Make tapping a piece cheap and responsive (see selectionPerf). */
+    out = selectionPerf(out, d);
     /* Language follows the device via $t(); strip any leftover tr machinery
      * and restore every computed the template binds. */
     out = toSystemLang(out);

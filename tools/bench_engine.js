@@ -70,25 +70,48 @@ const TACTICS = [
 
 console.log('=== engine probe ===');
 
-/* --- nodes per second: search a fixed middlegame for a fixed wall time --- */
-const NPS_FEN = 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4';
+/* --- nodes per second ---
+ *
+ * Two things made the old version of this loop lie, and both are worth keeping
+ * in mind before trusting any nps number out of this file:
+ *
+ *  1. The FEN was the Italian Game, one of the 54 book positions, so every
+ *     "search" was an instant book lookup (it reported 4918 searches in 4s).
+ *  2. Even out of book, looping `compute()` on the SAME position is not a
+ *     benchmark: the transposition table survives between calls, so after the
+ *     first real search every later one is an instant TT walk (~3ms vs 647ms).
+ *
+ * So: distinct positions, one cold search each, and the TT is rebuilt between
+ * levels by constructing a fresh player.
+ */
+const NPS_FENS = [
+  'r2q1rk1/pp2ppbp/2n2np1/2pp4/3P1B2/2PBPN2/PP1N1PPP/R2Q1RK1 w - - 0 9',
+  'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1',
+  'rnbq1rk1/pp2ppbp/2p2np1/3P4/2P5/2N2NP1/PP2PPBP/R1BQK2R b KQ - 0 8',
+  '2rq1rk1/1p2ppbp/p1np1np1/8/2PNP3/2N1B3/PP2BPPP/2RQ1RK1 w - - 0 12',
+  '8/2p2pp1/1p1k3p/p2p4/P2P3P/1PP2KP1/8/8 b - - 0 34',
+  '1r4k1/5pp1/7p/8/8/6P1/5P1P/1R4K1 w - - 0 30'
+];
 
 for (const level of ['hard', 'master']) {
-  ai.setLevel(level);
-  const st = parseFen(NPS_FEN);
   let nodes = 0;
-  let moves = 0;
+  let depthSum = 0;
+  let msSum = 0;
   const t0 = Date.now();
-  const budget = 4000;
-  while (Date.now() - t0 < budget) {
-    const mv = ai.compute(st.board, st.turn, st.castling, st.ep, st.halfmove);
-    if (!mv) break;
+  for (const fen of NPS_FENS) {
+    /* Fresh player per position so the TT starts empty (cold search). */
+    const p = new ai.AiPlayer(level);
+    const st = parseFen(fen);
+    const mv = p.compute(st.board, st.turn, st.castling, st.ep, st.halfmove);
+    if (!mv) continue;
     nodes += mv.points;
-    moves++;
+    depthSum += mv.depth;
+    msSum += mv.ms;
   }
   const dt = Date.now() - t0;
   console.log('nps[' + level + ']  ' + Math.round(nodes / (dt / 1000)) +
-    ' nodes/s   (' + moves + ' moves in ' + dt + 'ms, avg depth ' + (moves ? Math.round(nodes / moves) : 0) + ' nodes/move)');
+    ' nodes/s   (' + NPS_FENS.length + ' cold searches, ' + msSum + 'ms searching, avg depth ' +
+    (depthSum / NPS_FENS.length).toFixed(1) + ', ' + Math.round(nodes / NPS_FENS.length) + ' nodes/search)');
 }
 
 /* --- tactical accuracy --- */
