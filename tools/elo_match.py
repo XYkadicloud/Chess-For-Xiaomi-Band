@@ -146,8 +146,17 @@ def main():
                 game.headers["Result"] = res
                 game.headers["Termination"] = why
                 node = game
+                # The game did not start from the initial position, so the
+                # opening moves have to be replayed into the PGN as well.
+                board_replay = chess.Board()
+                for uci in (opening.split() if opening else []):
+                    mv = board_replay.parse_uci(uci)
+                    node = node.add_variation(mv)
+                    board_replay.push(mv)
                 for san in sans:
-                    node = node.add_variation(node.board().parse_san(san))
+                    mv = board_replay.parse_san(san)
+                    node = node.add_variation(mv)
+                    board_replay.push(mv)
                 pgn_games.append(game)
             if res == "1/2-1/2":
                 draws += 1
