@@ -114,6 +114,10 @@ echo "== verification =="
 # optimised for tap latency, so pin it against the original algorithm — a
 # missing move would never show up as an illegal game.
 "$NODE" tools/verify_moves_parity.js | tail -3
+# The autosaved game is JSON.stringify'd on every onHide and every menu open.
+# It grew QUADRATICALLY (1.6 MB by move 130), which froze the app mid-game and
+# made it look like a restart on resume. Pin the size and the undo bookkeeping.
+"$NODE" tools/verify_save_size.js | tail -3
 "$NODE" tools/verify_ai_first_move.js | tail -1
 "$NODE" tools/verify_time_side.js | tail -1
 "$NODE" tools/verify_pieces.js | tail -1

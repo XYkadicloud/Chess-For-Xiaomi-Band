@@ -24,6 +24,7 @@ import time
 
 import chess
 import chess.engine
+import chess.pgn
 
 BRIDGE = "tools/uci_bridge.js"
 NODE = "C:/Users/HP/.workbuddy-ai/binaries/node/versions/22.22.2-3/node.exe"
@@ -38,20 +39,29 @@ def elo_diff(score):
     return -400.0 * math.log10(1.0 / score - 1.0)
 
 
-def play_one(our_engine, sf_engine, our_white, movetime, max_plies, opening=None):
+def play_one(our_engine, sf_engine, our_white, movetime, max_plies, opening=None, sf_nodes=0):
     board = chess.Board()
     if opening:
         for uci in opening.split():
             board.push_uci(uci)
 
-    limit = chess.engine.Limit(time=movetime)  # -> `go movetime <ms>`
+    our_limit = chess.engine.Limit(time=movetime)  # -> `go movetime <ms>`
+    # Stockfish may be limited by nodes instead of time, so the two sides do not
+    # necessarily share a limit object.
+    sf_limit = chess.engine.Limit(nodes=sf_nodes) if sf_nodes else our_limit
     moves_san = []
     while not board.is_game_over(claim_draw=True) and board.ply() < max_plies:
-        engine = our_engine if (board.turn == chess.WHITE) == our_white else sf_engine
+        ours = (board.turn == chess.WHITE) == our_white
+        engine = our_engine if ours else sf_engine
+        limit = our_limit if ours else sf_limit
         try:
             result = engine.play(board, limit)
-        except chess.engine.EngineError as exc:
-            return "0-1" if board.turn == chess.WHITE else "1-0", moves_san, "engine error: %s" % exc
+        except Exception as exc:
+            # Name the side that failed: "some engine timed out" is useless when
+            # two engines are in the loop and only one of them is ours.
+            side = "OURS" if ours else "STOCKFISH"
+            return "0-1" if board.turn == chess.WHITE else "1-0", moves_san, \
+                "%s failed at ply %d: %s" % (side, board.ply(), type(exc).__name__), board
         if result.move is None:
             break
         moves_san.append(board.san(result.move))
@@ -60,12 +70,13 @@ def play_one(our_engine, sf_engine, our_white, movetime, max_plies, opening=None
     if board.is_game_over(claim_draw=True):
         outcome = board.outcome(claim_draw=True)
         if outcome.winner is None:
-            return "1/2-1/2", moves_san, outcome.termination.name
-        return ("1-0" if outcome.winner == chess.WHITE else "0-1"), moves_san, outcome.termination.name
+            return "1/2-1/2", moves_san, outcome.termination.name, board
+        return ("1-0" if outcome.winner == chess.WHITE else "0-1"), moves_san, \
+            outcome.termination.name, board
 
     # Hit the ply cap: call it a draw. Long shuffles in dead-drawn endgames are
     # not evidence of strength in either direction.
-    return "1/2-1/2", moves_san, "adjudicated (ply cap)"
+    return "1/2-1/2", moves_san, "adjudicated (ply cap)", board
 
 
 def main():
@@ -76,9 +87,21 @@ def main():
     ap.add_argument("--games", type=int, default=10)
     ap.add_argument("--elo", type=int, default=0, help="Stockfish UCI_Elo (>=1320)")
     ap.add_argument("--skill", type=int, default=-1, help="Stockfish Skill Level 0..20")
+    ap.add_argument("--nodes", type=int, default=0,
+                    help="limit Stockfish by NODES instead of strength. A node-limited "
+                         "Stockfish is a *principled* weak opponent (full evaluation, "
+                         "shallow search), which is a far better stand-in for a human of "
+                         "similar strength than UCI_LimitStrength, whose low settings "
+                         "play like a drunk Stockfish rather than a weak human.")
     ap.add_argument("--max-plies", type=int, default=200)
     ap.add_argument("--openings", default="", help="file with one UCI opening line per line")
+    ap.add_argument("--debug", action="store_true", help="log the full UCI exchange")
+    ap.add_argument("--pgn", default="", help="write the games to this PGN file for review")
     args = ap.parse_args()
+
+    if args.debug:
+        import logging
+        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format="%(message)s")
 
     openings = [""]
     if args.openings:
@@ -94,6 +117,8 @@ def main():
         sf_opts["Skill Level"] = args.skill
 
     label = ("UCI_Elo=%d" % args.elo) if args.elo else ("Skill=%d" % args.skill)
+    if args.nodes:
+        label = "nodes=%d" % args.nodes
 
     our = chess.engine.SimpleEngine.popen_uci([NODE, BRIDGE])
     sf = chess.engine.SimpleEngine.popen_uci(args.sf)
@@ -107,10 +132,23 @@ def main():
 
         wins = losses = draws = 0
         t0 = time.time()
+        pgn_games = []
         for g in range(args.games):
             our_white = (g % 2 == 0)
             opening = openings[g % len(openings)] if len(openings) > 1 else ""
-            res, sans, why = play_one(our, sf, our_white, args.movetime, args.max_plies, opening)
+            res, sans, why, final_board = play_one(our, sf, our_white, args.movetime,
+                                                   args.max_plies, opening, sf_nodes=args.nodes)
+            if args.pgn:
+                game = chess.pgn.Game()
+                game.headers["Event"] = "elo_match"
+                game.headers["White"] = "our" if our_white else label
+                game.headers["Black"] = label if our_white else "our"
+                game.headers["Result"] = res
+                game.headers["Termination"] = why
+                node = game
+                for san in sans:
+                    node = node.add_variation(node.board().parse_san(san))
+                pgn_games.append(game)
             if res == "1/2-1/2":
                 draws += 1
                 mark = "="
@@ -133,6 +171,13 @@ def main():
         print("  (positive = our engine is stronger; +/- 1 game ~ %.0f Elo at this sample size)"
               % (400.0 / max(1, total)))
         print("  elapsed %.0fs" % (time.time() - t0))
+
+        if args.pgn and pgn_games:
+            with open(args.pgn, "w") as fh:
+                for game in pgn_games:
+                    print(game, file=fh)
+                    print(file=fh)
+            print("  PGN written to %s" % args.pgn)
     finally:
         # Always reap both engines: an orphaned child keeps the inherited stdout
         # pipe open, which makes any `| tail` in the calling shell hang forever.

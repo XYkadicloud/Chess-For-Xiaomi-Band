@@ -57,13 +57,19 @@ function parseFen(fen) {
 
 function sqName(i) { return String.fromCharCode(97 + (i % 8)) + (8 - Math.floor(i / 8)); }
 
-/* A compact tactical set. `best` lists UCI moves that count as solved. */
+/* A compact tactical set. `best` lists UCI moves that count as solved.
+ *
+ * The "scholar's mate" FEN here used to read `ppp2ppp/2n5/3pp3`, which put
+ * black pawns on d5+e5 and removed the b8 knight. That is a different position
+ * in which the listed answer f3f7 simply hangs the queen (Kxf7), so the engine
+ * was being marked wrong for correctly declining it. This is the real
+ * scholar's mate: Bc4 covers f7, so Qxf7 is checkmate. */
 const TACTICS = [
   ['mate-in-1 back rank',    '6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1',              ['a1a8']],
   ['mate-in-1 smothered',    '6rk/6pp/8/6N1/8/8/8/6K1 w - - 0 1',                 ['g5f7']],
-  ['mate-in-1 Qg7#',         '7k/5K1k/6Q1/8/8/8/8/8 w - - 0 1',                   null],
+  ['mate-in-1 Qg7#',         '7k/5K2/6Q1/8/8/8/8/8 w - - 0 1',                   ['g6g7']],
+  ['scholar mate Qxf7#',     'r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1', ['f3f7']],
   ['free queen Nxg5',        'r1b1k2r/pppp1ppp/2n2n2/2b1p1q1/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1', ['f3g5']],
-  ['win a rook (fork)',      'r1bqkbnr/ppp2ppp/2n5/3pp3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1', ['f3f7']],
   ['must not lose queen',    'rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 0 1', null],
   ['KQ vs K, drive to edge', '8/8/8/4k3/8/8/4K3/4Q3 w - - 0 1',                   null]
 ];

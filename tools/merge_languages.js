@@ -564,12 +564,17 @@ function selectionPerf(out, dev) {
     out = out.replace(/(\blegalCache\s*:\s*\{\s*\})/, '$1, pendingSelect: -1, selectTimer: null');
   }
 
-  /* --- 2. updateSquares: only build what changed --- */
+  /* --- 2. updateSquares: only build what changed, without 64 linear scans ---
+   * Two wins here. (a) It used to build all 64 square objects on every tap to
+   * discover that two had changed. (b) `this.legalMoves.indexOf(i)` ran for
+   * every one of the 64 squares while the list can hold 27 moves — ~1700
+   * comparisons per repaint; two lookup arrays cost 27 writes + 64 reads. */
   {
-    const OLD = "updateSquares(){if(!this.squares||this.squares.length!==64){this.buildSquares();return;}const out=this.squares.slice();let changed=false;for(let i=0;i<64;i++){const n=this.squareOf(i),o=out[i];if(!o||o.piece!==n.piece||o.pieceSrc!==n.pieceSrc||o.selected!==n.selected||o.lastMove!==n.lastMove||o.legal!==n.legal){out[i]=n;changed=true;}}if(changed)this.squares=out;}";
-    const NEW = "updateSquares(){if(!this.squares||this.squares.length!==64){this.buildSquares();return;}const out=this.squares.slice();let changed=false;for(let i=0;i<64;i++){const o=out[i],p=this.board[i],src=p?'/common/pieces/'+p+'.png':'',sel=i===this.selected,lm=this.lastMove.indexOf(i)>=0,lg=this.legalMoves.indexOf(i)>=0;if(!o||o.pieceSrc!==src||o.selected!==sel||o.lastMove!==lm||o.legal!==lg){out[i]=this.squareOf(i);changed=true;}}if(changed)this.squares=out;}";
-    if (out.includes(OLD)) out = out.replace(OLD, NEW);
-    must(/const o=out\[i\],p=this\.board\[i\]/.test(out), 'updateSquares was not optimised');
+    const V0 = "updateSquares(){if(!this.squares||this.squares.length!==64){this.buildSquares();return;}const out=this.squares.slice();let changed=false;for(let i=0;i<64;i++){const n=this.squareOf(i),o=out[i];if(!o||o.piece!==n.piece||o.pieceSrc!==n.pieceSrc||o.selected!==n.selected||o.lastMove!==n.lastMove||o.legal!==n.legal){out[i]=n;changed=true;}}if(changed)this.squares=out;}";
+    const V1 = "updateSquares(){if(!this.squares||this.squares.length!==64){this.buildSquares();return;}const out=this.squares.slice();let changed=false;for(let i=0;i<64;i++){const o=out[i],p=this.board[i],src=p?'/common/pieces/'+p+'.png':'',sel=i===this.selected,lm=this.lastMove.indexOf(i)>=0,lg=this.legalMoves.indexOf(i)>=0;if(!o||o.pieceSrc!==src||o.selected!==sel||o.lastMove!==lm||o.legal!==lg){out[i]=this.squareOf(i);changed=true;}}if(changed)this.squares=out;}";
+    const V2 = "updateSquares(){if(!this.squares||this.squares.length!==64){this.buildSquares();return;}const out=this.squares.slice(),lmk=[],lgk=[];for(let k=0;k<this.lastMove.length;k++)lmk[this.lastMove[k]]=1;for(let k=0;k<this.legalMoves.length;k++)lgk[this.legalMoves[k]]=1;let changed=false;for(let i=0;i<64;i++){const o=out[i],p=this.board[i],src=p?'/common/pieces/'+p+'.png':'',sel=i===this.selected,l=!!lmk[i],g=!!lgk[i];if(!o||o.pieceSrc!==src||o.selected!==sel||o.lastMove!==l||o.legal!==g){out[i]=this.squareOf(i);changed=true;}}if(changed)this.squares=out;}";
+    for (const v of [V0, V1]) if (out.includes(v)) { out = out.replace(v, V2); break; }
+    must(/const out=this\.squares\.slice\(\),lmk=\[\],lgk=\[\]/.test(out), 'updateSquares was not optimised');
   }
 
   /* --- 3. getMoves: per-position cache + a cheaper legality test ---
@@ -605,18 +610,15 @@ function selectionPerf(out, dev) {
   }
 
   /* --- 4. drop the move cache whenever the position changes ---
-   * Every one of these sites is the ONLY place the board is replaced, so the
-   * cache can never go stale. Each rule matches the pre-change text, so a
-   * second run is a no-op. */
-  const invalidate = [
-    ['this.board=b; this.turn=WHITE;', 'this.board=b; this.legalCache={}; this.turn=WHITE;', 'newPosition'],
-    ['this.board=b; this.lastMove=[from,to];', 'this.board=b; this.legalCache={}; this.lastMove=[from,to];', 'move'],
-    ['this.board=h.board;this.turn=h.turn;', 'this.board=h.board;this.legalCache={};this.turn=h.turn;', 'undoMoveBase'],
-    ['this.board=v.board;this.history=', 'this.board=v.board;this.legalCache={};this.history=', 'loadActiveGame'],
-  ];
-  for (const [from, to, where] of invalidate) {
-    if (out.includes(from)) out = out.replace(from, to);
-    must(out.includes(to), 'could not invalidate the move cache in ' + where + '()');
+   * Rather than listing the sites by hand, insert after EVERY `this.board=<x>;`
+   * reassignment — that is exactly when cached moves become invalid, so a
+   * future mutation point (or another rule rewriting one, e.g. saveSizeFix)
+   * cannot be forgotten. Normalise first so the rule stays idempotent. */
+  out = out.replace(/(this\.board=[^;]*;)this\.legalCache=\{\};/g, '$1');
+  out = out.replace(/(this\.board=[^;]*;)/g, '$1this.legalCache={};');
+  {
+    const n = (out.match(/this\.board=[^;]*;this\.legalCache=\{\};/g) || []).length;
+    must(n >= 4, 'only ' + n + ' board reassignment(s) drop the move cache (want >= 4)');
   }
 
   /* --- 5. a move only touches a few squares: incremental, not a rebuild --- */
@@ -627,10 +629,21 @@ function selectionPerf(out, dev) {
     must(!/this\.sideName\(this\.turn\); this\.buildSquares\(\);/.test(out), 'move() still rebuilds every square');
   }
 
-  /* --- 6. two-phase tap: paint the box, then compute the moves --- */
+  /* --- 6. tapSquare: ONE pass ---
+   *
+   * A first attempt painted the selection box first and computed the moves on
+   * the next frame. On the band that felt SLOWER, not faster, and the reason
+   * is that it turns one repaint per tap into TWO, while `setTimeout(...,0)`
+   * on this runtime is not a single frame — so the destination dots arrived
+   * later than before. What actually helps is doing less work per repaint,
+   * which is what the rest of this function does. The tap is a single
+   * synchronous pass again.
+   *
+   * (If box-first is ever wanted back, it must not cost a second repaint —
+   * e.g. by mutating only the two changed entries of `squares` in place.) */
   {
-    const OLD = "    if (p && p[0]===this.turn[0]) { this.selected=i; this.legalMoves=this.showHints?this.getMoves(i):[]; this.hintText=this.$t('game.reselect')+this.nameOf(i)+this.$t('game.tapBlueDot'); if(this.autoCenter)this.centerOn(i); this.updateSquares(); }";
-    const NEW = [
+    const ONE_LINE = "    if (p && p[0]===this.turn[0]) { this.selected=i; this.legalMoves=this.showHints?this.getMoves(i):[]; this.hintText=this.$t('game.reselect')+this.nameOf(i)+this.$t('game.tapBlueDot'); if(this.autoCenter)this.centerOn(i); this.updateSquares(); }";
+    const DEFERRED = [
       "    if (p && p[0]===this.turn[0]) {",
       "      /* Paint the selection box NOW; the legal moves are computed on the",
       "       * next frame, so the box appears before any search work happens. */",
@@ -641,24 +654,104 @@ function selectionPerf(out, dev) {
       "      if(this.showHints){ const sq=i; this.pendingSelect=sq; this.selectTimer=setTimeout(()=>{ this.selectTimer=null; this.pendingSelect=-1; if(this.selected===sq){ this.legalMoves=this.getMoves(sq); this.updateSquares(); } },0); }",
       "    }",
     ].join('\n');
-    if (out.includes(OLD)) out = out.replace(OLD, NEW);
-    must(/this\.pendingSelect=sq;/.test(out), 'tapSquare does not defer the move computation');
+    if (out.includes(DEFERRED)) out = out.replace(DEFERRED, ONE_LINE);
+    must(/this\.selected=i; this\.legalMoves=this\.showHints\?this\.getMoves\(i\):\[\];/.test(out),
+      'tapSquare does not compute the moves in a single pass');
   }
 
-  /* --- 7. the flush helper + its call, added once --- */
-  if (!/flushSelect\s*\(\s*\)\s*\{/.test(out)) {
-    out = out.replace(/(\n\s*)(if \(this\.selected >= 0 && this\.legalMoves\.indexOf\(i\)>=0\))/,
-      '$1this.flushSelect();$1$2');
-    const HELPER = "  /* Finish a deferred selection immediately — the user tapped again before\n" +
-      "   * its moves were computed, so \"select then tap the destination\" must not\n" +
-      "   * silently drop the first tap. */\n" +
-      "  flushSelect(){ if(this.selectTimer!=null){clearTimeout(this.selectTimer);this.selectTimer=null;} if(!(this.pendingSelect>=0))return; const i=this.pendingSelect; this.pendingSelect=-1; if(this.selected===i){ this.legalMoves=this.showHints?this.getMoves(i):[]; this.updateSquares(); } },\n";
-    out = out.replace(/(\n  tapSquare\(i\) \{)/, '\n' + HELPER + '$1');
-  }
-  must(/flushSelect\s*\(\s*\)\s*\{/.test(out), 'flushSelect() was not added');
-  must(/this\.flushSelect\(\);[\s\S]{0,80}if \(this\.selected >= 0 && this\.legalMoves/.test(out),
-    'tapSquare does not flush a pending selection before deciding');
+  /* --- 7. remove the deferred-selection machinery (now dead) --- */
+  out = out.replace(/[ \t]*this\.flushSelect\(\);\r?\n/g, '');
+  out = out.replace(/[ \t]*\/\* Finish a deferred selection[\s\S]*?\*\/\r?\n[ \t]*flushSelect\(\)\{[^\n]*\},\r?\n/g, '');
+  out = removeMember(out, 'flushSelect');
+  out = out.replace(/,[ \t]*pendingSelect:[ \t]*-1,[ \t]*selectTimer:[ \t]*null/g, '');
+  out = out.replace(/[ \t]*pendingSelect:[ \t]*-1,[ \t]*selectTimer:[ \t]*null,?/g, '');
+  must(!/flushSelect/.test(out), 'flushSelect() is still present');
+  must(!/pendingSelect|selectTimer/.test(out), 'the deferred-selection state is still present');
 
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * Keep the saved game SMALL.
+ *
+ * Symptom it fixes: mid/late game the app would freeze, then get killed or
+ * appear to restart. onHide() and opening the menu both call
+ * saveActiveGame(), which JSON.stringify's the WHOLE history and writes it to
+ * storage. Every history entry embedded its own copy of `positionCounts`:
+ *
+ *     this.history.push({..., positionCounts: Object.assign({}, this.positionCounts)})
+ *
+ * `positionCounts` grows by one key per move, so history held ~N²/2 entries
+ * and the saved blob grew QUADRATICALLY. Measured (tools/verify_save_size.js):
+ *
+ *     ply 20 -> 47 KB      ply 60 -> 328 KB     ply 119 -> 1.19 MB
+ *
+ * On a band that is a multi-hundred-millisecond stringify + flash write, which
+ * is exactly the freeze, and a 1 MB JSON.parse on resume, which is the
+ * "restart". After this fix the same 119-ply game saves in ~35 KB.
+ *
+ * Undo no longer restores a snapshot of the whole map; the move records just
+ * the repetition key it added and undo decrements it. (The old snapshot form
+ * is still honoured, so a game saved by an older build can still be undone.)
+ * ------------------------------------------------------------------ */
+function saveSizeFix(out, dev) {
+  const must = (cond, msg) => { if (!cond) throw new Error(dev + '/game: ' + msg); };
+
+  const PUSH_OLD = 'this.history.push({board:this.board.slice(),turn:this.turn,last:this.lastMove.slice(),castling:Object.assign({},this.castling),whiteSeconds:this.whiteSeconds,blackSeconds:this.blackSeconds,halfmoveClock:this.halfmoveClock,positionCounts:Object.assign({},this.positionCounts)});';
+  const PUSH_NEW = 'this.history.push({board:this.board.slice(),turn:this.turn,last:this.lastMove.slice(),castling:Object.assign({},this.castling),whiteSeconds:this.whiteSeconds,blackSeconds:this.blackSeconds,halfmoveClock:this.halfmoveClock});';
+  if (out.includes(PUSH_OLD)) out = out.replace(PUSH_OLD, PUSH_NEW);
+
+  /* Undo has to know which repetition key the move added. It is NOT stored per
+   * ply: at undo time this.board/this.turn/this.castling still hold the
+   * POST-move state, so positionKey() of the current position is exactly that
+   * key. Storing it would cost ~130 chars in every single history entry. */
+  out = out.replace(/ this\.history\[this\.history\.length-1\]\.posKey=key;/g, '');
+
+  const UNDO_OPEN = /(const h=this\.history\.pop\(\);)(this\.board=)/;
+  if (UNDO_OPEN.test(out)) {
+    out = out.replace(UNDO_OPEN, '$1const undoKey=this.positionKey(this.board,this.turn);$2');
+  }
+
+  const UNDO_OLD = 'this.halfmoveClock=h.halfmoveClock;this.positionCounts=h.positionCounts;';
+  const UNDO_NEW = 'this.halfmoveClock=h.halfmoveClock;if(this.positionCounts[undoKey]){this.positionCounts[undoKey]--;if(this.positionCounts[undoKey]<=0)delete this.positionCounts[undoKey];}else if(h.positionCounts){this.positionCounts=h.positionCounts;}';
+  if (out.includes(UNDO_OLD)) out = out.replace(UNDO_OLD, UNDO_NEW);
+  /* repair the intermediate form an earlier run of this rule produced */
+  out = out.replace(/if\(h\.posKey&&this\.positionCounts\[h\.posKey\]\)\{this\.positionCounts\[h\.posKey\]--;if\(this\.positionCounts\[h\.posKey\]<=0\)delete this\.positionCounts\[h\.posKey\];\}/,
+    'if(this.positionCounts[undoKey]){this.positionCounts[undoKey]--;if(this.positionCounts[undoKey]<=0)delete this.positionCounts[undoKey];}');
+
+  /* With the quadratic term gone, the history entry itself dominates: a
+   * 64-element array of "wK"/"bP" strings serialises to ~400 bytes per ply.
+   * One character per square ("KQRBNP" white, lowercase black, "." empty)
+   * cuts that to ~70 and is trivial to reverse. Old saves keep their `board`
+   * array and are still undoable via the `h.b ? ... : h.board` fallback. */
+  const PUSH_ARR = 'this.history.push({board:this.board.slice(),';
+  const PUSH_STR = 'this.history.push({b:this.encodeBoard(this.board),';
+  if (out.includes(PUSH_ARR)) out = out.replace(PUSH_ARR, PUSH_STR);
+
+  const UNDOB_OLD = 'const h=this.history.pop();this.board=h.board;';
+  const UNDOB_NEW = 'const h=this.history.pop();this.board=h.b?this.decodeBoard(h.b):h.board;';
+  if (out.includes(UNDOB_OLD)) out = out.replace(UNDOB_OLD, UNDOB_NEW);
+
+  if (!/encodeBoard\s*\(b\)\s*\{/.test(out)) {
+    const HELPERS = "  /* 64 squares as one string: white KQRBNP, black lowercase, '.' empty. */\n" +
+      "  encodeBoard(b){let s='';for(let i=0;i<64;i++){const p=b[i];s+=p?(p[0]==='w'?p[1]:p[1].toLowerCase()):'.';}return s;},\n" +
+      "  decodeBoard(s){const b=new Array(64);for(let i=0;i<64;i++){const c=s[i];b[i]=(c===undefined||c==='.')?null:(c>='A'&&c<='Z'?'w'+c:'b'+c.toUpperCase());}return b;},\n";
+    out = out.replace(/(\n  getMoves\()/, '\n' + HELPERS + '$1');
+  }
+
+  must(!/positionCounts:Object\.assign\(\{\},this\.positionCounts\)/.test(out),
+    'history still embeds a copy of positionCounts (the saved blob stays quadratic)');
+  must(!/posKey/.test(out), 'the repetition key is still stored once per ply');
+  must(/const undoKey=this\.positionKey\(this\.board,this\.turn\);/.test(out),
+    'undo does not recompute the repetition key from the post-move position');
+  must(/if\(this\.positionCounts\[undoKey\]\)/.test(out),
+    'undo does not decrement the repetition key');
+  must(/this\.history\.push\(\{b:this\.encodeBoard\(this\.board\)/.test(out),
+    'history still stores a full board array per ply');
+  /* Guard on the DEFINITION, not the name — `this.encodeBoard(` also appears at
+   * the call site, so a name-only test passes even when the helper is missing. */
+  must(/encodeBoard\s*\(b\)\s*\{/.test(out) && /decodeBoard\s*\(s\)\s*\{/.test(out),
+    'board (de)serialiser helpers were not inserted');
   return out;
 }
 
@@ -1476,6 +1569,8 @@ for (const d of DEVICES) {
     out = gameScript(out, d);
     /* Make tapping a piece cheap and responsive (see selectionPerf). */
     out = selectionPerf(out, d);
+    /* Keep the autosaved game from growing quadratically (see saveSizeFix). */
+    out = saveSizeFix(out, d);
     /* Language follows the device via $t(); strip any leftover tr machinery
      * and restore every computed the template binds. */
     out = toSystemLang(out);

@@ -92,6 +92,21 @@ function loadPage(device) {
   const comp = makeComponent(sandbox.__page);
   comp.__drain = function () { let g = 0; while (timers.length && g++ < 200) timers.shift().fn(); };
   comp.__timers = timers;
+
+  /* Count repaints: every `this.squares = <new array>` is one pass over the
+   * 64-square `for` list in the template. On the band the RENDER dominates,
+   * so this matters more than any microsecond of JS — a change that halves the
+   * JS but doubles the repaints is a net loss, which is exactly what happened
+   * once already. */
+  let sets = 0;
+  let backing = comp.squares;
+  Object.defineProperty(comp, 'squares', {
+    configurable: true, enumerable: true,
+    get() { return backing; },
+    set(v) { sets++; backing = v; }
+  });
+  comp.__repaints = () => sets;
+  comp.__resetRepaints = () => { sets = 0; };
   return comp;
 }
 
@@ -104,6 +119,19 @@ function timeIt(label, fn, n) {
   for (let i = 0; i < n; i++) fn();
   const ms = (now() - t0) / n;
   console.log('  ' + label.padEnd(38) + ms.toFixed(3) + ' ms');
+  return ms;
+}
+
+/* Same, but also reports how many times the square list is replaced — i.e.
+ * how many full repaints of the 64-square board the tap costs. */
+function timeAndCount(comp, label, fn, n) {
+  fn();
+  comp.__resetRepaints();
+  const t0 = now();
+  for (let i = 0; i < n; i++) fn();
+  const ms = (now() - t0) / n;
+  const per = comp.__repaints() / n;
+  console.log('  ' + label.padEnd(38) + ms.toFixed(3) + ' ms   ' + per.toFixed(2) + ' repaint(s)');
   return ms;
 }
 
@@ -159,12 +187,10 @@ const cold = () => { comp.legalCache = {}; };
 const reset = () => { comp.selected = -1; comp.legalMoves = []; comp.updateSquares(); };
 
 /* 1. What the user feels when tapping a piece. */
-timeIt('tapSquare() cold -> box painted', () => { reset(); cold(); comp.tapSquare(sq); }, 3000);
-timeIt('tapSquare() cold -> hints ready', () => { reset(); cold(); comp.tapSquare(sq); comp.__drain(); }, 3000);
-timeIt('tapSquare() warm -> hints ready', () => { reset(); comp.tapSquare(sq); comp.__drain(); }, 3000);
+timeAndCount(comp, 'tapSquare() cold (select + hints)', () => { reset(); cold(); comp.tapSquare(sq); comp.__drain(); }, 3000);
+timeAndCount(comp, 'tapSquare() warm (select + hints)', () => { reset(); comp.tapSquare(sq); comp.__drain(); }, 3000);
 if (worst >= 0 && worst !== sq) {
-  timeIt('worst piece: cold -> box', () => { reset(); cold(); comp.tapSquare(worst); }, 3000);
-  timeIt('worst piece: cold -> hints', () => { reset(); cold(); comp.tapSquare(worst); comp.__drain(); }, 3000);
+  timeAndCount(comp, 'worst piece: cold (select + hints)', () => { reset(); cold(); comp.tapSquare(worst); comp.__drain(); }, 3000);
 }
 
 /* 2. Repainting the board after the selection changes. */
@@ -183,8 +209,7 @@ timeIt('isCheckmate()+isStalemate()', () => { cold(); comp.isCheckmate(comp.turn
   comp.castling = { wK: false, wQ: false, bK: false, bQ: false };
   comp.lastMove = []; comp.history = []; comp.selected = -1; comp.legalMoves = [];
   console.log('\n  queen alone in the open (sq27): ' + comp.getMoves(27).length + ' legal moves');
-  timeIt('  queen: cold -> box painted', () => { reset(); cold(); comp.tapSquare(27); }, 3000);
-  timeIt('  queen: cold -> hints ready', () => { reset(); cold(); comp.tapSquare(27); comp.__drain(); }, 3000);
+  timeAndCount(comp, '  queen: cold (select + hints)', () => { reset(); cold(); comp.tapSquare(27); comp.__drain(); }, 3000);
   /* The pass that actually paints the 27 destination dots. */
   comp.selected = 27; comp.legalMoves = comp.getMoves(27);
   timeIt('  queen: updateSquares() w/ 27 dots', () => { comp.updateSquares(); }, 3000);
