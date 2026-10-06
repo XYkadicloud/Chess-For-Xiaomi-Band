@@ -12,7 +12,9 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const ENGINE = path.resolve(__dirname, '..', 'src', 'common', 'js', 'ai.js');
+const ENGINE = process.env.CHESS_AI_JS
+  ? path.resolve(process.env.CHESS_AI_JS)
+  : path.resolve(__dirname, '..', 'src', 'common', 'js', 'ai.js');
 
 function loadEngine() {
   const src = fs.readFileSync(ENGINE, 'utf8');

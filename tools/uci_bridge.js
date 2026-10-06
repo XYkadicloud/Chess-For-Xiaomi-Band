@@ -6,7 +6,12 @@
  * exists so a standard match manager (python-chess) can play `src/common/js/ai.js`
  * against Stockfish and produce an actual Elo number instead of a guess.
  *
- * Usage:  node tools/uci_bridge.js          (speaks UCI on stdin/stdout)
+ * Usage:  node tools/uci_bridge.js [path-to-ai.js]
+ *
+ * The engine path is optional and defaults to the shared source. Passing a
+ * different path lets the same harness A/B two versions of the engine against
+ * each other, which is a far lower-noise way to judge a change than comparing
+ * either version to Stockfish.
  *
  * Options exposed to the match manager:
  *   Level     combo  easy|normal|hard|master   (which LEVELS profile to use)
@@ -20,7 +25,9 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const ENGINE = path.resolve(__dirname, '..', 'src', 'common', 'js', 'ai.js');
+const ENGINE = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.resolve(__dirname, '..', 'src', 'common', 'js', 'ai.js');
 
 function loadEngine() {
   const src = fs.readFileSync(ENGINE, 'utf8');
@@ -141,6 +148,10 @@ function go(tokens) {
   const ms = timeForGo(tokens);
   if (ai.LEVELS[level]) ai.LEVELS[level].timeMs = ms;
   player = new ai.AiPlayer(level);
+  if (process.env.CHESS_UCI_DEBUG) {
+    process.stderr.write('bridge: level=' + level + ' go=[' + tokens.join(' ') +
+      '] -> budget ' + ms + ' ms\n');
+  }
   const mv = player.compute(pos.board, pos.turn, pos.castling, pos.ep, pos.halfmove);
   if (!mv) { out('bestmove 0000'); return; }
   out('bestmove ' + moveToUci(mv));

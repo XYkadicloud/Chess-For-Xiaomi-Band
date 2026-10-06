@@ -45,7 +45,11 @@ def play_one(our_engine, sf_engine, our_white, movetime, max_plies, opening=None
         for uci in opening.split():
             board.push_uci(uci)
 
-    our_limit = chess.engine.Limit(time=movetime)  # -> `go movetime <ms>`
+    # NOTE: in this python-chess build `Limit.time` is in SECONDS and becomes
+    # `go movetime <time*1000>`. Passing milliseconds directly asks for a budget
+    # 1000x larger than intended, which quietly turns every match into an
+    # "unlimited time" match and makes the resulting Elo meaningless.
+    our_limit = chess.engine.Limit(time=movetime / 1000.0)
     # Stockfish may be limited by nodes instead of time, so the two sides do not
     # necessarily share a limit object.
     sf_limit = chess.engine.Limit(nodes=sf_nodes) if sf_nodes else our_limit
@@ -81,8 +85,12 @@ def play_one(our_engine, sf_engine, our_white, movetime, max_plies, opening=None
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--sf", required=True, help="path to the Stockfish binary")
+    ap.add_argument("--sf", default="", help="path to the Stockfish binary")
+    ap.add_argument("--ours-b", default="",
+                    help="A/B mode: path to a second ai.js. Plays our engine against that "
+                         "version instead of Stockfish, so a change can be judged directly.")
     ap.add_argument("--level", default="master", choices=["easy", "normal", "hard", "master"])
+    ap.add_argument("--b-level", default="", help="level for the --ours-b engine (default: same)")
     ap.add_argument("--movetime", type=float, default=0.3, help="seconds per move, both sides")
     ap.add_argument("--games", type=int, default=10)
     ap.add_argument("--elo", type=int, default=0, help="Stockfish UCI_Elo (>=1320)")
@@ -98,6 +106,9 @@ def main():
     ap.add_argument("--debug", action="store_true", help="log the full UCI exchange")
     ap.add_argument("--pgn", default="", help="write the games to this PGN file for review")
     args = ap.parse_args()
+
+    if not args.ours_b and not args.sf:
+        ap.error("give --sf <stockfish> or --ours-b <ai.js>")
 
     if args.debug:
         import logging
@@ -121,13 +132,24 @@ def main():
         label = "nodes=%d" % args.nodes
 
     our = chess.engine.SimpleEngine.popen_uci([NODE, BRIDGE])
-    sf = chess.engine.SimpleEngine.popen_uci(args.sf)
+    # A/B mode: play two versions of OUR engine against each other. Comparing an
+    # engine to Stockfish measures "how good is it"; comparing two revisions
+    # measures "did this change help", which is the question that actually
+    # matters when iterating, and it needs far fewer games to answer.
+    if args.ours_b:
+        opp = chess.engine.SimpleEngine.popen_uci([NODE, BRIDGE, args.ours_b])
+        label = "ours-b(%s)" % args.ours_b
+        sf_opts = {"Level": args.b_level or args.level,
+                   "Movetime": int(args.movetime * 1000)}
+    else:
+        opp = chess.engine.SimpleEngine.popen_uci(args.sf)
+
     try:
         our.configure({"Level": args.level, "Movetime": int(args.movetime * 1000)})
-        sf.configure(sf_opts)
+        opp.configure(sf_opts)
 
-        print("=== %s vs Stockfish %s | %s | %.0fms/move | %d games ===" % (
-            args.level, label, "threads=1", args.movetime * 1000, args.games))
+        print("=== %s vs %s | %.0fms/move | %d games ===" % (
+            args.level, label, args.movetime * 1000, args.games))
         sys.stdout.flush()
 
         wins = losses = draws = 0
@@ -136,7 +158,7 @@ def main():
         for g in range(args.games):
             our_white = (g % 2 == 0)
             opening = openings[g % len(openings)] if len(openings) > 1 else ""
-            res, sans, why, final_board = play_one(our, sf, our_white, args.movetime,
+            res, sans, why, final_board = play_one(our, opp, our_white, args.movetime,
                                                    args.max_plies, opening, sf_nodes=args.nodes)
             if args.pgn:
                 game = chess.pgn.Game()
@@ -190,7 +212,7 @@ def main():
     finally:
         # Always reap both engines: an orphaned child keeps the inherited stdout
         # pipe open, which makes any `| tail` in the calling shell hang forever.
-        for eng in (our, sf):
+        for eng in (our, opp):
             try:
                 eng.quit()
             except Exception:

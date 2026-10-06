@@ -16,22 +16,19 @@
  *  3. Removes the now-redundant `source/english` tree for each device.
  *
  * ---------------------------------------------------------------------------
- * WHY TWO MECHANISMS
+ * ONE MECHANISM: $t()
  *
- *   $t('a.b')      — resolved by the framework against the SYSTEM locale.
- *                    Zero runtime cost, auto-updates when the band language
- *                    changes. Correct for text that should simply follow the
- *                    device. Available only on the page instance (`this.$t`,
- *                    and the bare `$t` inside a <template> expression).
+ *   $t('a.b')  — resolved by the Vela runtime against src/i18n/*.json, so the
+ *                text follows the DEVICE language. Zero runtime cost, and it
+ *                re-resolves when the band language changes. Available on the
+ *                page instance (`this.$t`).
  *
- *   this.tr('a.b') — our own lookup in src/common/js/strings.js, driven by the
- *                    stored preference. Needed because $t() cannot be
- *                    overridden by the app.
- *
- * The pages that can be manually overridden (index / setup / game / settings)
- * read everything through `tr()`. About and Support stay static on `$t()` —
- * they are long-form prose read once, and keeping them off the runtime path
- * avoids a pointless re-render on every language flip.
+ * There is no second mechanism and no in-app language switch. A custom `tr()`
+ * layer with a stored override was tried and removed: it needed a `langTick`
+ * reactive dependency, and it produced a page that rendered completely empty,
+ * a home screen stuck in one language, and a zh->en flash on every first frame.
+ * `toSystemLang()` below exists to strip any trace of it and to restore every
+ * computed the templates bind.
  *
  * ---------------------------------------------------------------------------
  * HARD-WON RULES BAKED IN (see build_setup_page.js for the longer version)

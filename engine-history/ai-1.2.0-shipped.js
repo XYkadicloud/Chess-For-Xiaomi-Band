@@ -337,46 +337,7 @@ const BOOK_LINES = [
   'e2e4 c7c6 d2d4 d7d5',
   'c2c4 e7e5 b1c3 g8f6',
   'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6',            /* morphy defence */
-  'd2d4 d7d5 c2c4 e7e6 b1c3 g8f6',
-  /* ---- Stockfish-derived tree ---------------------------------------- *
-   * Everything below was produced by tools/build_opening_book.py: Stockfish
-   * walks the opening tree and the paths are written out as UCI lines, so
-   * every position here is one a strong engine is happy to be in. The hand
-   * written lines above cover the named openings; these go deeper (ten plies)
-   * and cover far more opponent deviations, which is where a four-ply search
-   * on a watch would otherwise start making things up. */
-  'd2d4 d7d5 c2c4 c7c6 c4d5 c6d5 c1f4 b8c6 e2e3 g8f6',
-  'd2d4 d7d5 c2c4 c7c6 e2e3 c8f5 d1b3 d8b6 b3b6 a7b6',
-  'd2d4 d7d5 c2c4 e7e6 b1c3 g8f6 c4d5 e6d5 c1g5 c7c6',
-  'd2d4 d7d5 c2c4 e7e6 g1f3 d5c4 e2e3 g8f6 f1c4 c7c5',
-  'd2d4 d7d5 g1f3 e7e6 c2c4 d5c4 e2e3 b7b5 a2a4 c7c6',
-  'd2d4 d7d5 g1f3 e7e6 g2g3 c7c5 f1g2 c5d4 f3d4 g8f6',
-  'd2d4 d7d5 g1f3 g8f6 c1f4 c7c5 e2e3 b8c6 b1d2 e7e6',
-  'd2d4 d7d5 g1f3 g8f6 c2c4 d5c4 e2e3 c7c5 f1c4 e7e6',
-  'd2d4 g8f6 c2c4 c7c6 b1c3 d7d5 c4d5 c6d5 c1f4 b8c6',
-  'd2d4 g8f6 c2c4 c7c6 e2e3 d7d5 g1f3 c8f5 b1c3 a7a6',
-  'd2d4 g8f6 c2c4 e7e6 g1f3 d7d5 g2g3 d5c4 f1g2 f8e7',
-  'd2d4 g8f6 c2c4 e7e6 g2g3 d7d5 g1f3 d5c4 f1g2 a7a6',
-  'd2d4 g8f6 g1f3 d7d5 c1f4 c7c5 e2e3 b8c6 b1d2 e7e6',
-  'd2d4 g8f6 g1f3 d7d5 c2c4 e7e6 g2g3 f8e7 f1g2 e8g8',
-  'd2d4 g8f6 g1f3 e7e6 c1g5 d7d5 e2e3 c7c5 b1d2 f8d6',
-  'd2d4 g8f6 g1f3 e7e6 c2c4 d7d5 g2g3 f8e7 f1g2 e8g8',
-  'e2e4 c7c5 b1c3 b8c6 g1e2 c6d4 d2d3 g7g6 h2h4 g8f6',
-  'e2e4 c7c5 b1c3 b8c6 g1f3 e7e5 f1c4 f8e7 d2d3 g8f6',
-  'e2e4 c7c5 b1c3 d7d6 g1e2 e7e5 c3d5 g8f6 e2c3 f6d5',
-  'e2e4 c7c5 b1c3 d7d6 g1f3 e7e5 f1c4 b8c6 d2d3 f8e7',
-  'e2e4 c7c5 g1f3 b8c6 d2d4 c5d4 f3d4 g8f6 b1c3 e7e5',
-  'e2e4 c7c5 g1f3 b8c6 f1b5 g7g6 b5c6 b7c6 e1g1 f8g7',
-  'e2e4 c7c5 g1f3 e7e6 b1c3 a7a6 g2g3 d7d6 d2d4 c5d4',
-  'e2e4 c7c5 g1f3 e7e6 d2d4 c5d4 f3d4 a7a6 c2c4 g8f6',
-  'e2e4 e7e5 b1c3 b8c6 g1e2 g8f6 d2d4 e5d4 e2d4 f8b4',
-  'e2e4 e7e5 b1c3 b8c6 g1f3 g8f6 f1b5 c6d4 f3d4 e5d4',
-  'e2e4 e7e5 b1c3 g8f6 d2d4 e5d4 d1d4 b8c6 d4d3 f8c5',
-  'e2e4 e7e5 b1c3 g8f6 g1f3 b8c6 d2d4 e5d4 f3d4 f8b4',
-  'e2e4 e7e5 g1f3 b8c6 d2d4 e5d4 f3d4 g8f6 d4c6 b7c6',
-  'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5a4 g8f6 e1g1 f6e4',
-  'e2e4 e7e5 g1f3 d7d6 d2d4 g8f6 b1c3 b8c6 f1b5 e5d4',
-  'e2e4 e7e5 g1f3 d7d6 f1c4 f8e7 d2d4 e5d4 f3d4 g8f6'
+  'd2d4 d7d5 c2c4 e7e6 b1c3 g8f6'
 ];
 
 /* ------------------------------------------------------------------ *
@@ -947,32 +908,9 @@ const EV_ROOKS = new Int32Array(32);
 /* Rooks and queens, in board order. Square | 64 marks White. */
 const EV_HEAVY = new Int32Array(20);
 let EV_HEAVY_N = 0;
-/* Every non-pawn, non-king piece: square | (White ? 64 : 0) | (type << 7).
- * A second pass over this list produces mobility and the king-danger term;
- * scanning the board again per term would be far more expensive. */
-const EV_PIECES = new Int32Array(32);
-let EV_PIECES_N = 0;
 
 /* Non-pawn material at the start of the game; the taper is relative to it. */
 const PHASE_MAX = 6400;
-
-/* Bad bishop: centipawns lost per own pawn sitting on the bishop's colour
- * complex. Computed from counters already gathered in the first pass. */
-const BAD_BISHOP = 4;
-
-/* A pawn aiming at an enemy piece is a real threat; its size is what the
- * target is worth. Pawns and kings are excluded — a pawn "attacking" a pawn is
- * just a pawn trade, and it is already covered by the structure terms. */
-const PAWN_THREAT = [0, 0, 24, 24, 40, 60, 0];
-
-/* Attacking weight of each piece when it is aiming at the enemy king. */
-const KING_ATTACK_W = [0, 0, 2, 2, 3, 5, 0];
-
-/* Pawn cohesion: a pawn defended by a neighbour, and a pawn standing shoulder
- * to shoulder with one (a phalanx). Both make the pair far harder to win than
- * two loose pawns, and neither was represented before. */
-const PAWN_DEFENDED = 5;
-const PAWN_PHALANX = 7;
 
 function evaluatePos(pos) {
   const s = pos.sq;
@@ -980,22 +918,12 @@ function evaluatePos(pos) {
   const bf = EV_BF;
   let score = 0;
   let npm = 0;
-  let npmW = 0;
-  let npmB = 0;
   let bishopsW = 0;
   let bishopsB = 0;
   let pawnCount = 0;
   let rookCount = 0;
   let pawnsW = 0;
   let pawnsB = 0;
-  let pawnDarkW = 0;
-  let pawnLightW = 0;
-  let pawnDarkB = 0;
-  let pawnLightB = 0;
-  let bishopDarkW = 0;
-  let bishopLightW = 0;
-  let bishopDarkB = 0;
-  let bishopLightB = 0;
   let minorsW = 0;
   let minorsB = 0;
   let queensW = 0;
@@ -1005,7 +933,6 @@ function evaluatePos(pos) {
 
   for (let f = 0; f < 8; f++) { wf[f] = 0; bf[f] = 0; }
   EV_HEAVY_N = 0;
-  EV_PIECES_N = 0;
 
   for (let i = 0; i < 64; i++) {
     const p = s[i];
@@ -1019,24 +946,13 @@ function evaluatePos(pos) {
       if (white) { wf[f] |= (1 << (i >> 3)); pawnsW++; }
       else { bf[f] |= (1 << (i >> 3)); pawnsB++; }
       if (pawnCount < 32) EV_PAWNS[pawnCount++] = i | (white ? 64 : 0);
-      /* Square colour, for the bad-bishop term: the parity of rank+file is
-       * constant along a diagonal, so a bishop and a pawn of the same parity
-       * sit on the same complex. */
-      const dark = ((i >> 3) ^ i) & 1;
-      if (white) { if (dark) pawnDarkW++; else pawnLightW++; }
-      else { if (dark) pawnDarkB++; else pawnLightB++; }
     } else {
       npm += VALUE[t];
-      if (white) npmW += VALUE[t]; else npmB += VALUE[t];
-      if (t === BISHOP) {
-        if (white) { bishopsW++; if (((i >> 3) ^ i) & 1) bishopDarkW++; else bishopLightW++; }
-        else { bishopsB++; if (((i >> 3) ^ i) & 1) bishopDarkB++; else bishopLightB++; }
-      }
+      if (t === BISHOP) { if (white) bishopsW++; else bishopsB++; }
       if (white) { if (t === KNIGHT || t === BISHOP) minorsW++; else if (t === QUEEN) queensW++; else if (t === ROOK) rooksW++; }
       else { if (t === KNIGHT || t === BISHOP) minorsB++; else if (t === QUEEN) queensB++; else if (t === ROOK) rooksB++; }
       if (t === ROOK && rookCount < 32) EV_ROOKS[rookCount++] = i | (white ? 64 : 0);
       if ((t === ROOK || t === QUEEN) && EV_HEAVY_N < 20) EV_HEAVY[EV_HEAVY_N++] = i | (white ? 64 : 0);
-      if (EV_PIECES_N < 32) EV_PIECES[EV_PIECES_N++] = i | (white ? 64 : 0) | (t << 7);
     }
 
     const v = VALUE[t] + PST[t][white ? i : MIRROR[i]];
@@ -1140,40 +1056,14 @@ function evaluatePos(pos) {
     if (bc && !(bl | br)) score += 14 * bc;
   }
 
-  /* Passed pawns and pawn cohesion, in one pass over the pawn list.
-   *
-   * "Passed" means no enemy pawn on this file or an adjacent one is still ahead
-   * of us; the rank masks make that a pair of ANDs. Cohesion is a second mask
-   * test against the same masks — a pawn defended by a neighbour, and a pawn
-   * standing shoulder to shoulder with one, are both far harder to win than two
-   * loose pawns, and neither was represented before. */
+  /* Passed pawns. A pawn is passed when no enemy pawn stands on its own or an
+   * adjacent file *ahead* of it. The rank masks make that a pair of ANDs. */
   for (let i = 0; i < pawnCount; i++) {
     const e = EV_PAWNS[i];
     const white = (e & 64) !== 0;
     const idx = e & 63;
     const f = idx & 7;
     const r = idx >> 3;
-    const own = white ? wf : bf;
-    const behind = white ? r + 1 : r - 1;
-
-    let def = 0;
-    let pha = 0;
-    const sameRank = 1 << r;
-    if (f > 0) {
-      const nb = own[f - 1];
-      if (nb & sameRank) pha++;
-      if (behind >= 0 && behind < 8 && (nb & (1 << behind))) def++;
-    }
-    if (f < 7) {
-      const nb = own[f + 1];
-      if (nb & sameRank) pha++;
-      if (behind >= 0 && behind < 8 && (nb & (1 << behind))) def++;
-    }
-    if (def | pha) {
-      const v = def * PAWN_DEFENDED + pha * PAWN_PHALANX;
-      score += white ? v : -v;
-    }
-
     let blocked;
     let advance;
     if (white) {
@@ -1189,112 +1079,25 @@ function evaluatePos(pos) {
     }
     if (blocked || advance < 0) continue;
     if (advance > 6) advance = 6;
-    let bonus = PASSED_BONUS[advance];
-
-    /* A piece sitting on the promotion path stops the pawn cold. The raw
-     * "is it passed" test cannot see that, and a watch-sized search will not
-     * discover it either. */
-    const stepRow = white ? r - 1 : r + 1;
-    if (stepRow >= 0 && stepRow < 8 && s[stepRow * 8 + f]) bonus >>= 1;
-
-    /* In an ending a passer is only worth what a king can escort, so scale it
-     * by our own king's distance and by the defender's. */
-    if (eg > 100 && wK >= 0 && bK >= 0) {
-      const myK = white ? wK : bK;
-      const opK = white ? bK : wK;
-      const d1r = Math.abs((myK >> 3) - r);
-      const d1c = Math.abs((myK & 7) - f);
-      const d2r = Math.abs((opK >> 3) - r);
-      const d2c = Math.abs((opK & 7) - f);
-      const d1 = d1r > d1c ? d1r : d1c;
-      const d2 = d2r > d2c ? d2r : d2c;
-      let esc = (7 - d1) * 3 + d2 * 3;
-      if (esc < 0) esc = 0;
-      bonus += (esc * eg) >> 8;
-    }
+    const bonus = PASSED_BONUS[advance];
     score += white ? bonus : -bonus;
   }
 
-  /* ---- Bad bishop ----
-   * Full mobility has to walk every ray of every piece, which measured at
-   * roughly 3x the cost of this entire evaluation — a whole ply of search on a
-   * watch, and a direct test showed no move-quality gain to pay for it. What
-   * that walk was mostly catching, in the positions this engine actually
-   * reaches, is a bishop walled in by its own pawns; that much can be had from
-   * counters gathered in the first pass, for free.
-   *
-   * Only applied when the side has a single bishop: with both complexes covered
-   * there is no bad bishop to speak of. */
-  if (bishopsW === 1) {
-    if (bishopDarkW) score -= BAD_BISHOP * pawnDarkW;
-    else score -= BAD_BISHOP * pawnLightW;
-  }
-  if (bishopsB === 1) {
-    if (bishopDarkB) score += BAD_BISHOP * pawnDarkB;
-    else score += BAD_BISHOP * pawnLightB;
-  }
-
-  /* ---- Pawn threats ----
-   * A pawn aiming at an enemy piece is worth real material. This is also how
-   * "my knight is hanging to a pawn" gets noticed without a full SEE. */
-  for (let i = 0; i < pawnCount; i++) {
-    const e = EV_PAWNS[i];
-    const white = (e & 64) !== 0;
-    const idx = e & 63;
-    const f = idx & 7;
-    const r = idx >> 3;
-    const rr = white ? r - 1 : r + 1;
-    if (rr < 0 || rr > 7) continue;
-    const base = rr * 8;
-    for (let dc = -1; dc <= 1; dc += 2) {
-      const cc = f + dc;
-      if (cc < 0 || cc > 7) continue;
-      const p = s[base + cc];
-      if (!p) continue;
-      if (white ? p < 0 : p > 0) {
-        const t = p < 0 ? -p : p;
-        if (t !== KING && t !== PAWN) {
-          const v = PAWN_THREAT[t];
-          score += white ? v : -v;
-        }
-      }
-    }
-  }
-
-  /* ---- King danger ----
-   * A pawn shield alone cannot see a queen and two minors aimed at the king,
-   * which is exactly the shape of the games this engine was losing. Rays are
-   * walked outward from the king square: the first piece on each ray is either
-   * an attacker or a blocker, so this is a handful of steps, not a board scan.
-   * Knights and pawns are direct table lookups. The term only fires while the
-   * opponent still has an army to attack with — in an ending a "dangerous" king
-   * is meaningless and this would only get in the way. */
-  if (wK >= 0 && npmB >= 1300 && (queensB > 0 || rooksB >= 2)) {
-    kingAttackCount(s, wK, true);
-    let d = KD_ATT * KD_ATT * 2 - KD_DEF * 12;
-    if (d < 0) d = 0;
-    if (d > 400) d = 400;
-    score -= (d * mg) >> 8;
+  /* King safety: pawn shield plus a penalty for an enemy pawn breathing on the
+   * king. Middlegame only — with nothing left to attack with, a "safe" king is
+   * meaningless and this term only gets in the way. */
+  if (npm >= 1200 && wK >= 0 && bK >= 0) {
     score += kingShield(s, wK, true, mg);
-  }
-  if (bK >= 0 && npmW >= 1300 && (queensW > 0 || rooksW >= 2)) {
-    kingAttackCount(s, bK, false);
-    let d = KD_ATT * KD_ATT * 2 - KD_DEF * 12;
-    if (d < 0) d = 0;
-    if (d > 400) d = 400;
-    score += (d * mg) >> 8;
     score -= kingShield(s, bK, false, mg);
   }
 
   /* Endgame king tropism: the side that is materially ahead wants the kings
    * close together, which is what actually converts K+P endings. */
   if (eg > 128 && wK >= 0 && bK >= 0) {
-    const dr = Math.abs((wK >> 3) - (bK >> 3));
-    const dc = Math.abs((wK & 7) - (bK & 7));
-    const d = dr > dc ? dr : dc;
-    const closeness = 7 - d;
-    if (score > 100) score += closeness * 6;
-    else if (score < -100) score -= closeness * 6;
+    const d = Math.abs((wK >> 3) - (bK >> 3)) + Math.abs((wK & 7) - (bK & 7));
+    const closeness = 14 - d;
+    if (score > 100) score += closeness * 4;
+    else if (score < -100) score -= closeness * 4;
   }
 
   if (bishopsW >= 2) score += 30;
@@ -1349,12 +1152,7 @@ function heavySquare(white) {
 
 /* Rule of the square: can the defending king reach the promotion square before
  * the pawn runs? `defenderToMove` gives the defender its extra tempo, and a
- * pawn still on its home rank gains a tempo from the double push.
- *
- * The king's distance is CHEBYSHEV, not Manhattan. A king walks diagonally as
- * cheaply as it walks straight, so summing the two components overstates the
- * distance and makes this test claim pawns are unstoppable when the king
- * arrives in time — which silently turns drawn K+P endings into lost ones. */
+ * pawn still on its home rank gains a tempo from the double push. */
 function unstoppablePasser(pawnSq, defenderK, defenderToMove, white) {
   const file = pawnSq & 7;
   const row = pawnSq >> 3;
@@ -1362,49 +1160,8 @@ function unstoppablePasser(pawnSq, defenderK, defenderToMove, white) {
   if ((white && row === 6) || (!white && row === 1)) steps--;
   if (steps < 0) steps = 0;
   const promoRow = white ? 0 : 7;
-  const dr = Math.abs((defenderK >> 3) - promoRow);
-  const df = Math.abs((defenderK & 7) - file);
-  const dist = dr > df ? dr : df;
+  const dist = Math.abs((defenderK >> 3) - promoRow) + Math.abs((defenderK & 7) - file);
   return dist > steps + (defenderToMove ? 1 : 0);
-}
-
-/* Attacker / defender counts for one king, written to module scratch.
- *
- * This counts enemy pieces standing within a two-square box of the king,
- * weighted by what they are, against our own pieces in the same box. Walking
- * rays outward from the king to find real attackers is more accurate but
- * measured at a large fraction of the whole evaluation, and the position that
- * actually loses games at this level is not a subtle x-ray — it is three enemy
- * pieces gathered around our king while we have nobody home. The box test is
- * O(pieces) with no ray walking at all.
- *
- * `white` describes the king, so the attackers are the other colour. */
-let KD_ATT = 0;
-let KD_DEF = 0;
-function kingAttackCount(s, kSq, white) {
-  const kr = kSq >> 3;
-  const kc = kSq & 7;
-  let att = 0;
-  let def = 0;
-  for (let i = 0; i < EV_PIECES_N; i++) {
-    const e = EV_PIECES[i];
-    const sq = e & 63;
-    const d1 = (sq >> 3) - kr;
-    if (d1 > 2 || d1 < -2) continue;
-    const d2 = (sq & 7) - kc;
-    if (d2 > 2 || d2 < -2) continue;
-    if (((e & 64) !== 0) === white) def += 1;
-    else att += KING_ATTACK_W[e >> 7];
-  }
-  /* An enemy pawn touching the king counts for something even though pawns are
-   * not in the piece list. */
-  const ePawn = white ? -PAWN : PAWN;
-  const pa = PAWN_ATTACKERS[white ? 1 : 0][kSq];
-  for (let j = 0; j < pa.length; j++) {
-    if (s[pa[j]] === ePawn) att += 1;
-  }
-  KD_ATT = att;
-  KD_DEF = def;
 }
 
 function kingShield(s, kSq, white, mg) {
