@@ -2,8 +2,8 @@
   "package": "com.xykadi.chess",
   "name": "Chess",
   "icon": "/common/icon.png",
-  "versionName": "1.2.0",
-  "versionCode": 114,
+  "versionName": "1.2.1",
+  "versionCode": 115,
   "minPlatformVersion": 1100,
   "simulationVersion": "default",
   "deviceTypeList": [
