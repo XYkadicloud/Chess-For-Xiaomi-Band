@@ -1,0 +1,69 @@
+<template>
+  <div class="purchasePage">
+    <div class="header"><text class="headerTitle">{{tt_purchase_title}}</text></div>
+    <list class="purchaseList">
+      <list-item class="qrItem" type="item">
+        <image class="qr" src="/common/aifadian_qr.jpg"></image>
+      </list-item>
+      <list-item class="priceItem" type="item">
+        <text class="price">{{tt_purchase_price}}</text>
+        <text class="bodyText priceText">{{$t('purchase.priceText')}}</text>
+      </list-item>
+      <list-item class="infoItem" type="item">
+        <text class="bodyText leftText tokenText">{{$t('purchase.tokenText')}}</text>
+        <text class="bodyText leftText gap featureText">{{$t('purchase.featureText')}}</text>
+      </list-item>
+      <list-item class="browserItem" type="item">
+        <text class="bodyText leftText projectText">{{$t('purchase.projectText')}}</text>
+        <text class="bodyText leftText gap browserText">{{$t('purchase.browserText')}}</text>
+      </list-item>
+    </list>
+    <div class="buttonArea" if="{{!purchaseConfirmed}}">
+      <text class="confirmButton" @touchend="confirmPurchase">{{tt_purchase_confirm}}</text>
+    </div>
+  </div>
+</template>
+<style>
+.purchasePage { width:212dp; height:520dp; background-color:#000000; flex-direction:column; }
+.header { width:212dp; height:52dp; align-items:center; justify-content:center; }
+.headerTitle { color:#FFFFFF; font-size:21dp; font-weight:bold; line-height:36dp; }
+.purchaseList { width:212dp; height:374dp; padding:6dp 12dp 14dp 12dp; }
+.qrItem,.priceItem,.infoItem,.browserItem { width:188dp; border-radius:16dp; background-color:#252828; margin-bottom:8dp; padding:10dp 14dp; flex-direction:column; align-items:center; justify-content:flex-start; }
+.qrItem { height:188dp; padding:9dp; }
+.qr { width:150dp; height:150dp; background-color:#FFFFFF; object-fit:contain; }
+.priceItem { height:82dp; align-items:center; justify-content:flex-start; }
+.price { color:#4EA1FF; font-size:22dp; font-weight:bold; line-height:28dp; }
+.infoItem { height:180dp; align-items:flex-start; }
+.browserItem { height:180dp; align-items:flex-start; }
+.bodyText { width:160dp; color:rgba(255,255,255,0.82); font-size:13dp; line-height:19dp; text-align:center; }
+.priceText { height:38dp; lines:2; text-overflow:clip; margin-top:2dp; }
+.leftText { text-align:left; }
+.tokenText,.projectText { height:38dp; lines:2; text-overflow:clip; }
+.featureText,.browserText { height:114dp; lines:6; text-overflow:clip; }
+.gap { margin-top:7dp; }
+.buttonArea { width:212dp; height:64dp; align-items:center; justify-content:center; }
+.confirmButton { width:160dp; height:44dp; border-radius:22dp; background-color:#0D6EFF; color:#FFFFFF; font-size:18dp; font-weight:bold; line-height:44dp; text-align:center; }
+</style>
+<script>
+import router from '@system.router';
+import storage from '@system.storage';
+export default {
+  onShow(){  },
+  computed:{
+    tt_purchase_priceText(){  return this.$t('purchase.priceText'); },
+    tt_purchase_tokenText(){  return this.$t('purchase.tokenText'); },
+    tt_purchase_featureText(){  return this.$t('purchase.featureText'); },
+    tt_purchase_projectText(){  return this.$t('purchase.projectText'); },
+    tt_purchase_browserText(){  return this.$t('purchase.browserText'); },
+    tt_purchase_title(){  return this.$t('purchase.title'); },
+    tt_purchase_price(){  return this.$t('purchase.price'); },
+    tt_purchase_confirm(){  return this.$t('purchase.confirm'); }},
+  
+  
+  protected:{firstLaunch:'false'},
+  data:{ purchaseConfirmed:false},
+  onInit(){  this.loadPurchase();},
+  loadPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';},fail:()=>{this.purchaseConfirmed=false;}});},
+  confirmPurchase(){storage.set({key:'purchase_confirmed',value:'true'});this.purchaseConfirmed=true;if(this.firstLaunch==='true')router.replace({uri:'/pages/index'});else router.back();}
+}
+</script>

@@ -1,0 +1,43 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <text class="back" @touchend="back">‹</text>
+      <text class="title">{{tt_support_title}}</text>
+    </div>
+    <div class="body">
+      <text class="hint">{{tt_support_hint}}</text>
+      <image class="qrLarge" src="/common/aifadian_qr.jpg"></image>
+      <text class="caption">{{tt_support_caption}}</text>
+      <text class="support">{{tt_support_body}}</text>
+      <text class="backButton" @touchend="back">{{tt_support_backToAbout}}</text>
+    </div>
+  </div>
+</template>
+<style>
+.page { width:212dp; height:520dp; background-color:#000000; flex-direction:column; }
+.header { width:212dp; height:52dp; position:relative; align-items:center; justify-content:center; }
+.back { position:absolute; left:12dp; top:8dp; width:32dp; height:36dp; color:#FFFFFF; font-size:30dp; line-height:36dp; text-align:center; }
+.title { width:212dp; color:#FFFFFF; font-size:21dp; font-weight:bold; line-height:36dp; text-align:center; }
+.body { width:212dp; height:438dp; align-items:center; flex-direction:column; padding-top:20dp; }
+.hint { color:#4EA1FF; font-size:18dp; font-weight:bold; line-height:28dp; margin-bottom:12dp; }
+.qrLarge { width:180dp; height:180dp; background-color:#FFFFFF; object-fit:contain; }
+.caption { color:#FFFFFF; font-size:16dp; line-height:26dp; margin-top:12dp; }
+.support { width:160dp; color:rgba(255,255,255,0.72); font-size:13dp; line-height:19dp; text-align:center; margin-top:4dp; }
+.backButton { width:160dp; height:38dp; border-radius:19dp; background-color:#252828; color:#FFFFFF; font-size:15dp; line-height:38dp; text-align:center; margin-top:15dp; }
+</style>
+<script>
+import router from '@system.router';
+import storage from '@system.storage';
+export default {
+  onInit(){  },
+  onShow(){  },
+  data:{ },
+  computed:{
+    tt_support_title(){  return this.$t('support.title'); },
+    tt_support_hint(){  return this.$t('support.hint'); },
+    tt_support_caption(){  return this.$t('support.caption'); },
+    tt_support_body(){  return this.$t('support.body'); },
+    tt_support_backToAbout(){  return this.$t('support.backToAbout'); }},
+  
+   back(){router.back();} }
+</script>
