@@ -1,0 +1,75 @@
+<template>
+  <div class="settingsPage">
+    <div class="header">
+      <text class="back" @click="back">‹</text>
+      <text class="headerTitle">{{title}}</text>
+    </div>
+
+    <div class="setting" @click="toggleAuto">
+      <text class="settingName">{{autoLabel}}</text>
+      <text class="settingValue">{{autoValue}}</text>
+    </div>
+
+    <div class="setting" @click="cycleBoard">
+      <text class="settingName">{{boardTitle}}</text>
+      <text class="settingValue">{{boardLabel}}</text>
+    </div>
+
+    <text class="footer" @click="back">{{doneLabel}}</text>
+  </div>
+</template>
+<style>
+.settingsPage { width:212px; height:520px; background-color:#000000; padding:18px 12px; flex-direction:column; }
+.header { width:188px; height:48px; flex-direction:row; align-items:center; margin-bottom:12px; }
+.back { color:#FFFFFF; font-size:30px; width:32px; text-align:center; height:40px; line-height:40px; }
+.headerTitle { color:#FFFFFF; font-size:22px; font-weight:bold; line-height:40px; }
+.setting { width:188px; min-height:54px; border-radius:18px; background-color:#252828; margin-bottom:8px; padding:0 14px; flex-direction:row; align-items:center; justify-content:space-between; }
+.settingName { color:#FFFFFF; font-size:17px; line-height:24px; }
+.settingValue { color:#4EA1FF; font-size:15px; line-height:24px; }
+.footer { width:188px; height:44px; border-radius:22px; background-color:#0D6EFF; color:#FFFFFF; text-align:center; line-height:44px; font-size:18px; margin-top:12px; }
+</style>
+<script>
+import router from '@system.router';
+import storage from '@system.storage';
+
+/* Text follows the DEVICE language. $t() is resolved by the Vela runtime
+ * against src/i18n/*.json, so there is no in-app language switch and no
+ * per-page language state to keep in sync (that machinery caused a zh->en
+ * first-frame flash and left some pages stuck in one language). */
+export default {
+  data:{ autoCenter:true, boardSize:'standard' },
+  computed:{
+    title(){ return this.$t('settings.title'); },
+    autoLabel(){ return this.$t('settings.autoCenter'); },
+    autoValue(){ return this.autoCenter ? this.$t('settings.on') : this.$t('settings.off'); },
+    boardTitle(){ return this.$t('settings.boardSize'); },
+    doneLabel(){ return this.$t('app.done'); },
+    /* boardSize is stored as a stable key ('standard'|'large'|'compact') and
+     * only localised for display. */
+    boardLabel(){
+      const m = { standard:'settings.boardStandard', large:'settings.boardLarge', compact:'settings.boardCompact' };
+      return this.$t(m[this.boardSize] || 'settings.boardStandard');
+    }
+  },
+  onInit(){ this.load(); },
+  onShow(){ this.load(); },
+  load(){
+    storage.get({key:'CHESS_SETTINGS',success:(data)=>{
+      try{
+        const raw=data&&data.data!==undefined?data.data:data;
+        if(raw===undefined||raw===null||raw==='')return;
+        const v=typeof raw==='string'?JSON.parse(raw):raw;
+        this.autoCenter=v.autoCenter!==false;
+        this.boardSize=v.boardSize||'standard';
+      }catch(e){}
+    },fail:()=>{}});
+  },
+  save(){storage.set({key:'CHESS_SETTINGS',value:JSON.stringify({autoCenter:this.autoCenter,boardSize:this.boardSize})});},
+  back(){this.save();router.back();},
+  toggleAuto(){this.autoCenter=!this.autoCenter;this.save();},
+  cycleBoard(){
+    this.boardSize = this.boardSize==='large' ? 'compact' : (this.boardSize==='compact' ? 'standard' : 'large');
+    this.save();
+  }
+}
+</script>

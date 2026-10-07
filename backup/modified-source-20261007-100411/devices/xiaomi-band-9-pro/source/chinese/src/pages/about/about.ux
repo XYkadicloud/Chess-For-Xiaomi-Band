@@ -1,0 +1,112 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <text class="back" @touchend="back">‹</text>
+      <text class="headerTitle">{{tt_about_title}}</text>
+    </div>
+    <list class="aboutList">
+      <list-item class="appItem" type="item">
+        <image class="appIcon" src="/common/icon.png"></image>
+        <text class="appName">Chess</text>
+        <text class="version">{{versionText}}</text>
+      </list-item>
+      <list-item class="authorItem" type="item">
+        <image class="avatar" src="/common/avatar.jpg"></image>
+        <div class="authorInfo">
+          <text class="authorLabel">{{tt_about_developer}}</text>
+          <text class="developer">XYKadi</text>
+        </div>
+      </list-item>
+      <list-item class="infoItem" type="item">
+        <text class="sectionTitle">{{tt_about_aboutApp}}</text>
+        <text class="bodyText">{{tt_about_aboutAppBody}}</text>
+      </list-item>
+      <list-item class="infoItem rulesItem" type="item">
+        <text class="sectionTitle">{{tt_about_supportedRules}}</text>
+        <text class="bodyText">{{tt_about_supportedRulesBody}}</text>
+      </list-item>
+      <list-item class="infoItem rulesItem" type="item">
+        <text class="sectionTitle">{{tt_about_notSupported}}</text>
+        <text class="bodyText">{{tt_about_notSupportedBody}}</text>
+      </list-item>
+      <list-item class="infoItem creditsItem" type="item">
+        <text class="sectionTitle">{{tt_about_pieces}}</text>
+        <text class="bodyText">{{tt_about_piecesBody}}</text>
+      </list-item>
+      <list-item class="supportItem" type="item" @touchend="openQr">
+        <text class="sectionTitle supportTitle">{{tt_about_afdian}}</text>
+        <text class="supportText">{{tt_about_afdianBody}}</text>
+        <image class="qrPreview" src="/common/aifadian_qr.jpg"></image>
+        <text class="qrButton">{{tt_about_afdianButton}}</text>
+      </list-item>
+      <list-item class="purchaseEntryItem" type="item" @touchend="openPurchase">
+        <text class="purchaseEntry">{{tt_about_goPay}}</text>
+      </list-item>
+      <list-item class="thanksItem" type="item">
+        <text class="thanks">{{tt_about_thanks}}</text>
+      </list-item>
+    </list>
+  </div>
+</template>
+<style>
+.page { width:336px; height:480px; background-color:#000000; flex-direction:column; }
+.header { width:336px; height:52px; position:relative; align-items:center; justify-content:center; }
+.back { position:absolute; left:12px; top:8px; width:32px; height:36px; color:#FFFFFF; font-size:30px; line-height:36px; text-align:center; }
+.headerTitle { width:336px; color:#FFFFFF; font-size:21px; font-weight:bold; line-height:36px; text-align:center; }
+.aboutList { width:336px; height:428px; padding:8px 12px 28px 12px; }
+.appItem,.authorItem,.infoItem,.supportItem,.purchaseEntryItem { width:312px; margin-bottom:10px; border-radius:16px; background-color:#252828; align-items:center; }
+.appItem { height:150px; flex-direction:column; justify-content:center; }
+.appIcon { width:68px; height:68px; object-fit:contain; margin-bottom:4px; }
+.appName { color:#FFFFFF; font-size:20px; font-weight:bold; line-height:26px; }
+.version { color:#4EA1FF; font-size:16px; font-weight:bold; line-height:23px; }
+.authorItem { height:92px; padding:10px 16px; flex-direction:row; justify-content:flex-start; }
+.avatar { width:68px; height:68px; border-radius:34px; object-fit:cover; background-color:#101010; margin-right:16px; }
+.authorInfo { height:62px; flex-direction:column; justify-content:center; }
+.authorLabel { color:rgba(255,255,255,0.6); font-size:14px; line-height:21px; }
+.developer { color:#FFFFFF; font-size:20px; font-weight:bold; line-height:28px; }
+.creditsItem { height:104px; }
+.infoItem { height:112px; padding:14px 14px 12px 14px; flex-direction:column; align-items:flex-start; justify-content:flex-start; }
+.rulesItem { height:128px; }
+.sectionTitle { width:280px; color:#FFFFFF; font-size:16px; font-weight:bold; line-height:23px; margin-bottom:5px; }
+.bodyText { width:280px; color:rgba(255,255,255,0.78); font-size:13px; line-height:19px; }
+.supportItem { height:380px; padding:14px 10px 16px 10px; flex-direction:column; justify-content:flex-start; }
+.supportTitle { width:280px; text-align:center; }
+.supportText { width:280px; color:rgba(255,255,255,0.78); font-size:13px; line-height:19px; text-align:center; margin-bottom:10px; }
+.qrPreview { width:240px; height:240px; background-color:#FFFFFF; object-fit:contain; }
+.qrButton { width:240px; height:34px; margin-top:8px; border-radius:17px; background-color:#0D6EFF; color:#FFFFFF; font-size:13px; line-height:34px; text-align:center; }
+.purchaseEntryItem { height:54px; justify-content:center; }
+.purchaseEntry { width:240px; height:38px; border-radius:19px; background-color:#0D6EFF; color:#FFFFFF; font-size:16px; font-weight:bold; line-height:38px; text-align:center; }
+.thanksItem { width:312px; height:50px; align-items:center; justify-content:center; background-color:#000000; }
+.thanks { color:rgba(255,255,255,0.45); font-size:13px; text-align:center; }
+</style>
+<script>
+import router from '@system.router';
+import storage from '@system.storage';
+export default {
+  computed:{
+    tt_about_title(){ return this.$t('about.title'); },
+    tt_about_developer(){ return this.$t('about.developer'); },
+    tt_about_aboutApp(){ return this.$t('about.aboutApp'); },
+    tt_about_aboutAppBody(){ return this.$t('about.aboutAppBody'); },
+    tt_about_supportedRules(){ return this.$t('about.supportedRules'); },
+    tt_about_supportedRulesBody(){ return this.$t('about.supportedRulesBody'); },
+    tt_about_notSupported(){ return this.$t('about.notSupported'); },
+    tt_about_notSupportedBody(){ return this.$t('about.notSupportedBody'); },
+    tt_about_pieces(){ return this.$t('about.pieces'); },
+    tt_about_piecesBody(){ return this.$t('about.piecesBody'); },
+    tt_about_afdian(){ return this.$t('about.afdian'); },
+    tt_about_afdianBody(){ return this.$t('about.afdianBody'); },
+    tt_about_afdianButton(){ return this.$t('about.afdianButton'); },
+    tt_about_goPay(){ return this.$t('about.goPay'); },
+    tt_about_thanks(){ return this.$t('about.thanks'); },
+    versionText(){ return this.$t('about.version'); }
+  },
+  data:{purchaseConfirmed:false},
+  onInit(){this.loadPurchase();},
+  onShow(){this.loadPurchase();},
+  loadPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';},fail:()=>{this.purchaseConfirmed=false;}});},
+  back(){router.back();},
+  openQr(){router.push({uri:'/pages/support'});},
+  openPurchase(){router.push({uri:'/pages/purchase'});}
+}
+</script>

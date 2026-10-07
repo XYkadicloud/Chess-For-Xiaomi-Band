@@ -1,0 +1,61 @@
+{
+  "package": "com.xykadi.chess",
+  "name": "Chess",
+  "icon": "/common/icon.png",
+  "versionName": "1.2.2",
+  "versionCode": 116,
+  "minPlatformVersion": 1100,
+  "simulationVersion": "default",
+  "deviceTypeList": [
+    "watch"
+  ],
+  "config": {
+    "designWidth": 212
+  },
+  "display": {
+    "backgroundColor": "#000000"
+  },
+  "features": [
+    {
+      "name": "system.app"
+    },
+    {
+      "name": "system.brightness"
+    },
+    {
+      "name": "system.configuration"
+    },
+    {
+      "name": "system.router"
+    },
+    {
+      "name": "system.storage"
+    }
+  ],
+  "router": {
+    "entry": "pages/index",
+    "pages": {
+      "pages/index": {
+        "component": "index"
+      },
+      "pages/game": {
+        "component": "game"
+      },
+      "pages/setup": {
+        "component": "setup"
+      },
+      "pages/settings": {
+        "component": "settings"
+      },
+      "pages/about": {
+        "component": "about"
+      },
+      "pages/support": {
+        "component": "support"
+      },
+      "pages/purchase": {
+        "component": "purchase"
+      }
+    }
+  }
+}

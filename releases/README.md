@@ -2,13 +2,13 @@
 
 文件名格式：`Chess_<设备>_v<版本>_<签名>.rpk`
 
-## v1.2.2（当前）
+## v1.2.3（当前）
 
 | 文件 | 设备 | 大小 |
 |---|---|---|
-| Chess_Band9_v1.2.2_release.rpk | Band9 | 140.8 KB |
-| Chess_Band9Pro_v1.2.2_release.rpk | Band9Pro | 144.9 KB |
-| Chess_Band10_v1.2.2_release.rpk | Band10 | 145.1 KB |
+| Chess_Band9_v1.2.3_release.rpk | Band9 | 143.2 KB |
+| Chess_Band9Pro_v1.2.3_release.rpk | Band9Pro | 144.9 KB |
+| Chess_Band10_v1.2.3_release.rpk | Band10 | 145.1 KB |
 
 > **Band 11 与 Band 10 通用**，使用 Band10 的包即可。
 
@@ -28,6 +28,15 @@
 - `purchase.ux` 同时声明 `protected` 与 `data`，Vela 框架硬性禁止共存，
   页面 VM 构造时抛错 -> 启动跳转该页即中断路由 -> 之后所有按钮失效。
 - 修复：合并为单一 `protected:{firstLaunch, purchaseConfirmed}`。
+
+
+### v1.2.3 修复内容
+
+1. **右滑返回失效（三设备）** —— `game.ux` 的 `@swipe="blockSwipe"` 原本绑在
+   页面根容器上，吞掉了系统返回手势；改绑到棋盘视口，返回手势恢复、
+   棋盘拖拽仍受保护。
+2. **Band 9 补上「诚信付款」页** —— 新增 `pages/purchase` + 首页首启跳转
+   + 关于页付款入口 + 路由（此前只有 i18n 文案、页面缺失）。
 
 ### 历史版本
 

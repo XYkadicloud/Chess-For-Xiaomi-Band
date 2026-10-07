@@ -72,3 +72,29 @@ Band 10 的修复已在上一快照完成，本快照中保持不变。
 
 **构建验证**：三设备 `aiot build` / `aiot release` 全部 `build success`，
 包内 dp 残留均为 0。
+
+---
+
+### 20261007-095508 / 20261007-100411 — 付款页同步到 Band 9 + 右滑返回修复
+
+**原始**：`original-source-20261007-095508`
+**修改后**：`modified-source-20261007-100411`
+
+**改动 1：右滑返回修复（三设备）**
+- `pages/game/game.ux` 原写法 `<div class="page" @swipe="blockSwipe">`
+  把滑动拦截器绑在**页面根容器**上，主动 `stopPropagation()`，
+  吞掉了系统右滑返回手势。
+- 修复：根容器去掉 `@swipe`；把 `@swipe="blockSwipe"` 改绑到
+  `boardViewport`（棋盘视口），既保护棋盘拖拽、又不再堵住整页手势。
+- 三个设备同步处理（Band 9 / 9 Pro / 10 均存在该写法）。
+
+**改动 2：诚信付款页同步到 Band 9（原本缺失）**
+- 新增 `pages/purchase/purchase.ux`：以 9 Pro 版为基准，
+  按 Band 9 的 192x490 重新适配尺寸（QR 150、正文宽 140、按钮 160 等）。
+- `index.ux`：补 `checkPurchase()` 首启跳转逻辑（+ data 字段 + onInit/onShow）。
+- `about.ux`：补「前往付款」入口（模板 + CSS + computed + openPurchase）。
+- `manifest.json`：补 `pages/purchase` 路由。
+- i18n 文案（`purchase.*`、`about.goPay`）**原本就已存在**，无需新增。
+
+**构建验证**：三设备 `aiot build` / `aiot release` 全部 `build success`，
+包内均含 `pages/purchase`。
