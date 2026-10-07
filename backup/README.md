@@ -98,3 +98,25 @@ Band 10 的修复已在上一快照完成，本快照中保持不变。
 
 **构建验证**：三设备 `aiot build` / `aiot release` 全部 `build success`，
 包内均含 `pages/purchase`。
+
+---
+
+### 20261007-101732 — 关于页宽度修复（我上一版的失误）+ 开发者名字溢出
+
+**问题 1（我的失误）**：上一版把 Band 9 `about.ux` 的列表项宽度
+误改成 `188px`（那是 Band 10 的值，212-24=188）。
+Band 9 的内容区只有 `192-24=168px`，导致整页横向溢出。
+**已改回 168px**，与原始版逐项核对无尺寸差异。
+
+**问题 2（原始代码就有的 bug）**：开发者名字 `XYKadi` 溢出/不显示
+- `about.ux` 的 `.authorInfo` 与 `.developer` **从未设过 width**。
+- Band 9 空间：item 168 − padding 32 = 136；头像 68+16 = 84；
+  剩给文字列仅 **52px**，而 `XYKadi` @20px 粗体需约 **66px** → 溢出。
+  （Band 10 剩 72px 也偏紧，9 Pro 宽裕）
+- 修复（三设备统一）：
+  - `.authorItem` height 92 -> 84
+  - `.avatar` 68x68 -> 56x56，margin-right 16 -> 10
+  - `.authorInfo` 增加 `width:70px`，height 62 -> 56
+  - `.authorLabel` 增加 `width:70px`，font-size 14 -> 12
+  - `.developer` 增加 `width:70px`，font-size 20 -> 18
+- 验算：三设备剩余空间均 >= 70px（文字列宽），文本需约 54px → 全部 OK。

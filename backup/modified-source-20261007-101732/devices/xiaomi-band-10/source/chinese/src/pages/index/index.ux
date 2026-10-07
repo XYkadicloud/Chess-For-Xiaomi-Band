@@ -1,0 +1,42 @@
+<template>
+  <div class="home">
+    <div class="homeMark"><image class="homeIcon" src="/common/icon.png"></image></div>
+    <text class="title">Chess</text>
+    <text class="primary" @click="startGame">{{primaryLabel}}</text>
+    <text class="secondary" @click="openSettings">{{settingsLabel}}</text>
+    <text class="secondary" @click="openAbout">{{aboutLabel}}</text>
+    <text class="secondary" @click="exitApp">{{exitLabel}}</text>
+  </div>
+</template>
+<style>
+.home { width:212px; height:520px; background-color:#000000; flex-direction:column; align-items:center; padding-top:56px; }
+.homeMark { width:72px; height:72px; border-radius:36px; background-color:#2D3030; justify-content:center; align-items:center; margin-bottom:18px; }
+.homeIcon { width:56px; height:56px; object-fit:contain; }
+.title { color:#FFFFFF; font-size:24px; font-weight:bold; line-height:34px; margin-bottom:34px; }
+.primary,.secondary { width:174px; height:44px; border-radius:22px; text-align:center; line-height:44px; font-size:18px; font-weight:bold; margin-bottom:10px; }
+.primary { background-color:#0D6EFF; color:#FFFFFF; }
+.secondary { background-color:#252828; color:#FFFFFF; }
+</style>
+<script>
+import router from '@system.router';
+import app from '@system.app';
+import storage from '@system.storage';
+export default {
+  computed:{
+    primaryLabel(){ return this.hasActiveGame ? this.$t('app.continueGame') : this.$t('app.startGame'); },
+    settingsLabel(){ return this.$t('app.settings'); },
+    aboutLabel(){ return this.$t('app.about'); },
+    exitLabel(){ return this.$t('app.exitApp'); }},
+  
+  
+  data:{hasActiveGame:false, purchaseChecked:false, purchaseConfirmed:false},
+  onInit(){  this.checkPurchase();this.checkActiveGame();},
+  onShow(){if(this.purchaseChecked)this.checkActiveGame();},
+  checkPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';this.purchaseChecked=true;if(!this.purchaseConfirmed)router.push({uri:'/pages/purchase',params:{firstLaunch:'true',___PARAM_LAUNCH_FLAG___:'clearTask'}});},fail:()=>{this.purchaseChecked=true;this.purchaseConfirmed=false;router.push({uri:'/pages/purchase',params:{firstLaunch:'true',___PARAM_LAUNCH_FLAG___:'clearTask'}});}});},
+  checkActiveGame(){storage.get({key:'CHESS_ACTIVE_GAME',success:(r)=>{try{const raw=r&&r.data!==undefined?r.data:r;const v=typeof raw==='string'?JSON.parse(raw):raw;this.hasActiveGame=!!(v&&v.board&&v.board.length===64&&!v.gameOver);}catch(e){this.hasActiveGame=false;}},fail:()=>{this.hasActiveGame=false;}});},
+  startGame(){router.push(this.hasActiveGame?{uri:'/pages/game',params:{resume:'true'}}:{uri:'/pages/setup'});},
+  openSettings(){router.push({uri:'/pages/settings'});},
+  openAbout(){router.push({uri:'/pages/about'});},
+  exitApp(){app.terminate({});}
+}
+</script>

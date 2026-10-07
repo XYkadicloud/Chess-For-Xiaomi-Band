@@ -2,13 +2,13 @@
 
 文件名格式：`Chess_<设备>_v<版本>_<签名>.rpk`
 
-## v1.2.3（当前）
+## v1.2.5（当前）
 
 | 文件 | 设备 | 大小 |
 |---|---|---|
-| Chess_Band9_v1.2.3_release.rpk | Band9 | 143.2 KB |
-| Chess_Band9Pro_v1.2.3_release.rpk | Band9Pro | 144.9 KB |
-| Chess_Band10_v1.2.3_release.rpk | Band10 | 145.1 KB |
+| Chess_Band9_v1.2.5_release.rpk | Band9 | 143.2 KB |
+| Chess_Band9Pro_v1.2.5_release.rpk | Band9Pro | 144.9 KB |
+| Chess_Band10_v1.2.5_release.rpk | Band10 | 145.1 KB |
 
 > **Band 11 与 Band 10 通用**，使用 Band10 的包即可。
 
@@ -37,6 +37,14 @@
    棋盘拖拽仍受保护。
 2. **Band 9 补上「诚信付款」页** —— 新增 `pages/purchase` + 首页首启跳转
    + 关于页付款入口 + 路由（此前只有 i18n 文案、页面缺失）。
+
+
+### v1.2.5 修复内容
+
+1. **关于页横向溢出（Band 9）** —— 修正我上一版误用 Band 10 宽度的问题，
+   列表项宽度恢复为 Band 9 的 168px。
+2. **开发者名字溢出/不显示（三设备）** —— `.authorInfo` / `.developer`
+   补上宽度并缩小头像与字号，三设备空间验算全部通过。
 
 ### 历史版本
 
