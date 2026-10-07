@@ -2,28 +2,44 @@
 
 文件名格式：`Chess_<设备>_v<版本>_<签名>.rpk`
 
-## v1.2.1（当前）
+## v1.2.2（当前）
 
 | 文件 | 设备 | 大小 |
 |---|---|---|
-| Chess_Band9_v1.2.1_release.rpk | Band9 | 140.8 KB |
-| Chess_Band10_v1.2.1_release.rpk | Band10 | 145.1 KB |
+| Chess_Band9_v1.2.2_release.rpk | Band9 | 140.8 KB |
+| Chess_Band9Pro_v1.2.2_release.rpk | Band9Pro | 144.9 KB |
+| Chess_Band10_v1.2.2_release.rpk | Band10 | 145.1 KB |
 
 > **Band 11 与 Band 10 通用**，使用 Band10 的包即可。
-> **Band 9 Pro 未包含在本版**，待其适配完成后单独发布。
 
-### v1.2.1 修复内容
+### v1.2.2 修复内容（三设备统一）
 
-**Band 10**：
-1. 模拟器画面溢出 / 不铺满 —— 单位 `dp` -> `px`（`dp` 受设备密度影响，模拟器密度 420 -> 放大 2.6 倍）
-2. 所有控制按钮点不动 —— `purchase.ux` 的 `protected` 与 `data` 声明冲突导致 VM 构造抛错
+**模拟器画面溢出 / 不铺满、比例错位** —— 全部页面单位 `dp` -> `px`
+
+- `dp` 依赖设备密度 `DPR = PPI / 160`（`物理像素 = dp值 x DPR`）；
+  官方模拟器 AVD 密度为 420（DPR 2.625），写 `212dp` 会被放大到 556px，
+  而屏幕宽只有 212 -> 整体溢出、只显示左上角一块。
+- `px` 按 `designWidth` 等比缩放、**与设备密度无关**；
+  本工程 `designWidth` 恰好等于物理宽度（192 / 336 / 212），
+  缩放系数 = 1，模拟器与真机表现一致。
+- 覆盖范围：Band9 297+12 处、Band9Pro 339+12 处、Band10 115 处。
+
+**Band 10 额外修复：所有控制按钮点不动**
+- `purchase.ux` 同时声明 `protected` 与 `data`，Vela 框架硬性禁止共存，
+  页面 VM 构造时抛错 -> 启动跳转该页即中断路由 -> 之后所有按钮失效。
+- 修复：合并为单一 `protected:{firstLaunch, purchaseConfirmed}`。
+
+### 历史版本
+
+| 版本 | 设备 | 说明 |
+|---|---|---|
+| v1.2.1 | Band9, Band10 | Band 10 修复首版（9 Pro 未含） |
+| v1.2.0 | Band9, Band9Pro, Band10 | 存档体积与选子性能修复 |
 
 说明：
 - 本目录由 `tools/package_rpk.js` 生成，重新构建后再次运行即刷新。
 - **每个设备只有一个包**，中英文已合并：文本由 Vela 运行时通过 `$t()`
-  对着 `src/i18n/*.json` 解析，**跟随设备语言**——中文手环显示中文、
-  英文手环显示英文。**没有应用内语言切换**。
+  对着 `src/i18n/*.json` 解析，**跟随设备语言**。**没有应用内语言切换**。
 - 所有构建共用同一个包名 `com.xykadi.chess`，只有**文件名**不同；
-  这是有意为之——改 manifest 的 `package` 会让手环把新包当成另一个应用，
-  无法覆盖升级，也会影响签名与调试。
+  改 manifest 的 `package` 会让手环把新包当成另一个应用，无法覆盖升级。
 - `_debug` 表示调试签名包，仅用于本地安装测试；正式分发需要 release 签名。

@@ -50,3 +50,25 @@ backup/
 > 注：以上结论基于官方多屏适配文档（`multi-screens_specs.md` 的单位定义）、
 > 模拟器 AVD 档案（`avdConfigIni.json`）与 Vela 框架源码（编译产物中的校验逻辑）
 > 三方交叉验证。**最终以真机 / 模拟器实测为准。**
+
+---
+
+### 20261007-093859 / 20261007-094143 — Band 9 + Band 9 Pro 显示修复（三设备全适配）
+
+**原始**：`original-source-20261007-093859`
+**修改后**：`modified-source-20261007-094143`
+
+**改动范围**：`devices/xiaomi-band-9`（6 个文件）+ `devices/xiaomi-band-9-pro`（7 个文件）。
+Band 10 的修复已在上一快照完成，本快照中保持不变。
+
+**修复问题**：模拟器画面溢出 / 不铺满（与 Band 10 同一根因）
+- 单位 `dp` -> `px`，与 Band 10 完全相同的处理方式。
+- Band 9：`designWidth = 192`，替换 297 处 `<数字>dp` + 12 处 `}}dp`。
+- Band 9 Pro：`designWidth = 336`，替换 339 处 `<数字>dp` + 12 处 `}}dp`。
+- 两个设备的 JS 硬编码视口常量（`maxBoardLeft` / `maxBoardTop` / `centerOn`）
+  经核验与 CSS 尺寸一一对应（192x264 / 336x280），改 px 后语义不变。
+- 两设备**均无** Band 10 那个 `protected` + `data` 的 VM 冲突，
+  因此原本按钮可以点，问题只表现在显示上。
+
+**构建验证**：三设备 `aiot build` / `aiot release` 全部 `build success`，
+包内 dp 残留均为 0。

@@ -1,0 +1,140 @@
+<template>
+  <div class="setup">
+    <div class="head">
+      <text class="back" @click="goBack">‹</text>
+      <text class="title">{{stepTitle}}</text>
+    </div>
+
+    <div class="pane" if="{{step===1}}">
+      <div class="card" style="background-color:{{mode==='two'?'#0D6EFF':'#24262B'}};color:{{mode==='two'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickMode('two')">
+        <text class="cardTitle">{{modeTwoLabel}}</text>
+        <text class="cardDesc">{{modeTwoDesc}}</text>
+      </div>
+      <div class="card" style="background-color:{{mode==='ai'?'#0D6EFF':'#24262B'}};color:{{mode==='ai'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickMode('ai')">
+        <text class="cardTitle">{{modeAiLabel}}</text>
+        <text class="cardDesc">{{modeAiDesc}}</text>
+      </div>
+    </div>
+
+    <div class="pane" if="{{step===2}}">
+      <div class="row" if="{{mode==='ai'}}">
+        <text class="rowLabel">{{sideLabel}}</text>
+        <div class="sideRow">
+          <text class="side" style="background-color:{{mySide==='white'?'#0D6EFF':'#24262B'}};color:{{mySide==='white'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickSide('white')">{{sideWhiteLabel}}</text>
+          <text class="side" style="background-color:{{mySide==='black'?'#0D6EFF':'#24262B'}};color:{{mySide==='black'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickSide('black')">{{sideBlackLabel}}</text>
+        </div>
+      </div>
+
+      <div class="row">
+        <text class="rowLabel">{{minutesLabel0}}</text>
+        <div class="stepper">
+          <text class="stepBtn" @touchend="decMinutes">−</text>
+          <text class="stepVal" style="background-color:{{!unlimited?'#0D6EFF':'#24262B'}};color:{{!unlimited?'#FFFFFF':'#C9CDD4'}};" @touchend="toggleUnlimited">{{minutesLabel}}</text>
+          <text class="stepBtn" @touchend="incMinutes">+</text>
+        </div>
+      </div>
+
+      <div class="row" if="{{!unlimited}}">
+        <text class="rowLabel">{{incrementLabel0}}</text>
+        <div class="stepper">
+          <text class="stepBtn" @touchend="decIncrement">−</text>
+          <text class="stepVal">{{incrementLabel}}</text>
+          <text class="stepBtn" @touchend="incIncrement">+</text>
+        </div>
+      </div>
+
+      <div class="row" if="{{mode==='ai'}}">
+        <text class="rowLabel">{{levelLabel}}</text>
+        <div class="segRow">
+          <text class="seg lv" style="background-color:{{aiLevel==='easy'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='easy'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('easy')">{{lvEasyShort}}</text>
+          <text class="seg lv" style="background-color:{{aiLevel==='normal'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='normal'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('normal')">{{lvNormalShort}}</text>
+          <text class="seg lv" style="background-color:{{aiLevel==='hard'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='hard'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('hard')">{{lvHardShort}}</text>
+          <text class="seg lv" style="background-color:{{aiLevel==='master'?'#0D6EFF':'#24262B'}};color:{{aiLevel==='master'?'#FFFFFF':'#C9CDD4'}};" @touchend="pickLevel('master')">{{lvMasterShort}}</text>
+        </div>
+      </div>
+    </div>
+
+    <text class="start" if="{{step===1}}" @touchend="goStep2">{{nextLabel}}</text>
+    <text class="start" if="{{step===2}}" @touchend="start">{{startLabel}}</text>
+  </div>
+</template>
+<style>
+.setup { width:212px; height:520px; background-color:#000; padding:16px 12px; flex-direction:column; overflow:hidden; }
+.head { width:188px; height:40px; flex-direction:row; align-items:center; margin-bottom:6px; }
+.back { width:32px; height:40px; color:#fff; font-size:30px; line-height:40px; text-align:center; }
+.title { color:#fff; font-size:22px; line-height:40px; font-weight:bold; }
+.pane { width:188px; flex-direction:column; }
+
+.card { width:188px; height:76px; border-radius:14px; margin-bottom:12px; padding:12px; flex-direction:column; justify-content:center; }
+.cardTitle { color:#fff; font-size:19px; line-height:24px; font-weight:bold; margin-bottom:5px; }
+.cardDesc { color:rgba(255,255,255,.72); font-size:13px; line-height:17px; }
+
+.row { width:188px; min-height:62px; flex-direction:column; align-items:stretch; justify-content:space-between; margin-bottom:4px; }
+.rowLabel { width:100%; height:15px; color:#fff; font-size:13px; line-height:15px; margin-bottom:3px; }
+
+.sideRow { width:188px; flex-direction:row; justify-content:space-between; }
+.side { width:91px; height:48px; border-radius:12px; font-size:16px; line-height:48px; text-align:center; font-weight:bold; }
+
+.stepper { width:188px; flex-direction:row; justify-content:space-between; align-items:center; }
+.stepBtn { width:52px; height:46px; border-radius:12px; background-color:#2E3138; color:#fff; font-size:26px; line-height:46px; text-align:center; }
+.stepVal { flex:1; height:46px; line-height:46px; margin:0 4px; border-radius:12px; background-color:#1C1E22; color:#fff; font-size:16px; font-weight:bold; text-align:center; }
+
+.segRow { width:188px; flex-direction:row; justify-content:space-between; }
+.seg { flex:1; height:44px; margin:0 2px; border-radius:12px; font-size:14px; line-height:44px; text-align:center; }
+.seg.lv { font-size:12px; }
+
+.start { position:absolute; left:12px; bottom:14px; width:188px; height:50px; border-radius:25px; background-color:#0D6EFF; color:#fff; font-size:18px; line-height:50px; text-align:center; font-weight:bold; }
+</style>
+<script>
+import router from '@system.router';
+export default {
+  data: { step:1, mode:'two', mySide:'white', aiLevel:'normal', minutes:10, increment:0 },
+  computed: {
+    stepTitle(){ return this.step===1 ? this.$t('setup.step1Title') : this.$t('setup.step2Title'); },
+    modeTwoLabel(){ return this.$t('setup.modeTwo'); },
+    modeTwoDesc(){ return this.$t('setup.modeTwoDesc'); },
+    modeAiLabel(){ return this.$t('setup.modeAi'); },
+    modeAiDesc(){ return this.$t('setup.modeAiDesc'); },
+    sideLabel(){ return this.$t('setup.sideLabel'); },
+    sideWhiteLabel(){ return this.$t('setup.sideWhite'); },
+    sideBlackLabel(){ return this.$t('setup.sideBlack'); },
+    minutesLabel0(){ return this.$t('setup.minutesLabel'); },
+    incrementLabel0(){ return this.$t('setup.incrementLabel'); },
+    levelLabel(){ return this.$t('setup.levelLabel'); },
+    lvEasyShort(){ return this.$t('setup.levelEasyShort'); },
+    lvNormalShort(){ return this.$t('setup.levelNormalShort'); },
+    lvHardShort(){ return this.$t('setup.levelHardShort'); },
+    lvMasterShort(){ return this.$t('setup.levelMasterShort'); },
+    nextLabel(){ return this.$t('setup.next'); },
+    startLabel(){ return this.$t('setup.start'); },
+    unlimited(){ return this.minutes === 0; },
+    minutesLabel(){ return this.minutes === 0 ? this.$t('setup.minutesInf') : this.minutes + ' ' + this.$t('setup.minutesUnit'); },
+    incrementLabel(){ return this.increment + ' ' + this.$t('setup.incrementUnit'); }
+  },
+  onInit(){ this.loadSettings(); },
+  onShow(){ this.loadSettings(); },
+  loadSettings(){ /* board size now lives on the Settings page */ },
+  goBack(){ if(this.step===2){ this.step=1; } else { router.back(); } },
+  pickMode(m){ this.mode = m; },
+  pickSide(s){ this.mySide = s; },
+  pickLevel(l){ this.aiLevel = l; },
+  incMinutes(){ if(this.minutes===0){ this.minutes=1; } else if(this.minutes<10){ this.minutes+=1; } else if(this.minutes<60){ this.minutes+=5; } },
+  decMinutes(){ if(this.minutes<=1){ this.minutes=0; } else if(this.minutes<=10){ this.minutes-=1; } else { this.minutes-=5; } },
+  toggleUnlimited(){ this.minutes = this.minutes === 0 ? 10 : 0; },
+  incIncrement(){ if(this.increment<10){ this.increment+=1; } else if(this.increment<30){ this.increment+=5; } },
+  decIncrement(){ if(this.increment<=10){ this.increment-=1; } else { this.increment-=5; } if(this.increment<0){ this.increment=0; } },
+  goStep2(){ this.step=2; },
+  start(){
+    const unlimited = this.minutes === 0;
+    router.push({uri:'/pages/game',params:{
+      minutes: String(unlimited ? 0 : this.minutes),
+      increment: String(unlimited ? 0 : this.increment),
+      unlimited: unlimited ? 'true' : 'false',
+      resume: 'false',
+      aiMode: this.mode==='ai' ? 'true' : 'false',
+      aiLevel: this.aiLevel,
+      mySide: this.mode==='ai' ? this.mySide : 'white'
+    }});
+  }
+}
+</script>
