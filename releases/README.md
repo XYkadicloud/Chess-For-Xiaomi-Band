@@ -2,14 +2,23 @@
 
 文件名格式：`Chess_<设备>_v<版本>_<签名>.rpk`
 
+## v1.2.1（当前）
+
 | 文件 | 设备 | 大小 |
 |---|---|---|
-| Chess_Band9_v1.2.0_release.rpk | Band9 | 140.8 KB |
-| Chess_Band9Pro_v1.2.0_release.rpk | Band9Pro | 144.9 KB |
-| Chess_Band10_v1.2.0_release.rpk | Band10 | 145.1 KB |
+| Chess_Band9_v1.2.1_release.rpk | Band9 | 140.8 KB |
+| Chess_Band10_v1.2.1_release.rpk | Band10 | 145.1 KB |
+
+> **Band 11 与 Band 10 通用**，使用 Band10 的包即可。
+> **Band 9 Pro 未包含在本版**，待其适配完成后单独发布。
+
+### v1.2.1 修复内容
+
+**Band 10**：
+1. 模拟器画面溢出 / 不铺满 —— 单位 `dp` -> `px`（`dp` 受设备密度影响，模拟器密度 420 -> 放大 2.6 倍）
+2. 所有控制按钮点不动 —— `purchase.ux` 的 `protected` 与 `data` 声明冲突导致 VM 构造抛错
 
 说明：
-
 - 本目录由 `tools/package_rpk.js` 生成，重新构建后再次运行即刷新。
 - **每个设备只有一个包**，中英文已合并：文本由 Vela 运行时通过 `$t()`
   对着 `src/i18n/*.json` 解析，**跟随设备语言**——中文手环显示中文、
