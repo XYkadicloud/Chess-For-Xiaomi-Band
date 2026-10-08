@@ -24,24 +24,24 @@
   </div>
 </template>
 <style>
-.purchasePage { width:192px; height:490px; background-color:#000000; flex-direction:column; }
-.header { width:192px; height:52px; align-items:center; justify-content:center; }
+.purchasePage { width:212px; height:520px; background-color:#000000; flex-direction:column; }
+.header { width:212px; height:52px; align-items:center; justify-content:center; }
 .headerTitle { color:#FFFFFF; font-size:21px; font-weight:bold; line-height:36px; }
-.purchaseList { width:192px; height:374px; padding:6px 12px 14px 12px; }
-.qrItem,.priceItem,.infoItem,.browserItem { width:168px; border-radius:16px; background-color:#252828; margin-bottom:8px; padding:10px 14px; flex-direction:column; align-items:center; justify-content:flex-start; }
-.qrItem { height:180px; padding:9px; }
+.purchaseList { width:212px; height:374px; padding:6px 12px 14px 12px; }
+.qrItem,.priceItem,.infoItem,.browserItem { width:188px; border-radius:16px; background-color:#252828; margin-bottom:8px; padding:10px 14px; flex-direction:column; align-items:center; justify-content:flex-start; }
+.qrItem { height:188px; padding:9px; }
 .qr { width:150px; height:150px; background-color:#FFFFFF; object-fit:contain; }
 .priceItem { height:82px; align-items:center; justify-content:flex-start; }
 .price { color:#4EA1FF; font-size:22px; font-weight:bold; line-height:28px; }
-.infoItem { height:162px; align-items:flex-start; }
-.browserItem { height:162px; align-items:flex-start; }
-.bodyText { width:140px; color:rgba(255,255,255,0.82); font-size:13px; line-height:19px; text-align:center; }
-.priceText { height:38px; lines:2; margin-top:2px; }
+.infoItem { height:180px; align-items:flex-start; }
+.browserItem { height:180px; align-items:flex-start; }
+.bodyText { width:160px; color:rgba(255,255,255,0.82); font-size:13px; line-height:19px; text-align:center; }
+.priceText { height:38px; lines:2; text-overflow:clip; margin-top:2px; }
 .leftText { text-align:left; }
 .tokenText,.projectText { height:38px; lines:2; text-overflow:clip; }
-.featureText,.browserText { height:95px; lines:5; text-overflow:clip; }
+.featureText,.browserText { height:114px; lines:6; text-overflow:clip; }
 .gap { margin-top:7px; }
-.buttonArea { width:192px; height:64px; align-items:center; justify-content:center; }
+.buttonArea { width:212px; height:64px; align-items:center; justify-content:center; }
 .confirmButton { width:160px; height:44px; border-radius:22px; background-color:#0D6EFF; color:#FFFFFF; font-size:18px; font-weight:bold; line-height:44px; text-align:center; }
 </style>
 <script>
@@ -60,9 +60,9 @@ export default {
     tt_purchase_confirm(){  return this.$t('purchase.confirm'); }},
   
   
-  data:{ purchaseConfirmed:false},
+  protected:{firstLaunch:'false', purchaseConfirmed:false},
   onInit(){  this.loadPurchase();},
   loadPurchase(){storage.get({key:'purchase_confirmed',success:(r)=>{const raw=r&&r.data!==undefined?r.data:r;this.purchaseConfirmed=raw===true||String(raw)==='true';},fail:()=>{this.purchaseConfirmed=false;}});},
-  confirmPurchase(){storage.set({key:'purchase_confirmed',value:'true'});this.purchaseConfirmed=true;router.back();}
+  confirmPurchase(){storage.set({key:'purchase_confirmed',value:'true'});this.purchaseConfirmed=true;if(this.firstLaunch==='true')router.replace({uri:'/pages/index'});else router.back();}
 }
 </script>

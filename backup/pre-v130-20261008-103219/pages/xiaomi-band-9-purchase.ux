@@ -33,8 +33,8 @@
 .qr { width:150px; height:150px; background-color:#FFFFFF; object-fit:contain; }
 .priceItem { height:82px; align-items:center; justify-content:flex-start; }
 .price { color:#4EA1FF; font-size:22px; font-weight:bold; line-height:28px; }
-.infoItem { height:162px; align-items:flex-start; }
-.browserItem { height:162px; align-items:flex-start; }
+.infoItem { height:150px; align-items:flex-start; }
+.browserItem { height:150px; align-items:flex-start; }
 .bodyText { width:140px; color:rgba(255,255,255,0.82); font-size:13px; line-height:19px; text-align:center; }
 .priceText { height:38px; lines:2; margin-top:2px; }
 .leftText { text-align:left; }

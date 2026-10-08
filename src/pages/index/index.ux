@@ -12,7 +12,7 @@
 <style>
 .home { width:336dp; height:480dp; background-color:#000000; flex-direction:column; align-items:center; padding-top:56dp; }
 .homeMark { width:72dp; height:72dp; border-radius:36dp; background-color:#2D3030; justify-content:center; align-items:center; margin-bottom:18dp; }
-.homeIcon { width:56dp; height:56dp; object-fit:contain; }
+.homeIcon { width:72dp; height:72dp; object-fit:contain; }
 .title { color:#FFFFFF; font-size:24dp; font-weight:bold; line-height:34dp; }
 .subtitle { color:rgba(255,255,255,0.55); font-size:13dp; line-height:24dp; margin-bottom:30dp; }
 .primary,.secondary { width:154dp; height:44dp; border-radius:22dp; text-align:center; line-height:44dp; font-size:18dp; font-weight:bold; margin-bottom:10dp; }

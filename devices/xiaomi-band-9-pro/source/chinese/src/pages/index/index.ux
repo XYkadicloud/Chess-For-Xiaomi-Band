@@ -11,7 +11,7 @@
 <style>
 .home { width:336px; height:480px; background-color:#000000; flex-direction:column; align-items:center; padding-top:56px; }
 .homeMark { width:72px; height:72px; border-radius:36px; background-color:#2D3030; justify-content:center; align-items:center; margin-bottom:18px; }
-.homeIcon { width:56px; height:56px; object-fit:contain; }
+.homeIcon { width:72px; height:72px; object-fit:contain; }
 .title { color:#FFFFFF; font-size:24px; font-weight:bold; line-height:34px; margin-bottom:34px; }
 .primary,.secondary { width:154px; height:44px; border-radius:22px; text-align:center; line-height:44px; font-size:18px; font-weight:bold; margin-bottom:10px; }
 .primary { background-color:#0D6EFF; color:#FFFFFF; }

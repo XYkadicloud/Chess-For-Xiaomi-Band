@@ -49,12 +49,12 @@
   </div>
 </template>
 <style>
-.page { width:192px; height:490px; background-color:#000000; flex-direction:column; }
-.header { width:192px; height:52px; position:relative; align-items:center; justify-content:center; }
+.page { width:336px; height:480px; background-color:#000000; flex-direction:column; }
+.header { width:336px; height:52px; position:relative; align-items:center; justify-content:center; }
 .back { position:absolute; left:12px; top:8px; width:32px; height:36px; color:#FFFFFF; font-size:30px; line-height:36px; text-align:center; }
-.headerTitle { width:192px; color:#FFFFFF; font-size:21px; font-weight:bold; line-height:36px; text-align:center; }
-.aboutList { width:192px; height:438px; padding:8px 12px 28px 12px; }
-.appItem,.authorItem,.infoItem,.supportItem,.purchaseEntryItem { width:168px; margin-bottom:10px; border-radius:16px; background-color:#252828; align-items:center; }
+.headerTitle { width:336px; color:#FFFFFF; font-size:21px; font-weight:bold; line-height:36px; text-align:center; }
+.aboutList { width:336px; height:428px; padding:8px 12px 28px 12px; }
+.appItem,.authorItem,.infoItem,.supportItem,.purchaseEntryItem { width:312px; margin-bottom:10px; border-radius:16px; background-color:#252828; align-items:center; }
 .appItem { height:150px; flex-direction:column; justify-content:center; }
 .appIcon { width:68px; height:68px; object-fit:contain; margin-bottom:4px; }
 .appName { color:#FFFFFF; font-size:20px; font-weight:bold; line-height:26px; }
@@ -65,18 +65,18 @@
 .authorLabel { width:70px; color:rgba(255,255,255,0.6); font-size:12px; line-height:17px; }
 .developer { width:70px; color:#FFFFFF; font-size:18px; font-weight:bold; line-height:24px; }
 .creditsItem { height:104px; }
-.infoItem { min-height:165px; padding:14px 14px 12px 14px; flex-direction:column; align-items:flex-start; justify-content:flex-start; }
+.infoItem { height:112px; padding:14px 14px 12px 14px; flex-direction:column; align-items:flex-start; justify-content:flex-start; }
 .rulesItem { height:128px; }
-.sectionTitle { width:140px; color:#FFFFFF; font-size:16px; font-weight:bold; line-height:23px; margin-bottom:5px; }
-.bodyText { width:140px; color:rgba(255,255,255,0.78); font-size:11px; line-height:15px; }
-.supportItem { height:310px; padding:14px 10px 16px 10px; flex-direction:column; justify-content:flex-start; }
-.supportTitle { width:148px; text-align:center; }
-.supportText { width:148px; color:rgba(255,255,255,0.78); font-size:13px; line-height:19px; text-align:center; margin-bottom:10px; }
-.qrPreview { width:160px; height:160px; background-color:#FFFFFF; object-fit:contain; }
-.qrButton { width:150px; height:34px; margin-top:8px; border-radius:17px; background-color:#0D6EFF; color:#FFFFFF; font-size:13px; line-height:34px; text-align:center; }
+.sectionTitle { width:280px; color:#FFFFFF; font-size:16px; font-weight:bold; line-height:23px; margin-bottom:5px; }
+.bodyText { width:280px; color:rgba(255,255,255,0.78); font-size:13px; line-height:19px; }
+.supportItem { height:380px; padding:14px 10px 16px 10px; flex-direction:column; justify-content:flex-start; }
+.supportTitle { width:280px; text-align:center; }
+.supportText { width:280px; color:rgba(255,255,255,0.78); font-size:13px; line-height:19px; text-align:center; margin-bottom:10px; }
+.qrPreview { width:240px; height:240px; background-color:#FFFFFF; object-fit:contain; }
+.qrButton { width:240px; height:34px; margin-top:8px; border-radius:17px; background-color:#0D6EFF; color:#FFFFFF; font-size:13px; line-height:34px; text-align:center; }
 .purchaseEntryItem { height:54px; justify-content:center; }
-.purchaseEntry { width:150px; height:38px; border-radius:19px; background-color:#0D6EFF; color:#FFFFFF; font-size:16px; font-weight:bold; line-height:38px; text-align:center; }
-.thanksItem { width:168px; height:50px; align-items:center; justify-content:center; background-color:#000000; }
+.purchaseEntry { width:240px; height:38px; border-radius:19px; background-color:#0D6EFF; color:#FFFFFF; font-size:16px; font-weight:bold; line-height:38px; text-align:center; }
+.thanksItem { width:312px; height:50px; align-items:center; justify-content:center; background-color:#000000; }
 .thanks { color:rgba(255,255,255,0.45); font-size:13px; text-align:center; }
 </style>
 <script>
@@ -97,8 +97,8 @@ export default {
     tt_about_afdian(){ return this.$t('about.afdian'); },
     tt_about_afdianBody(){ return this.$t('about.afdianBody'); },
     tt_about_afdianButton(){ return this.$t('about.afdianButton'); },
-    tt_about_thanks(){ return this.$t('about.thanks'); },
     tt_about_goPay(){ return this.$t('about.goPay'); },
+    tt_about_thanks(){ return this.$t('about.thanks'); },
     versionText(){ return this.$t('about.version'); }
   },
   data:{purchaseConfirmed:false},
