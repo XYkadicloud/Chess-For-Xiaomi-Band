@@ -4,7 +4,7 @@
       <text class="turn">{{statusText}}</text>
       <text class="menuButton" @click="toggleMenu">☰</text>
     </div>
-    <div class="clocks"><div class="clockCol" style="width:100px;color:{{turn==='white'?'#4EA1FF':'#FFFFFF'}};"><text class="clockLabel">{{whiteLabel}}</text><text class="clockTime">{{whiteClock}}</text></div><div class="clockCol" style="width:100px;color:{{turn==='black'?'#4EA1FF':'#FFFFFF'}};"><text class="clockLabel">{{blackLabel}}</text><text class="clockTime">{{blackClock}}</text></div></div>
+    <div class="clocks"><div class="clockCol" style="width:92px;color:{{turn==='white'?'#4EA1FF':'#FFFFFF'}};"><text class="clockLabel">{{whiteLabel}}</text><text class="clockTime">{{whiteClock}}</text></div><div class="clockCol" style="width:92px;color:{{turn==='black'?'#4EA1FF':'#FFFFFF'}};"><text class="clockLabel">{{blackLabel}}</text><text class="clockTime">{{blackClock}}</text></div></div>
 
     <div class="boardViewport" @swipe="blockSwipe" @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd">
       <div class="board" style="width:{{boardSize}}px;height:{{boardSize}}px;left:{{boardLeft}}px;top:{{boardTop}}px;">
@@ -59,27 +59,27 @@
 </template>
 
 <style>
-.page { width:212px; height:520px; background-color:#000000; flex-direction:column; overflow:hidden; }
-.topbar { width:212px; height:48px; padding:8px 12px 0px 12px; position:relative; flex-direction:row; justify-content:center; align-items:center; }
-.turn { color:#FFFFFF; font-size:20px; font-weight:bold; width:212px; lines:1; text-align:center; text-overflow:ellipsis; }
+.page { width:192px; height:490px; background-color:#000000; flex-direction:column; overflow:hidden; }
+.topbar { width:192px; height:48px; padding:8px 12px 0px 12px; position:relative; flex-direction:row; justify-content:center; align-items:center; }
+.turn { color:#FFFFFF; font-size:20px; font-weight:bold; width:192px; lines:1; text-align:center; text-overflow:ellipsis; }
 .menuButton { position:absolute; right:12px; top:10px; color:#FFFFFF; font-size:21px; width:24px; text-align:center; }
-.clocks { width:212px; height:42px; flex-direction:row; justify-content:space-around; align-items:center; }.clockCol { flex-direction:column; justify-content:center; align-items:center; }.clockLabel { font-size:11px; height:14px; line-height:14px; text-align:center; opacity:0.85; }.clockTime  { font-size:20px; font-weight:bold; height:24px; line-height:24px; text-align:center; }
+.clocks { width:192px; height:42px; flex-direction:row; justify-content:space-around; align-items:center; }.clockCol { flex-direction:column; justify-content:center; align-items:center; }.clockLabel { font-size:11px; height:14px; line-height:14px; text-align:center; opacity:0.85; }.clockTime  { font-size:20px; font-weight:bold; height:24px; line-height:24px; text-align:center; }
 
-.boardViewport { width:212px; height:264px; position:relative; overflow:hidden; background-color:#050505; }
+.boardViewport { width:192px; height:264px; position:relative; overflow:hidden; background-color:#050505; }
 .board { position:absolute; }
 .square { position:absolute; justify-content:center; align-items:center; }
 .pieceImage { position:absolute; left:2px; top:2px; width:26px; height:26px; object-fit:contain; z-index:3; }
 .selected { position:absolute; left:2px; top:2px; right:2px; bottom:2px; border:3px solid #0D6EFF; z-index:2; }
 .lastMove { position:absolute; left:0px; top:0px; right:0px; bottom:0px; background-color:rgba(255,149,0,0.32); z-index:1; }
 .legalDot { width:10px; height:10px; border-radius:5px; background-color:#0D6EFF; position:absolute; z-index:4; }
-.hint { width:212px; height:46px; justify-content:center; align-items:center; }
+.hint { width:192px; height:46px; justify-content:center; align-items:center; }
 .hintText { color:rgba(255,255,255,0.7); font-size:16px; text-align:center; }
 .hintDots { color:#4EA1FF; font-size:16px; margin-left:2px; }
 .thinkingRing { position:absolute; left:0px; top:0px; right:0px; bottom:0px; border:2px solid #4EA1FF; opacity:0.85; }
-.bottom { width:212px; height:58px; justify-content:space-around; align-items:center; }
+.bottom { width:192px; height:58px; justify-content:space-around; align-items:center; }
 .action { color:#FFFFFF; background-color:#262626; border-radius:20px; padding:8px 18px; font-size:16px; font-weight:bold; }
-.overlay { position:absolute; left:0px; top:0px; width:212px; height:520px; background-color:rgba(0,0,0,0.92); justify-content:center; align-items:center; z-index:20; }
-.menuCard { width:212px; height:520px; padding:24px 12px; background-color:#262626; border-radius:0px; align-items:center; justify-content:center; flex-direction:column; }
+.overlay { position:absolute; left:0px; top:0px; width:192px; height:490px; background-color:rgba(0,0,0,0.92); justify-content:center; align-items:center; z-index:20; }
+.menuCard { width:192px; height:490px; padding:24px 12px; background-color:#262626; border-radius:0px; align-items:center; justify-content:center; flex-direction:column; }
 .resultCard { padding-top:20px; padding-bottom:20px; }
 .menuTitle { color:#FFFFFF; font-size:23px; font-weight:bold; margin-bottom:10px; }
 .menuItem { width:142px; height:38px; margin-top:6px; border-radius:19px; background-color:#3A3A3A; color:#FFFFFF; font-size:16px; text-align:center; line-height:38px; }
@@ -230,16 +230,16 @@ export default {
     else{const dirs=[];if(type==='B'||type==='Q')dirs.push([1,1],[1,-1],[-1,1],[-1,-1]);if(type==='R'||type==='Q')dirs.push([1,0],[-1,0],[0,1],[0,-1]);dirs.forEach(d=>{let r=row+d[0],c=col+d[1];while(add(r,c)){r+=d[0];c+=d[1];}});}return out;},
   applyBoardMove(board,from,to){const b=board.slice(),p=b[from],color=p[0],type=p[1];b[to]=p;b[from]=null;if(type==='P'&&Math.abs(to-from)===7&&Math.floor(from/8)!==Math.floor(to/8)&&!board[to]){const cap=color==='w'?to+8:to-8;if(b[cap]&&b[cap][0]!==color&&b[cap][1]==='P')b[cap]=null;}if(type==='K'&&Math.abs(to-from)===2){const rf=to>from?from+3:from-4,rt=to>from?from+1:from-1;b[rt]=b[rf];b[rf]=null;}if(type==='P'&&(Math.floor(to/8)===0||Math.floor(to/8)===7))b[to]=color+'Q';return b;},
   isSquareAttacked(board,sq,by){const r=Math.floor(sq/8),c=sq%8;const pawn=by==='w'?'wP':'bP';const pr=by==='w'?r+1:r-1;for(const dc of[-1,1]){const pc=c+dc;if(pr>=0&&pr<8&&pc>=0&&pc<8&&board[pr*8+pc]===pawn)return true;}const knight=by+'N';for(const d of[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]]){const rr=r+d[0],cc=c+d[1];if(rr>=0&&rr<8&&cc>=0&&cc<8&&board[rr*8+cc]===knight)return true;}const king=by+'K';for(let rr=r-1;rr<=r+1;rr++)for(let cc=c-1;cc<=c+1;cc++)if((rr!==r||cc!==c)&&rr>=0&&rr<8&&cc>=0&&cc<8&&board[rr*8+cc]===king)return true;const scan=(dirs,pieces)=>{for(const d of dirs){let rr=r+d[0],cc=c+d[1];while(rr>=0&&rr<8&&cc>=0&&cc<8){const q=board[rr*8+cc];if(q){if(q[0]===by&&pieces.indexOf(q[1])>=0)return true;break;}rr+=d[0];cc+=d[1];}}return false;};return scan([[1,0],[-1,0],[0,1],[0,-1]],'RQ')||scan([[1,1],[1,-1],[-1,1],[-1,-1]],'BQ');},
-  isInCheckBoard(board,color){const c=(color==='white'||color==='w')?'w':'b';const sq=board.indexOf(c+'K');return sq>=0&&this.isSquareAttacked(board,sq,c==='w'?'b':'w');},
+  isInCheckBoard(board,color){const king=color+'K',sq=board.indexOf(king);return sq>=0&&this.isSquareAttacked(board,sq,color==='w'?'b':'w');},
   hasLegalMove(color){const side=color[0];for(let i=0;i<64;i++)if(this.board[i]&&this.board[i][0]===side&&this.getMoves(i).length)return true;return false;},
   isCheckmate(color){return this.isInCheckBoard(this.board,color)&&!this.hasLegalMove(color);},
   isStalemate(color){return !this.isInCheckBoard(this.board,color)&&!this.hasLegalMove(color);},
   positionKey(board,turn){return board.map(p=>p||'-').join('')+'|'+turn+'|'+JSON.stringify(this.castling);},
   isInsufficientMaterial(){const pieces=[];for(let i=0;i<64;i++)if(this.board[i]&&this.board[i][1]!=='K')pieces.push(this.board[i]);if(!pieces.length)return true;if(pieces.length===1&&(pieces[0][1]==='B'||pieces[0][1]==='N'))return true;if(pieces.length===2&&pieces[0][1]==='B'&&pieces[1][1]==='B'){const a=this.board.indexOf(pieces[0]),b=this.board.indexOf(pieces[1]);return ((Math.floor(a/8)+a%8)%2)===((Math.floor(b/8)+b%8)%2);}return false;},
   nameOf(i){return 'abcdefgh'[i%8]+(8-Math.floor(i/8));},
-  maxBoardLeft(){return Math.min(0,212-this.boardSize);},
+  maxBoardLeft(){return Math.min(0,192-this.boardSize);},
   maxBoardTop(){return Math.min(0,264-this.boardSize);},
-  centerOn(i){const col=i%8,row=Math.floor(i/8);this.boardLeft=Math.max(this.maxBoardLeft(),Math.min(0,106-(col+0.5)*this.squareSize));this.boardTop=Math.max(this.maxBoardTop(),Math.min(0,132-(row+0.5)*this.squareSize));},
+  centerOn(i){const col=i%8,row=Math.floor(i/8);this.boardLeft=Math.max(this.maxBoardLeft(),Math.min(0,96-(col+0.5)*this.squareSize));this.boardTop=Math.max(this.maxBoardTop(),Math.min(0,132-(row+0.5)*this.squareSize));},
   onTouchStart(e){if(e.stopPropagation)e.stopPropagation();this.touchX=e.touches[0].pageX;this.touchY=e.touches[0].pageY;this.pendingTouchX=this.touchX;this.pendingTouchY=this.touchY;this.dragging=true;},
   onTouchMove(e){if(e.stopPropagation)e.stopPropagation();if(e.preventDefault)e.preventDefault();if(!this.dragging)return;this.pendingTouchX=e.touches[0].pageX;this.pendingTouchY=e.touches[0].pageY;if(this.touchQueued)return;this.touchQueued=true;setTimeout(()=>{this.touchQueued=false;if(!this.dragging)return;const x=this.pendingTouchX,y=this.pendingTouchY;const minLeft=this.maxBoardLeft(),minTop=this.maxBoardTop();this.boardLeft=Math.max(minLeft,Math.min(0,this.boardLeft+x-this.touchX));this.boardTop=Math.max(minTop,Math.min(0,this.boardTop+y-this.touchY));this.touchX=x;this.touchY=y;},16);},
   onTouchEnd(){this.dragging=false;this.touchQueued=false;},
