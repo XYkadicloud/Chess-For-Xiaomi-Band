@@ -48,6 +48,7 @@ const argOf = (name, dflt) => {
   return i >= 0 && argv[i + 1] ? argv[i + 1] : dflt;
 };
 const FILL = parseFloat(argOf('--fill', '190'));
+const CIRCLE = argv.includes('--circle');   /* mask the artwork into a disc */
 const DRY = argv.includes('--dry-run');
 const FROM = argOf('--from', null);
 const OUT = argOf('--out', null);      /* write to a preview dir instead of the project */
@@ -131,13 +132,17 @@ function toPremul(im) {
   return out;
 }
 
-/* Build a CANVAS x CANVAS icon whose artwork fills `fill` px, centred. */
-function buildIcon(im, fill) {
+/* Build a CANVAS x CANVAS icon whose artwork fills `fill` px, centred.
+ * With `circle`, the artwork is additionally masked into a disc of the same
+ * diameter — this is what turns the square artwork into a round launcher icon
+ * (and matches the reference app, whose icon is a full-bleed circle). */
+function buildIcon(im, fill, circle) {
   const box = contentBox(im);
   if (!box) throw new Error('source icon has no opaque content');
   const premul = toPremul(im);
   const canvas = Buffer.alloc(CANVAS * CANVAS * 4, 0);   // fully transparent
   const off = Math.round((CANVAS - fill) / 2);
+  const R = fill / 2;
 
   for (let oy = 0; oy < fill; oy++) {
     const dy = off + oy;
@@ -154,16 +159,26 @@ function buildIcon(im, fill) {
       const b = sampleBicubic(premul, im.w, im.h, 2, sx, sy);
       let a = sampleBicubic(premul, im.w, im.h, 3, sx, sy);
 
+      if (circle) {
+        /* Distance from the disc centre in destination pixels.  A 1px linear
+         * ramp across the rim keeps the edge antialiased instead of jagged. */
+        const dcx = dx - (CANVAS - 1) / 2;
+        const dcy = dy - (CANVAS - 1) / 2;
+        const dist = Math.sqrt(dcx * dcx + dcy * dcy);
+        const cov = Math.max(0, Math.min(1, R + 0.5 - dist));
+        a *= cov;
+      }
+
       a = Math.max(0, Math.min(255, Math.round(a)));
-      let R = 0, G = 0, B = 0;
+      let R8 = 0, G8 = 0, B8 = 0;
       if (a > 0) {
         const af = a / 255;
-        R = Math.max(0, Math.min(255, Math.round(r / af)));
-        G = Math.max(0, Math.min(255, Math.round(g / af)));
-        B = Math.max(0, Math.min(255, Math.round(b / af)));
+        R8 = Math.max(0, Math.min(255, Math.round(r / af)));
+        G8 = Math.max(0, Math.min(255, Math.round(g / af)));
+        B8 = Math.max(0, Math.min(255, Math.round(b / af)));
       }
       const o = (CANVAS * dy + dx) << 2;
-      canvas[o] = R; canvas[o + 1] = G; canvas[o + 2] = B; canvas[o + 3] = a;
+      canvas[o] = R8; canvas[o + 1] = G8; canvas[o + 2] = B8; canvas[o + 3] = a;
     }
   }
   return { data: canvas, box, off };
@@ -199,14 +214,21 @@ const master = loadRGBA(MASTER);
 const mbox = contentBox(master);
 console.log(`master : ${MASTER}`);
 console.log(`         ${master.w}x${master.h}  content bbox ${mbox.w}x${mbox.h} (fill ${(100 * mbox.w / master.w).toFixed(1)}%)`);
-console.log(`target : ${CANVAS}x${CANVAS}, artwork ${FILL}px (fill ${(100 * FILL / CANVAS).toFixed(1)}%), centred offset ${Math.round((CANVAS - FILL) / 2)}`);
+console.log(`target : ${CANVAS}x${CANVAS}, artwork ${FILL}px (fill ${(100 * FILL / CANVAS).toFixed(1)}%), centred offset ${Math.round((CANVAS - FILL) / 2)}${CIRCLE ? ', masked to a DISC' : ''}`);
 console.log(`alpha  : premultiplied bicubic (Catmull-Rom)`);
 console.log('');
 
-const built = buildIcon(master, FILL);
+const built = buildIcon(master, FILL, CIRCLE);
 const st = stats(built.data);
 console.log(`result : content bbox ${st.w}x${st.h} at (${st.bbox[0]},${st.bbox[1]})  fill ${(100 * st.w / CANVAS).toFixed(1)}%`);
 console.log(`         semi-transparent px ${st.semi}   fully opaque px ${st.opaque}`);
+if (CIRCLE) {
+  /* Verify the disc: the four corners must be empty and the mid-edges filled. */
+  const at = (x, y) => built.data[((CANVAS * y + x) << 2) + 3];
+  const c = CANVAS - 1;
+  console.log(`         corner alpha: TL=${at(st.bbox[0], st.bbox[1])} TR=${at(st.bbox[2], st.bbox[1])} BL=${at(st.bbox[0], st.bbox[3])} BR=${at(st.bbox[2], st.bbox[3])}  (应为 0)`);
+  console.log(`         edge alpha  : L=${at(st.bbox[0], CANVAS >> 1)} R=${at(st.bbox[2], CANVAS >> 1)} T=${at(CANVAS >> 1, st.bbox[1])} B=${at(CANVAS >> 1, st.bbox[3])}  (应 >0)`);
+}
 console.log('');
 
 const targets = OUT
